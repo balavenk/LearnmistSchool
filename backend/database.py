@@ -8,7 +8,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "mysql+mysqlconnector://root:password@l
 
 import time
 
-def get_engine(max_retries=5, delay=5):
+def get_engine(max_retries=60, delay=2):
     retries = 0
     while retries < max_retries:
         try:
