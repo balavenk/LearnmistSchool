@@ -13,6 +13,8 @@ RUN npm run build
 FROM nginx:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
+# Fix permissions for Nginx
+RUN chmod -R 755 /usr/share/nginx/html
 
 # Nginx config for React Router
 RUN echo 'server { \
