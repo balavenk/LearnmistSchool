@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from .models import UserRole
+from models import UserRole
 
 class Token(BaseModel):
     access_token: str

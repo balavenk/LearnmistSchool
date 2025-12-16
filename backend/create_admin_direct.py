@@ -1,7 +1,7 @@
 import os
 import time
 from sqlalchemy import create_engine, text
-from passlib.context import CryptContext
+import bcrypt
 
 # Hardcoded container credentials (from docker-compose)
 DATABASE_URL = "mysql+mysqlconnector://user:password@db/learnmistschool"
@@ -23,8 +23,9 @@ def fix_admin():
     print("Connecting to DB...")
     engine = wait_for_db()
     
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    hashed = pwd_context.hash("admin123")
+    # Use bcrypt directly to avoid passlib limitation/bug
+    password = b"admin123"
+    hashed = bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
     
     with engine.connect() as conn:
         print("Checking superadmin...")
