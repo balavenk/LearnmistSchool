@@ -1,4 +1,4 @@
-from . import database, models, auth
+import database, models, auth
 
 def seed():
     db = database.SessionLocal()
