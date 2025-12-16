@@ -64,12 +64,14 @@ if (-not $vmStatus) {
 
 # 3. Deploy Files
 Write-Host "Compressing and uploading application files..."
-# Use git archive to avoid uploading node_modules/venv (which are ignored)
-git archive --format=tar.gz -o app.tar.gz HEAD
+# detailed exclusion for tar on windows might be tricky, let's try standard exclusion
+# If tar is failing, we fallback to simple tar but rely on .dockerignore for the build
+tar --exclude="node_modules" --exclude="venv" --exclude=".git" -czf app.tar.gz backend frontend docker-compose.yml
 
 # Check SSH readiness (loop a few times if new VM)
 Write-Host "Uploading files (this may take a moment)..."
-Invoke-Expression "$gcloudCmd compute scp app.tar.gz ${vmName}:~/ --zone=$zone --quiet"
+# Using explicit filename in target to avoid folder expansion issues
+Invoke-Expression "$gcloudCmd compute scp app.tar.gz ${vmName}:app.tar.gz --zone=$zone --quiet"
 
 # 4. Firewall
 Write-Host "Ensuring HTTP firewall rule exists..."
