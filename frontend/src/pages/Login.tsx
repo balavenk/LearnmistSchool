@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { jwtDecode } from "jwt-decode";
+import logo from '../assets/logo.png';
 
 interface TokenPayload {
     role: string;
@@ -54,8 +55,13 @@ const Login: React.FC = () => {
             <div className="absolute top-20 left-20 w-72 h-72 bg-purple-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
             <div className="absolute bottom-20 right-20 w-72 h-72 bg-blue-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
 
-            <div className="relative z-10 bg-white bg-opacity-10 backdrop-filter backdrop-blur-lg border border-white border-opacity-20 rounded-2xl shadow-2xl p-8 w-full max-w-md overflow-hidden">
+
+
+            // ... (inside the component)
+
+            <div className="relative z-10 bg-white bg-opacity-10 backdrop-filter backdrop-blur-lg border border-white border-opacity-20 rounded-2xl shadow-2xl p-8 w-full max-w-md overflow-hidden flex flex-col items-center">
                 <div className="text-center mb-8">
+                    <img src={logo} alt="Learnmist Logo" className="h-20 w-auto mx-auto mb-4 rounded-full shadow-lg" />
                     <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">Learnmist</h1>
                     <p className="text-indigo-200">School Management System</p>
                 </div>
@@ -98,8 +104,8 @@ const Login: React.FC = () => {
                         type="submit"
                         disabled={isLoading}
                         className={`w-full py-3 px-4 rounded-lg text-white font-bold shadow-lg transition duration-300 transform hover:-translate-y-1 ${isLoading
-                                ? 'bg-gray-600 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                            ? 'bg-gray-600 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
                             }`}
                     >
                         {isLoading ? (
