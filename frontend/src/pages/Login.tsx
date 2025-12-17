@@ -1,124 +1,116 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/axios';
-import { jwtDecode } from "jwt-decode";
-import logo from '../assets/logo.png';
-
-interface TokenPayload {
-    role: string;
-    sub: string;
-}
 
 const Login: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setError('');
 
-        try {
-            const formData = new FormData();
-            formData.append('username', username);
-            formData.append('password', password);
+        // MOCK LOGIN LOGIC
+        // We determine the role based on the username for testing purposes.
+        let role = 'STUDENT';
+        if (username.toLowerCase().includes('super')) role = 'SUPER_ADMIN';
+        else if (username.toLowerCase().includes('school')) role = 'SCHOOL_ADMIN';
+        else if (username.toLowerCase().includes('teacher')) role = 'TEACHER';
 
-            const response = await api.post('/token', formData);
-            const { access_token } = response.data;
+        // Simulate network delay
+        setTimeout(() => {
+            localStorage.setItem('token', 'mock_token_12345');
+            localStorage.setItem('role', role);
+            localStorage.setItem('username', username);
 
-            localStorage.setItem('token', access_token);
-
-            const decoded = jwtDecode<TokenPayload>(access_token);
-            const role = decoded.role;
-
-            // Wait a moment purely for better UX feeling
-            setTimeout(() => {
-                if (role === 'SUPER_ADMIN') navigate('/super-admin');
-                else if (role === 'SCHOOL_ADMIN') navigate('/school-admin');
-                else if (role === 'TEACHER') navigate('/teacher');
-                else if (role === 'STUDENT') navigate('/student');
-                else navigate('/');
-            }, 500);
-
-        } catch (err: any) {
-            setError(err.response?.status === 401 ? 'Invalid username or password' : 'Login failed. Please try again.');
             setIsLoading(false);
-        }
+
+            // Redirect based on role
+            if (role === 'SUPER_ADMIN') navigate('/super-admin');
+            else if (role === 'SCHOOL_ADMIN') navigate('/school-admin');
+            else if (role === 'TEACHER') navigate('/teacher');
+            else if (role === 'STUDENT') navigate('/student');
+            else navigate('/');
+
+        }, 1500);
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900">
-            {/* Background decorative blobs */}
-            <div className="absolute top-20 left-20 w-72 h-72 bg-purple-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
-            <div className="absolute bottom-20 right-20 w-72 h-72 bg-blue-600 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="min-h-screen flex w-full">
+            {/* Left Side - Hero Section */}
+            <div className="hidden lg:flex w-1/2 bg-slate-900 relative items-center justify-center overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/30 to-purple-600/30 z-10" />
+                <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" />
+                <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" />
 
-
-
-            // ... (inside the component)
-
-            <div className="relative z-10 bg-white bg-opacity-10 backdrop-filter backdrop-blur-lg border border-white border-opacity-20 rounded-2xl shadow-2xl p-8 w-full max-w-md overflow-hidden flex flex-col items-center">
-                <div className="text-center mb-8">
-                    <img src={logo} alt="Learnmist Logo" className="h-20 w-auto mx-auto mb-4 rounded-full shadow-lg" />
-                    <h1 className="text-4xl font-extrabold text-white tracking-tight mb-2">Learnmist</h1>
-                    <p className="text-indigo-200">School Management System</p>
+                <div className="relative z-20 text-center px-12">
+                    <h1 className="text-5xl font-bold text-white mb-6">Learnmist School</h1>
+                    <p className="text-xl text-indigo-200">Empowering the next generation of learners.</p>
                 </div>
+            </div>
 
-                {error && (
-                    <div className="bg-red-500 bg-opacity-20 border border-red-500 text-red-100 px-4 py-3 rounded relative mb-4 text-center text-sm" role="alert">
-                        <span className="block sm:inline">{error}</span>
-                    </div>
-                )}
-
-                <form onSubmit={handleLogin} className="space-y-6">
-                    <div>
-                        <label className="block text-indigo-100 text-sm font-bold mb-2 ml-1">Username</label>
-                        <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg bg-gray-900 bg-opacity-40 border border-gray-600 focus:border-blue-500 focus:bg-gray-800 focus:outline-none text-white placeholder-gray-400 transition duration-200"
-                            placeholder="Enter your username"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-indigo-100 text-sm font-bold mb-2 ml-1">Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg bg-gray-900 bg-opacity-40 border border-gray-600 focus:border-blue-500 focus:bg-gray-800 focus:outline-none text-white placeholder-gray-400 transition duration-200"
-                            placeholder="••••••••"
-                            required
-                        />
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-indigo-200">
-                        {/* Future feature: Forgot Password */}
-                        <a href="#" className="hover:text-white transition">Forgot password?</a>
+            {/* Right Side - Login Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center bg-white p-8">
+                <div className="w-full max-w-md">
+                    <div className="mb-10">
+                        <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome back</h2>
+                        <p className="text-slate-500">Please enter your details to sign in.</p>
+                        <div className="mt-4 p-4 bg-indigo-50 rounded-lg text-xs text-indigo-800">
+                            <p className="font-bold mb-1">Mock Login Hints:</p>
+                            <p>Username containing "super" - Super Admin</p>
+                            <p>Username containing "school" - School Admin</p>
+                            <p>Username containing "teacher" - Teacher</p>
+                            <p>Otherwise - Student</p>
+                        </div>
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className={`w-full py-3 px-4 rounded-lg text-white font-bold shadow-lg transition duration-300 transform hover:-translate-y-1 ${isLoading
-                            ? 'bg-gray-600 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                            }`}
-                    >
-                        {isLoading ? (
-                            <div className="flex items-center justify-center">
-                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Signing In...
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Username</label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-transparent outline-none transition-all placeholder-slate-400"
+                                placeholder="Enter your username"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Password</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-600 focus:border-transparent outline-none transition-all placeholder-slate-400"
+                                placeholder="••••••••"
+                                required
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                <input type="checkbox" className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+                                <label className="ml-2 text-sm text-slate-600">Remember me</label>
                             </div>
-                        ) : 'Sign In'}
-                    </button>
-                </form>
+                            <a href="#" className="text-sm font-medium text-indigo-600 hover:text-indigo-800">Forgot password?</a>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-[1.02] shadow-lg shadow-indigo-500/30 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {isLoading ? 'Signing in...' : 'Sign in'}
+                        </button>
+                    </form>
+
+                    <p className="mt-8 text-center text-sm text-slate-600">
+                        Don't have an account? <a href="#" className="font-medium text-indigo-600 hover:text-indigo-800">Sign up for free</a>
+                    </p>
+                </div>
             </div>
         </div>
     );

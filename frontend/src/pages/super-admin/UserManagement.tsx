@@ -1,0 +1,265 @@
+import React, { useState, useMemo } from 'react';
+
+// --- Mock Data Types ---
+type UserRole = 'SCHOOL_ADMIN' | 'TEACHER' | 'STUDENT';
+
+interface MockUser {
+    id: number;
+    schoolId: number;
+    name: string;
+    email: string;
+    role: UserRole;
+    status: 'Active' | 'Inactive';
+    // Role specific fields (optional for mock simplicity)
+    grade?: string; // For students
+    subject?: string; // For teachers
+}
+
+interface MockSchool {
+    id: number;
+    name: string;
+}
+
+// --- Mock Data Generation ---
+const SCHOOLS: MockSchool[] = Array.from({ length: 15 }, (_, i) => ({
+    id: i + 1,
+    name: `Learnmist School ${String.fromCharCode(65 + i)}`,
+}));
+
+const USERS: MockUser[] = [];
+// Generate users for each school
+SCHOOLS.forEach(school => {
+    // 3 Admins
+    for (let i = 1; i <= 3; i++) {
+        USERS.push({
+            id: USERS.length + 1,
+            schoolId: school.id,
+            name: `${school.name} Admin ${i}`,
+            email: `admin${i}@${school.name.replace(/\s/g, '').toLowerCase()}.com`,
+            role: 'SCHOOL_ADMIN',
+            status: 'Active'
+        });
+    }
+    // 10 Teachers
+    for (let i = 1; i <= 10; i++) {
+        USERS.push({
+            id: USERS.length + 1,
+            schoolId: school.id,
+            name: `${school.name} Teacher ${i}`,
+            email: `teacher${i}@${school.name.replace(/\s/g, '').toLowerCase()}.com`,
+            role: 'TEACHER',
+            status: 'Active',
+            subject: ['Math', 'Science', 'History', 'English', 'Art'][i % 5]
+        });
+    }
+    // 50 Students
+    for (let i = 1; i <= 50; i++) {
+        USERS.push({
+            id: USERS.length + 1,
+            schoolId: school.id,
+            name: `${school.name} Student ${i}`,
+            email: `student${i}@${school.name.replace(/\s/g, '').toLowerCase()}.com`,
+            role: 'STUDENT',
+            status: i % 10 === 0 ? 'Inactive' : 'Active',
+            grade: `${(i % 12) + 1}th Grade`
+        });
+    }
+});
+
+const UserManagement: React.FC = () => {
+    // --- State ---
+    const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
+    const [activeTab, setActiveTab] = useState<UserRole>('SCHOOL_ADMIN');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    // --- Constants ---
+    const ITEMS_PER_PAGE = 10;
+
+    // --- Derived State ---
+    const currentSchool = SCHOOLS.find(s => s.id === selectedSchoolId);
+
+    const filteredUsers = useMemo(() => {
+        if (!selectedSchoolId) return [];
+
+        return USERS.filter(user => {
+            const matchesSchool = user.schoolId === selectedSchoolId;
+            const matchesRole = user.role === activeTab;
+            const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+            return matchesSchool && matchesRole && matchesSearch;
+        });
+    }, [selectedSchoolId, activeTab, searchTerm]);
+
+    const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+    const paginatedUsers = filteredUsers.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    // --- Handlers ---
+    const handleTabChange = (tab: UserRole) => {
+        setActiveTab(tab);
+        setCurrentPage(1); // Reset page on tab change
+        setSearchTerm(''); // Optional: reset search on tab change
+    };
+
+    const handleSchoolChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedSchoolId(Number(e.target.value));
+        setCurrentPage(1);
+        setSearchTerm('');
+    };
+
+    return (
+        <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
+            {/* Header & School Selector */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 shrink-0">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
+                        <p className="text-slate-500 text-sm mt-1">Select a school to manage its users.</p>
+                    </div>
+
+                    <div className="w-full md:w-72">
+                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1 ml-1">Select School</label>
+                        <select
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-slate-50 font-medium text-slate-700"
+                            value={selectedSchoolId || ''}
+                            onChange={handleSchoolChange}
+                        >
+                            <option value="" disabled>-- Choose a School --</option>
+                            {SCHOOLS.map(school => (
+                                <option key={school.id} value={school.id}>{school.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {selectedSchoolId ? (
+                <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    {/* Tabs */}
+                    <div className="flex border-b border-slate-200">
+                        <button
+                            onClick={() => handleTabChange('SCHOOL_ADMIN')}
+                            className={`flex-1 py-4 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'SCHOOL_ADMIN'
+                                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                }`}
+                        >
+                            School Admins
+                        </button>
+                        <button
+                            onClick={() => handleTabChange('TEACHER')}
+                            className={`flex-1 py-4 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'TEACHER'
+                                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                }`}
+                        >
+                            Teachers
+                        </button>
+                        <button
+                            onClick={() => handleTabChange('STUDENT')}
+                            className={`flex-1 py-4 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'STUDENT'
+                                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                }`}
+                        >
+                            Students
+                        </button>
+                    </div>
+
+                    {/* Toolbar (Search) */}
+                    <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                        <div className="relative w-full max-w-sm">
+                            <input
+                                type="text"
+                                placeholder={`Search ${activeTab === 'SCHOOL_ADMIN' ? 'admins' : activeTab === 'TEACHER' ? 'teachers' : 'students'}...`}
+                                value={searchTerm}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                            />
+                            <span className="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+                        </div>
+                        <div className="text-sm text-slate-500">
+                            Total: <span className="font-semibold text-slate-900">{filteredUsers.length}</span>
+                        </div>
+                    </div>
+
+                    {/* Grid */}
+                    <div className="flex-1 overflow-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-slate-500 font-semibold sticky top-0 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-3">Name</th>
+                                    <th className="px-6 py-3">Email</th>
+                                    <th className="px-6 py-3">Status</th>
+                                    {activeTab === 'TEACHER' && <th className="px-6 py-3">Subject</th>}
+                                    {activeTab === 'STUDENT' && <th className="px-6 py-3">Grade</th>}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {paginatedUsers.length > 0 ? (
+                                    paginatedUsers.map((user) => (
+                                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-3 font-medium text-slate-900">{user.name}</td>
+                                            <td className="px-6 py-3 text-slate-500">{user.email}</td>
+                                            <td className="px-6 py-3">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                    }`}>
+                                                    {user.status}
+                                                </span>
+                                            </td>
+                                            {activeTab === 'TEACHER' && <td className="px-6 py-3 text-slate-600">{user.subject}</td>}
+                                            {activeTab === 'STUDENT' && <td className="px-6 py-3 text-slate-600">{user.grade}</td>}
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                                            No users found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className="p-4 border-t border-slate-200 flex justify-between items-center bg-slate-50/50 shrink-0">
+                            <span className="text-sm text-slate-500">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 border border-slate-300 rounded bg-white text-sm disabled:opacity-50 hover:bg-slate-50"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1 border border-slate-300 rounded bg-white text-sm disabled:opacity-50 hover:bg-slate-50"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl">
+                    <div className="text-6xl mb-4 opacity-20">🏫</div>
+                    <h3 className="text-xl font-semibold text-slate-700">No School Selected</h3>
+                    <p className="text-slate-500">Please select a school from the dropdown above to manage users.</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default UserManagement;

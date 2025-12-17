@@ -1,33 +1,49 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Login from './pages/Login';
 import DashboardLayout from './components/DashboardLayout';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import Schools from './pages/super-admin/Schools';
 import SchoolAdminDashboard from './pages/SchoolAdminDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
-import AddSchool from './pages/AddSchool';
+// import Settings from './pages/super-admin/Settings';
+import UserManagement from './pages/super-admin/UserManagement';
+
+// School Admin Pages
+import TeachersList from './pages/school-admin/TeachersList';
+import StudentsList from './pages/school-admin/StudentsList';
+import SubjectsList from './pages/school-admin/SubjectsList';
+import GradesList from './pages/school-admin/GradesList';
 
 const App: React.FC = () => {
-    return (
-        <Router>
-            <Routes>
-                {/* Public Route */}
-                <Route path="/login" element={<Login />} />
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
 
-                {/* Protected Routes wrapped in Dashboard Layout */}
-                <Route path="/super-admin" element={<DashboardLayout><SuperAdminDashboard /></DashboardLayout>} />
-                <Route path="/add-school" element={<DashboardLayout><AddSchool /></DashboardLayout>} />
+        {/* Protected Routes */}
+        {/* Wrapped in Layout */}
+        <Route path="/" element={<DashboardLayout><Outlet /></DashboardLayout>}>
+          {/* SUPER ADMIN */}
+          <Route path="super-admin" element={<SuperAdminDashboard />} />
+          <Route path="schools" element={<Schools />} />
+          <Route path="user-management" element={<UserManagement />} />
+          {/* SCHOOL ADMIN */}
+          <Route path="school-admin" element={<SchoolAdminDashboard />} />
+          <Route path="school-admin/teachers" element={<TeachersList />} />
+          <Route path="school-admin/students" element={<StudentsList />} />
+          <Route path="school-admin/subjects" element={<SubjectsList />} />
+          <Route path="school-admin/grades" element={<GradesList />} />
 
-                <Route path="/school-admin" element={<DashboardLayout><SchoolAdminDashboard /></DashboardLayout>} />
-                <Route path="/teacher" element={<DashboardLayout><TeacherDashboard /></DashboardLayout>} />
-                <Route path="/student" element={<DashboardLayout><StudentDashboard /></DashboardLayout>} />
+          {/* TEACHER & STUDENT */}
+          <Route path="teacher" element={<TeacherDashboard />} />
+          <Route path="student" element={<StudentDashboard />} />
+        </Route>
 
-                {/* Fallback */}
-                <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
-        </Router>
-    );
-};
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
+  );
+}
 
 export default App;

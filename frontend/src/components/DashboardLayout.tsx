@@ -1,68 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Sidebar from './Sidebar';
-import { jwtDecode } from "jwt-decode";
-import { useNavigate } from 'react-router-dom';
+
+// Mock function to get role from token (since we are mocking, we can just read from localStorage directly or passing it down)
+// For this layout, we'll assume the role is stored in localStorage along with the token for simplicity in this mock phase.
+const getRole = () => {
+    return localStorage.getItem('role') || 'STUDENT';
+};
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
 }
 
-interface TokenPayload {
-    role: string;
-    sub: string;
-    exp: number;
-}
-
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-    const [role, setRole] = useState<string>('');
-    const navigate = useNavigate();
-
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            navigate('/login');
-            return;
-        }
-
-        try {
-            const decoded = jwtDecode<TokenPayload>(token);
-            // Basic expiry check
-            if (decoded.exp * 1000 < Date.now()) {
-                localStorage.removeItem('token');
-                navigate('/login');
-                return;
-            }
-            setRole(decoded.role);
-        } catch (error) {
-            localStorage.removeItem('token');
-            navigate('/login');
-        }
-    }, [navigate]);
-
-    if (!role) return null; // Or a loading spinner
+    const role = getRole();
 
     return (
-        <div className="flex h-screen bg-gray-100 font-sans antialiased text-gray-900">
+        <div className="flex h-screen bg-slate-50 overflow-hidden">
+            {/* Sidebar */}
             <Sidebar role={role} />
-            <div className="flex-1 flex flex-col overflow-hidden relative">
 
-                {/* Top Header / Breadcrumb Area could go here if requested */}
-                <header className="flex items-center justify-between p-6 bg-white shadow-sm z-0">
-                    <h2 className="text-xl font-semibold text-gray-800">
-                        Welcome, <span className="text-blue-600 capitalize">{role.replace('_', ' ').toLowerCase()}</span>
-                    </h2>
-                    <div className="flex items-center space-x-4">
-                        {/* Profile placeholder */}
-                        <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 font-bold">
-                            {role.charAt(0)}
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Top Header (Optional, good for user profile or simple breadcrumbs) */}
+                <header className="h-16 bg-white border-b border-gray-200 flex items-center px-8 justify-between">
+                    <h2 className="text-lg font-semibold text-gray-800">Dashboard</h2>
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm font-medium text-gray-600">
+                            Welcome, {localStorage.getItem('username') || 'User'} ({role.replace('_', ' ')})
+                        </span>
+                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                            {(localStorage.getItem('username') || 'U')[0].toUpperCase()}
                         </div>
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
-                    <div className="container mx-auto max-w-7xl animate-fade-in-up">
-                        {children}
-                    </div>
+                {/* Page Content */}
+                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-6">
+                    {children}
                 </main>
             </div>
         </div>
