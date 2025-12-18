@@ -14,6 +14,8 @@ import TeachersList from './pages/school-admin/TeachersList';
 import StudentsList from './pages/school-admin/StudentsList';
 import SubjectsList from './pages/school-admin/SubjectsList';
 import GradesList from './pages/school-admin/GradesList';
+import QuestionBank from './pages/school-admin/QuestionBank';
+import QuestionBankDetails from './pages/school-admin/QuestionBankDetails';
 
 const App: React.FC = () => {
   return (
@@ -34,6 +36,8 @@ const App: React.FC = () => {
           <Route path="school-admin/students" element={<StudentsList />} />
           <Route path="school-admin/subjects" element={<SubjectsList />} />
           <Route path="school-admin/grades" element={<GradesList />} />
+          <Route path="school-admin/question-bank" element={<QuestionBank />} />
+          <Route path="school-admin/question-bank/:gradeId" element={<QuestionBankDetails />} />
 
           {/* TEACHER & STUDENT */}
           <Route path="teacher" element={<TeacherDashboard />} />
