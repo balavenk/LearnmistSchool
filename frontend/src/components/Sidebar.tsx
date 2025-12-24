@@ -46,6 +46,11 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                                 </NavLink>
                             </li>
                             <li>
+                                <NavLink to="/classes" className={linkClass}>
+                                    Classes
+                                </NavLink>
+                            </li>
+                            <li>
                                 <NavLink to="/user-management" className={linkClass}>
                                     User Management
                                 </NavLink>
@@ -113,6 +118,11 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                                 </NavLink>
                             </li>
                             <li>
+                                <NavLink to="/classes" className={linkClass}>
+                                    Classes
+                                </NavLink>
+                            </li>
+                            <li>
                                 <NavLink to="/assignments" className={linkClass}>
                                     Assignments
                                 </NavLink>
@@ -136,6 +146,11 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                             <li>
                                 <NavLink to="/my-grades" className={linkClass}>
                                     My Grades
+                                </NavLink>
+                            </li>
+                            <li>
+                                <NavLink to="/student/assignments" className={linkClass}>
+                                    Assignments
                                 </NavLink>
                             </li>
                             <li>

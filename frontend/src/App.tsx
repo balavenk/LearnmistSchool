@@ -16,6 +16,10 @@ import SubjectsList from './pages/school-admin/SubjectsList';
 import GradesList from './pages/school-admin/GradesList';
 import QuestionBank from './pages/school-admin/QuestionBank';
 import QuestionBankDetails from './pages/school-admin/QuestionBankDetails';
+import Classes from './pages/Classes';
+import TeacherAssignments from './pages/TeacherAssignments';
+import StudentAssignments from './pages/StudentAssignments';
+
 
 const App: React.FC = () => {
   return (
@@ -41,7 +45,12 @@ const App: React.FC = () => {
 
           {/* TEACHER & STUDENT */}
           <Route path="teacher" element={<TeacherDashboard />} />
+          <Route path="assignments" element={<TeacherAssignments />} />
           <Route path="student" element={<StudentDashboard />} />
+          <Route path="student/assignments" element={<StudentAssignments />} />
+
+          {/* SHARED */}
+          <Route path="classes" element={<Classes />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />
