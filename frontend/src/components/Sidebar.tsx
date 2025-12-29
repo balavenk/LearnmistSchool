@@ -72,13 +72,8 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                                 </NavLink>
                             </li>
                             <li>
-                                <NavLink to="/school-admin/grades" className={linkClass}>
-                                    Grades
-                                </NavLink>
-                            </li>
-                            <li>
-                                <NavLink to="/school-admin/subjects" className={linkClass}>
-                                    Subjects
+                                <NavLink to="/school-admin/classes" className={linkClass}>
+                                    Classes
                                 </NavLink>
                             </li>
                             <li>
@@ -92,8 +87,13 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                                 </NavLink>
                             </li>
                             <li>
-                                <NavLink to="/classes" className={linkClass}>
-                                    Classes
+                                <NavLink to="/school-admin/grades" className={linkClass}>
+                                    Grades
+                                </NavLink>
+                            </li>
+                            <li>
+                                <NavLink to="/school-admin/subjects" className={linkClass}>
+                                    Subjects
                                 </NavLink>
                             </li>
                             <li>
@@ -112,19 +112,20 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                                     Dashboard
                                 </NavLink>
                             </li>
-                            <li>
-                                <NavLink to="/my-classes" className={linkClass}>
-                                    My Classes
-                                </NavLink>
-                            </li>
-                            <li>
+                            {/* Teacher doesn't manage classes, just views assignments/students */}
+                            {/* <li>
                                 <NavLink to="/classes" className={linkClass}>
                                     Classes
                                 </NavLink>
+                            </li> */}
+                            <li>
+                                <NavLink to="/teacher/assignments" className={linkClass}>
+                                    Assignments
+                                </NavLink>
                             </li>
                             <li>
-                                <NavLink to="/assignments" className={linkClass}>
-                                    Assignments
+                                <NavLink to="/teacher/students" className={linkClass}>
+                                    Students
                                 </NavLink>
                             </li>
                             <li>

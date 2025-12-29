@@ -30,6 +30,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+import mock_data
+
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -44,8 +46,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         token_data = schemas.TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    user = db.query(models.User).filter(models.User.username == token_data.username).first()
+    
+    # Mock Data Lookup
+    print(f"DEBUG: Looking for user {token_data.username} in mock_data. USERS count: {len(mock_data.USERS)}")
+    # for u in mock_data.USERS:
+    #     print(f" - Available: {u.username}")
+        
+    user = next((u for u in mock_data.USERS if u.username == token_data.username), None)
+    
     if user is None:
+        print(f"DEBUG: User {token_data.username} NOT FOUND in mock_data")
         raise credentials_exception
     return user
 

@@ -7,33 +7,41 @@ const Login: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
 
-        // MOCK LOGIN LOGIC
-        // We determine the role based on the username for testing purposes.
-        let role = 'STUDENT';
-        if (username.toLowerCase().includes('super')) role = 'SUPER_ADMIN';
-        else if (username.toLowerCase().includes('school')) role = 'SCHOOL_ADMIN';
-        else if (username.toLowerCase().includes('teacher')) role = 'TEACHER';
+        try {
+            // Use URLSearchParams for application/x-www-form-urlencoded
+            const params = new URLSearchParams();
+            params.append('username', username);
+            params.append('password', password);
 
-        // Simulate network delay
-        setTimeout(() => {
-            localStorage.setItem('token', 'mock_token_12345');
-            localStorage.setItem('role', role);
-            localStorage.setItem('username', username);
+            const response = await import('../api/axios').then(m => m.default.post('/token', params));
 
+            const { access_token, role, username: returnedUsername } = response.data;
+
+            if (access_token) {
+                localStorage.setItem('token', access_token);
+                localStorage.setItem('role', role);
+                localStorage.setItem('username', returnedUsername || username);
+
+                // Redirect based on role
+                if (role.toUpperCase() === 'SUPER_ADMIN') navigate('/super-admin');
+                else if (role.toUpperCase() === 'SCHOOL_ADMIN') navigate('/school-admin');
+                else if (role.toUpperCase() === 'TEACHER') navigate('/teacher');
+                else if (role.toUpperCase() === 'STUDENT') navigate('/student');
+                else navigate('/');
+            } else {
+                alert("Login failed: No access token received");
+            }
+
+        } catch (error: any) {
+            console.error("Login failed", error);
+            alert("Login failed: " + (error.response?.data?.detail || "Invalid credentials"));
+        } finally {
             setIsLoading(false);
-
-            // Redirect based on role
-            if (role === 'SUPER_ADMIN') navigate('/super-admin');
-            else if (role === 'SCHOOL_ADMIN') navigate('/school-admin');
-            else if (role === 'TEACHER') navigate('/teacher');
-            else if (role === 'STUDENT') navigate('/student');
-            else navigate('/');
-
-        }, 1500);
+        }
     };
 
     return (

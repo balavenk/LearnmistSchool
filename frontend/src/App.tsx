@@ -4,8 +4,8 @@ import DashboardLayout from './components/DashboardLayout';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Schools from './pages/super-admin/Schools';
 import SchoolAdminDashboard from './pages/SchoolAdminDashboard';
-import TeacherDashboard from './pages/TeacherDashboard';
-import StudentDashboard from './pages/StudentDashboard';
+import TeacherDashboard from './pages/teacher/Dashboard';
+import StudentDashboard from './pages/student/Dashboard';
 // import Settings from './pages/super-admin/Settings';
 import UserManagement from './pages/super-admin/UserManagement';
 
@@ -16,9 +16,15 @@ import SubjectsList from './pages/school-admin/SubjectsList';
 import GradesList from './pages/school-admin/GradesList';
 import QuestionBank from './pages/school-admin/QuestionBank';
 import QuestionBankDetails from './pages/school-admin/QuestionBankDetails';
-import Classes from './pages/Classes';
-import TeacherAssignments from './pages/TeacherAssignments';
-import StudentAssignments from './pages/StudentAssignments';
+import Classes from './pages/school-admin/Classes';
+
+// Teacher Pages
+import TeacherAssignments from './pages/teacher/Assignments';
+import TeacherStudents from './pages/teacher/Students';
+
+// Student Pages
+import StudentAssignments from './pages/student/Assignments';
+import Schedule from './pages/student/Schedule';
 
 
 const App: React.FC = () => {
@@ -42,15 +48,20 @@ const App: React.FC = () => {
           <Route path="school-admin/grades" element={<GradesList />} />
           <Route path="school-admin/question-bank" element={<QuestionBank />} />
           <Route path="school-admin/question-bank/:gradeId" element={<QuestionBankDetails />} />
+          <Route path="school-admin/classes" element={<Classes />} />
 
-          {/* TEACHER & STUDENT */}
+          {/* TEACHER */}
           <Route path="teacher" element={<TeacherDashboard />} />
-          <Route path="assignments" element={<TeacherAssignments />} />
+          <Route path="teacher/assignments" element={<TeacherAssignments />} />
+          <Route path="teacher/students" element={<TeacherStudents />} />
+
+          {/* Backwards compatibility / Redirects if needed */}
+          <Route path="assignments" element={<Navigate to="/teacher/assignments" replace />} />
+
+          {/* STUDENT */}
           <Route path="student" element={<StudentDashboard />} />
           <Route path="student/assignments" element={<StudentAssignments />} />
-
-          {/* SHARED */}
-          <Route path="classes" element={<Classes />} />
+          <Route path="schedule" element={<Schedule />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

@@ -1,41 +1,30 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import api from '../../api/axios';
 
-// Mock Data Types
 interface SchoolAdmin {
-    id: number;
-    name: string;
-    email: string;
+    id?: number;
+    username: string; // Changed from name to username for API
+    email?: string;
+    name?: string; // Optional for UI display if needed
     status: 'Active' | 'Inactive';
+    password?: string; // For creation
 }
 
 interface School {
     id: number;
     name: string;
-    address: string;
-    admins: SchoolAdmin[];
-    students: number;
-    teachers: number;
-    status: 'Active' | 'Inactive';
-    joinedDate: string;
+    address?: string;
+    admins?: SchoolAdmin[]; // Frontend only property for now, API doesn't return admins in school object yet
+    students?: number;
+    teachers?: number;
+    active: boolean; // Changed from status string to boolean
+    // joinedDate: string; // Not in API
 }
-
-// Initial Mock Data (20 items for pagination testing)
-const INITIAL_SCHOOLS: School[] = Array.from({ length: 25 }, (_, i) => ({
-    id: i + 1,
-    name: `Learnmist School ${String.fromCharCode(65 + (i % 26))}-${i + 100}`,
-    address: `${Math.floor(Math.random() * 999)} Education Ave, Knowledge City, Country ${String.fromCharCode(65 + (i % 5))}`,
-    admins: [
-        { id: 1, name: `Admin User ${i + 1}`, email: `admin${i + 1}@school.com`, status: 'Active' }
-    ],
-    students: Math.floor(Math.random() * 1000) + 100,
-    teachers: Math.floor(Math.random() * 50) + 10,
-    status: Math.random() > 0.1 ? 'Active' : 'Inactive',
-    joinedDate: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28)).toISOString().split('T')[0]
-}));
 
 const Schools: React.FC = () => {
     // State
-    const [schools, setSchools] = useState<School[]>(INITIAL_SCHOOLS);
+    const [schools, setSchools] = useState<School[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,17 +35,43 @@ const Schools: React.FC = () => {
     const [newSchoolAdmins, setNewSchoolAdmins] = useState<SchoolAdmin[]>([]);
 
     // Temp Admin State for Modal
-    const [tempAdminName, setTempAdminName] = useState('');
-    const [tempAdminEmail, setTempAdminEmail] = useState('');
+    const [tempAdminUsername, setTempAdminUsername] = useState('');
+    const [tempAdminPassword, setTempAdminPassword] = useState('');
 
     // Pagination Config
     const ITEMS_PER_PAGE = 8;
 
+    // Fetch Schools
+    const fetchSchools = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get('/super-admin/schools/');
+            // Transform API response to match UI needs if necessary.
+            // API returns: { id, name, address, active, max_... }
+            // We need to add mock/placeholder stats since API doesn't return them yet
+            const data = response.data.map((s: any) => ({
+                ...s,
+                students: 0, // Placeholder
+                teachers: 0, // Placeholder
+                admins: [],  // Placeholder
+                status: s.active ? 'Active' : 'Inactive' // Map boolean to string for UI
+            }));
+            setSchools(data);
+        } catch (error) {
+            console.error("Failed to fetch schools", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSchools();
+    }, []);
+
     // Filter Logic
     const filteredSchools = useMemo(() => {
         return schools.filter(school =>
-            school.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            school.admins.some(admin => admin.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            school.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [schools, searchTerm]);
 
@@ -69,28 +84,26 @@ const Schools: React.FC = () => {
 
     // Handlers
     const toggleSchoolStatus = (id: number) => {
-        setSchools(schools.map(school =>
-            school.id === id
-                ? { ...school, status: school.status === 'Active' ? 'Inactive' : 'Active' }
-                : school
-        ));
+        // Implement API call to toggle status if endpoint exists
+        console.log("Toggle status not implemented in backend yet");
     };
 
     // Modal Handlers
     const handleAddAdminToGrid = () => {
-        if (!tempAdminName || !tempAdminEmail) return;
+        if (!tempAdminUsername || !tempAdminPassword) return;
         const newAdmin: SchoolAdmin = {
-            id: Date.now(),
-            name: tempAdminName,
-            email: tempAdminEmail,
+            id: Date.now(), // Temp ID
+            username: tempAdminUsername,
+            password: tempAdminPassword, // Store password to send to API
             status: 'Active'
         };
         setNewSchoolAdmins([...newSchoolAdmins, newAdmin]);
-        setTempAdminName('');
-        setTempAdminEmail('');
+        setTempAdminUsername('');
+        setTempAdminPassword('');
     };
 
     const toggleNewAdminStatus = (adminId: number) => {
+        // Just local state
         setNewSchoolAdmins(newSchoolAdmins.map(admin =>
             admin.id === adminId
                 ? { ...admin, status: admin.status === 'Active' ? 'Inactive' : 'Active' }
@@ -98,22 +111,42 @@ const Schools: React.FC = () => {
         ));
     };
 
-    const handleCreateSchool = (e: React.FormEvent) => {
+    const handleCreateSchool = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const newSchool: School = {
-            id: schools.length + 1,
-            name: newSchoolName,
-            address: newSchoolAddress,
-            admins: newSchoolAdmins,
-            students: 0,
-            teachers: 0,
-            status: 'Active',
-            joinedDate: new Date().toISOString().split('T')[0]
-        };
+        try {
+            // 1. Create School
+            const schoolRes = await api.post('/super-admin/schools/', {
+                name: newSchoolName,
+                address: newSchoolAddress,
+                max_teachers: 100, // Defaults
+                max_students: 1000,
+                max_classes: 50
+            });
+            const createdSchool = schoolRes.data;
 
-        setSchools([newSchool, ...schools]);
-        closeModal();
+            // 2. Create Admins
+            for (const admin of newSchoolAdmins) {
+                try {
+                    await api.post(`/super-admin/schools/${createdSchool.id}/admin`, {
+                        username: admin.username,
+                        password: admin.password,
+                        role: "SCHOOL_ADMIN"
+                    });
+                } catch (err) {
+                    console.error(`Failed to create admin ${admin.username}`, err);
+                    alert(`School created, but failed to create admin ${admin.username}. Username might be taken.`);
+                }
+            }
+
+            // Refresh list
+            fetchSchools();
+            closeModal();
+            alert("School created successfully!");
+        } catch (error) {
+            console.error("Failed to create school", error);
+            alert("Failed to create school. Name might be duplicate.");
+        }
     };
 
     const closeModal = () => {
@@ -121,8 +154,8 @@ const Schools: React.FC = () => {
         setNewSchoolName('');
         setNewSchoolAddress('');
         setNewSchoolAdmins([]);
-        setTempAdminName('');
-        setTempAdminEmail('');
+        setTempAdminUsername('');
+        setTempAdminPassword('');
         setSearchTerm('');
         setCurrentPage(1);
     };
@@ -148,7 +181,7 @@ const Schools: React.FC = () => {
                 <div className="relative w-full max-w-md">
                     <input
                         type="text"
-                        placeholder="Search schools or admins..."
+                        placeholder="Search schools..."
                         value={searchTerm}
                         onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                         className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -167,14 +200,15 @@ const Schools: React.FC = () => {
                         <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
                             <th className="px-6 py-4">School Name</th>
                             <th className="px-6 py-4 hidden md:table-cell">Address</th>
-                            <th className="px-6 py-4 hidden lg:table-cell">Admins</th>
                             <th className="px-6 py-4 text-center">Stats</th>
                             <th className="px-6 py-4">Status</th>
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {paginatedSchools.map((school) => (
+                        {loading ? (
+                            <tr><td colSpan={5} className="text-center py-8">Loading...</td></tr>
+                        ) : paginatedSchools.map((school) => (
                             <tr key={school.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="px-6 py-4 font-medium text-slate-900">
                                     <div className="flex items-center">
@@ -185,17 +219,7 @@ const Schools: React.FC = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 hidden md:table-cell text-slate-600 text-sm max-w-xs truncate" title={school.address}>
-                                    {school.address}
-                                </td>
-                                <td className="px-6 py-4 hidden lg:table-cell text-slate-600">
-                                    <div className="flex flex-col gap-1">
-                                        {school.admins.slice(0, 2).map((admin, idx) => (
-                                            <span key={idx} className="text-xs bg-slate-100 px-2 py-1 rounded inline-block w-fit">
-                                                {admin.name} ({admin.status})
-                                            </span>
-                                        ))}
-                                        {school.admins.length > 2 && <span className="text-xs text-slate-400">+{school.admins.length - 2} more</span>}
-                                    </div>
+                                    {school.address || "N/A"}
                                 </td>
                                 <td className="px-6 py-4 text-center">
                                     <div className="text-xs text-slate-500">
@@ -204,30 +228,30 @@ const Schools: React.FC = () => {
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${school.status === 'Active'
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-red-100 text-red-800'
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${school.active
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-red-100 text-red-800'
                                         }`}>
-                                        {school.status}
+                                        {school.active ? 'Active' : 'Inactive'}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <button
                                         onClick={() => toggleSchoolStatus(school.id)}
-                                        className={`text-sm font-medium px-3 py-1 rounded transition-colors ${school.status === 'Active'
-                                                ? 'text-red-600 hover:bg-red-50'
-                                                : 'text-green-600 hover:bg-green-50'
+                                        className={`text-sm font-medium px-3 py-1 rounded transition-colors ${school.active
+                                            ? 'text-red-600 hover:bg-red-50'
+                                            : 'text-green-600 hover:bg-green-50'
                                             }`}
                                     >
-                                        {school.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                        {school.active ? 'Deactivate' : 'Activate'}
                                     </button>
                                 </td>
                             </tr>
                         ))}
 
-                        {paginatedSchools.length === 0 && (
+                        {!loading && paginatedSchools.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                                <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                                     No schools found matching your search.
                                 </td>
                             </tr>
@@ -298,28 +322,28 @@ const Schools: React.FC = () => {
 
                             {/* School Admins Section */}
                             <div className="space-y-4">
-                                <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">School Administrators</h3>
+                                <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">School Admin (Initial User)</h3>
 
                                 {/* Add Admin Form */}
                                 <div className="flex flex-col sm:flex-row gap-3 bg-slate-50 p-4 rounded-lg">
                                     <input
                                         type="text"
-                                        value={tempAdminName}
-                                        onChange={(e) => setTempAdminName(e.target.value)}
+                                        value={tempAdminUsername}
+                                        onChange={(e) => setTempAdminUsername(e.target.value)}
                                         className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
-                                        placeholder="Admin Name"
+                                        placeholder="Username"
                                     />
                                     <input
-                                        type="email"
-                                        value={tempAdminEmail}
-                                        onChange={(e) => setTempAdminEmail(e.target.value)}
+                                        type="password"
+                                        value={tempAdminPassword}
+                                        onChange={(e) => setTempAdminPassword(e.target.value)}
                                         className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
-                                        placeholder="Admin Email"
+                                        placeholder="Password"
                                     />
                                     <button
                                         type="button"
                                         onClick={handleAddAdminToGrid}
-                                        disabled={!tempAdminName || !tempAdminEmail}
+                                        disabled={!tempAdminUsername || !tempAdminPassword}
                                         className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50"
                                     >
                                         Add
@@ -331,8 +355,7 @@ const Schools: React.FC = () => {
                                     <table className="w-full text-sm text-left">
                                         <thead className="bg-slate-100 text-slate-600 font-semibold">
                                             <tr>
-                                                <th className="px-4 py-2">Name</th>
-                                                <th className="px-4 py-2">Email</th>
+                                                <th className="px-4 py-2">Username</th>
                                                 <th className="px-4 py-2">Status</th>
                                                 <th className="px-4 py-2 text-right">Actions</th>
                                             </tr>
@@ -340,15 +363,14 @@ const Schools: React.FC = () => {
                                         <tbody className="divide-y divide-slate-100">
                                             {newSchoolAdmins.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
-                                                        No admins added yet. Please add at least one.
+                                                    <td colSpan={3} className="px-4 py-6 text-center text-slate-400">
+                                                        No admins added yet.
                                                     </td>
                                                 </tr>
                                             ) : (
                                                 newSchoolAdmins.map((admin) => (
                                                     <tr key={admin.id}>
-                                                        <td className="px-4 py-2">{admin.name}</td>
-                                                        <td className="px-4 py-2 text-slate-500">{admin.email}</td>
+                                                        <td className="px-4 py-2">{admin.username}</td>
                                                         <td className="px-4 py-2">
                                                             <span className={`px-2 py-0.5 rounded-full text-xs ${admin.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                                                 {admin.status}
@@ -357,7 +379,7 @@ const Schools: React.FC = () => {
                                                         <td className="px-4 py-2 text-right">
                                                             <button
                                                                 type="button"
-                                                                onClick={() => toggleNewAdminStatus(admin.id)}
+                                                                onClick={() => toggleNewAdminStatus(admin.id!)}
                                                                 className={`text-xs font-medium hover:underline ${admin.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}
                                                             >
                                                                 {admin.status === 'Active' ? 'Deactivate' : 'Activate'}

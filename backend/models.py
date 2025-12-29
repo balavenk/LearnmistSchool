@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, Text
 from sqlalchemy.orm import relationship
 from database import Base
 import enum
+from datetime import datetime
 
 class UserRole(str, enum.Enum):
     SUPER_ADMIN = "SUPER_ADMIN"
@@ -9,18 +10,30 @@ class UserRole(str, enum.Enum):
     TEACHER = "TEACHER"
     STUDENT = "STUDENT"
 
+class AssignmentStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+
+class SubmissionStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    SUBMITTED = "SUBMITTED"
+    GRADED = "GRADED"
+
 class School(Base):
     __tablename__ = "schools"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, index=True)
+    address = Column(String(255), nullable=True)
     active = Column(Boolean, default=True)
     max_teachers = Column(Integer, default=100)
     max_students = Column(Integer, default=1000)
+    max_classes = Column(Integer, default=50) # Added limit
 
     users = relationship("User", back_populates="school")
     subjects = relationship("Subject", back_populates="school")
     grades = relationship("Grade", back_populates="school")
+    classes = relationship("Class", back_populates="school")
     students = relationship("Student", back_populates="school")
 
 class User(Base):
@@ -28,13 +41,15 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True)
+    email = Column(String(100), unique=True, nullable=True)
     hashed_password = Column(String(255))
     role = Column(Enum(UserRole), default=UserRole.STUDENT)
     active = Column(Boolean, default=True)
-    school_id = Column(Integer, ForeignKey("schools.id"), nullable=True) # Null setup for Super Admin
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=True)
 
     school = relationship("School", back_populates="users")
     teacher_assignments = relationship("TeacherAssignment", back_populates="teacher")
+    created_assignments = relationship("Assignment", back_populates="teacher") # Assignments created by this teacher
 
 class Subject(Base):
     __tablename__ = "subjects"
@@ -54,8 +69,29 @@ class Grade(Base):
     school_id = Column(Integer, ForeignKey("schools.id"))
 
     school = relationship("School", back_populates="grades")
+    classes = relationship("Class", back_populates="grade")
     students = relationship("Student", back_populates="grade")
     assignments = relationship("TeacherAssignment", back_populates="grade")
+
+class Class(Base):
+    __tablename__ = "classes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50)) # e.g., "10-A"
+    section = Column(String(10)) # e.g., "A"
+    grade_id = Column(Integer, ForeignKey("grades.id"))
+    school_id = Column(Integer, ForeignKey("schools.id"))
+    
+    # Optional: Assign a class teacher
+    class_teacher_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    grade = relationship("Grade", back_populates="classes")
+    school = relationship("School", back_populates="classes")
+    students = relationship("Student", back_populates="class_")
+    class_teacher = relationship("User", foreign_keys=[class_teacher_id])
+    
+    # Assignments assigned specifically to this class
+    assignments = relationship("Assignment", back_populates="assigned_class")
 
 class Student(Base):
     __tablename__ = "students"
@@ -65,9 +101,12 @@ class Student(Base):
     active = Column(Boolean, default=True)
     school_id = Column(Integer, ForeignKey("schools.id"))
     grade_id = Column(Integer, ForeignKey("grades.id"))
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=True) # Link to specific class/section
 
     school = relationship("School", back_populates="students")
     grade = relationship("Grade", back_populates="students")
+    class_ = relationship("Class", back_populates="students")
+    submissions = relationship("Submission", back_populates="student")
 
 class TeacherAssignment(Base):
     __tablename__ = "teacher_assignments"
@@ -76,7 +115,60 @@ class TeacherAssignment(Base):
     teacher_id = Column(Integer, ForeignKey("users.id"))
     subject_id = Column(Integer, ForeignKey("subjects.id"))
     grade_id = Column(Integer, ForeignKey("grades.id"))
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=True) # Can assign to specific class
 
     teacher = relationship("User", back_populates="teacher_assignments")
     subject = relationship("Subject", back_populates="assignments")
     grade = relationship("Grade", back_populates="assignments")
+    class_ = relationship("Class")
+
+class Assignment(Base):
+    __tablename__ = "assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200))
+    description = Column(Text, nullable=True)
+    due_date = Column(DateTime, nullable=True)
+    status = Column(Enum(AssignmentStatus), default=AssignmentStatus.DRAFT)
+    
+    teacher_id = Column(Integer, ForeignKey("users.id"))
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=True) # Null means assigned to who? Maybe all classes of teacher? Let's say specific class for now.
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True) # Optional link to subject
+
+    teacher = relationship("User", back_populates="created_assignments")
+    assigned_class = relationship("Class", back_populates="assignments")
+    submissions = relationship("Submission", back_populates="assignment")
+
+class Submission(Base):
+    __tablename__ = "submissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    assignment_id = Column(Integer, ForeignKey("assignments.id"))
+    student_id = Column(Integer, ForeignKey("students.id"))
+    status = Column(Enum(SubmissionStatus), default=SubmissionStatus.PENDING)
+    grade = Column(String(10), nullable=True)
+    feedback = Column(Text, nullable=True)
+    submitted_at = Column(DateTime, nullable=True)
+
+    assignment = relationship("Assignment", back_populates="submissions")
+    student = relationship("Student", back_populates="submissions")
+
+class FileArtifact(Base):
+    __tablename__ = "file_artifacts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String(255))
+    file_path = Column(String(500))  # Local path or S3 URL
+    file_type = Column(String(50))   # e.g., 'pdf', 'docx'
+    
+    # Metadata for LLM Training
+    # Example: {"subject": "Math", "grade": "10", "topic": "Algebra", "quality_score": 0.9}
+    tags = Column(Text, nullable=True) # Using Text for simple JSON storage initially (SQLite compat), or JSON if PG specific
+
+    uploaded_by_id = Column(Integer, ForeignKey("users.id"))
+    
+    # Optional: Link to context
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=True)
+    submission_id = Column(Integer, ForeignKey("submissions.id"), nullable=True)
+
+    uploaded_by = relationship("User")
