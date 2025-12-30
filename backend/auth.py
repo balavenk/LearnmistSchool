@@ -47,15 +47,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
     
-    # Mock Data Lookup
-    print(f"DEBUG: Looking for user {token_data.username} in mock_data. USERS count: {len(mock_data.USERS)}")
-    # for u in mock_data.USERS:
-    #     print(f" - Available: {u.username}")
-        
-    user = next((u for u in mock_data.USERS if u.username == token_data.username), None)
+    # Database Lookup
+    user = db.query(models.User).filter(models.User.username == token_data.username).first()
     
     if user is None:
-        print(f"DEBUG: User {token_data.username} NOT FOUND in mock_data")
         raise credentials_exception
     return user
 

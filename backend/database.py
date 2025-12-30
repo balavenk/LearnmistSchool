@@ -11,25 +11,34 @@ DATABASE_URL = os.getenv("DATABASE_URL", "mysql+mysqlconnector://root:password@l
 
 import time
 
-# Mock engine bypass
-class MockEngine:
-    def connect(self):
-        return self
 
-    def __enter__(self):
-        return self
+def get_engine(max_retries=60, delay=2):
+    retries = 0
+    while retries < max_retries:
+        try:
+            if DATABASE_URL.startswith("sqlite"):
+                engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+            else:
+                engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+            # Test connection
+            with engine.connect() as connection:
+                print("Database connection successful!")
+                pass
+            return engine
+        except Exception as e:
+            print(f"Database connection blocked... retrying in {delay} seconds. Error: {e}")
+            time.sleep(delay)
+            retries += 1
+    raise Exception("Could not connect to database after several retries")
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-engine = MockEngine()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False)
+engine = get_engine()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
 def get_db():
-    # Yield a dummy session; actual operations should be mocked
+    db = SessionLocal()
     try:
-        yield None
+        yield db
     finally:
-        pass
+        db.close()

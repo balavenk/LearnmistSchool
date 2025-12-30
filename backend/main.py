@@ -36,12 +36,11 @@ app.include_router(school_admin.router)
 app.include_router(teacher.router)
 app.include_router(student.router)
 
-import mock_data
 
 @app.post("/token", response_model=schemas.Token, tags=["auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
-    # user = db.query(models.User).filter(models.User.username == form_data.username).first()
-    user = next((u for u in mock_data.USERS if u.username == form_data.username), None)
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    # user = next((u for u in mock_data.USERS if u.username == form_data.username), None)
 
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(

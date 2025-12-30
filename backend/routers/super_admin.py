@@ -15,16 +15,15 @@ def get_current_super_admin(current_user: models.User = Depends(auth.get_current
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
 
-import mock_data
 
 @router.post("/schools/", response_model=schemas.School)
 def create_school(school: schemas.SchoolCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
-    # Check if exists in mock data
-    if any(s.name == school.name for s in mock_data.SCHOOLS):
+    # Check if exists in DB
+    existing_school = db.query(models.School).filter(models.School.name == school.name).first()
+    if existing_school:
         raise HTTPException(status_code=400, detail="School with this name already exists")
         
     new_school = models.School(
-        id=mock_data.get_next_id(mock_data.SCHOOLS),
         name=school.name,
         address=school.address,
         max_teachers=school.max_teachers,
@@ -32,27 +31,29 @@ def create_school(school: schemas.SchoolCreate, db: Session = Depends(database.g
         max_classes=school.max_classes,
         active=True
     )
-    mock_data.SCHOOLS.append(new_school)
+    db.add(new_school)
+    db.commit()
+    db.refresh(new_school)
     return new_school
 
 @router.get("/schools/", response_model=List[schemas.School])
 def read_schools(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
-    return mock_data.SCHOOLS[skip : skip + limit]
+    return db.query(models.School).offset(skip).limit(limit).all()
 
 @router.post("/schools/{school_id}/admin", response_model=schemas.User)
 def create_school_admin(school_id: int, user: schemas.UserCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
     # Verify school exists
-    school = next((s for s in mock_data.SCHOOLS if s.id == school_id), None)
+    school = db.query(models.School).filter(models.School.id == school_id).first()
     if not school:
         raise HTTPException(status_code=404, detail="School not found")
     
     # Verify user unique
-    if any(u.username == user.username for u in mock_data.USERS):
+    existing_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if existing_user:
         raise HTTPException(status_code=400, detail="Username already registered")
     
     hashed_password = auth.get_password_hash(user.password)
     new_user = models.User(
-        id=mock_data.get_next_id(mock_data.USERS),
         username=user.username,
         email=user.email,
         hashed_password=hashed_password,
@@ -60,5 +61,7 @@ def create_school_admin(school_id: int, user: schemas.UserCreate, db: Session = 
         school_id=school_id,
         active=True
     )
-    mock_data.USERS.append(new_user)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
     return new_user
