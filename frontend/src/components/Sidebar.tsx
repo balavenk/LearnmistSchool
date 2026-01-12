@@ -162,6 +162,15 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                         </>
                     )}
                 </ul>
+
+                {/* SHARED LINKS (All roles can see materials) */}
+                <div className="mt-6 px-4">
+                    <div className="border-t border-slate-700 pt-4">
+                        <NavLink to="/materials" className="flex items-center px-2 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                            <span className="mr-3">📚</span> Materials
+                        </NavLink>
+                    </div>
+                </div>
             </nav>
 
             {/* Footer / Logout */}
@@ -173,7 +182,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                     Logout
                 </button>
             </div>
-        </div>
+        </div >
     );
 };
 

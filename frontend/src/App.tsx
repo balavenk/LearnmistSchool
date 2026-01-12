@@ -25,6 +25,7 @@ import TeacherStudents from './pages/teacher/Students';
 // Student Pages
 import StudentAssignments from './pages/student/Assignments';
 import Schedule from './pages/student/Schedule';
+import Materials from './pages/Materials';
 
 
 const App: React.FC = () => {
@@ -62,6 +63,9 @@ const App: React.FC = () => {
           <Route path="student" element={<StudentDashboard />} />
           <Route path="student/assignments" element={<StudentAssignments />} />
           <Route path="schedule" element={<Schedule />} />
+
+          {/* COMMON SHARED */}
+          <Route path="materials" element={<Materials />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

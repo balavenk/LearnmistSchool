@@ -148,3 +148,19 @@ class Submission(BaseModel):
     
     class Config:
         from_attributes = True
+
+class MaterialBase(BaseModel):
+    filename: str
+    file_type: str
+    tags: Optional[str] = None # JSON string or comma-separated
+
+class MaterialCreate(MaterialBase):
+    pass
+
+class MaterialResponse(MaterialBase):
+    id: int
+    uploaded_by_id: int
+    file_path: str # Optional: might not want to expose full path, but unique ID/URL is better. For now exposing path or just ID.
+    
+    class Config:
+        from_attributes = True
