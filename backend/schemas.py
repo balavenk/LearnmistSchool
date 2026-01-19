@@ -164,3 +164,19 @@ class MaterialResponse(MaterialBase):
     
     class Config:
         from_attributes = True
+
+# --- Quiz Schemas ---
+class QuizRequest(BaseModel):
+    subject: str
+    num_questions: int = 5
+    difficulty: Optional[str] = "Medium"
+    custom_instructions: Optional[str] = None
+    limit_to_class: Optional[str] = None # Filter by Class tag
+    limit_to_category: Optional[str] = None # Filter by Category tag
+
+class QuizQuestion(BaseModel):
+    id: int
+    question: str
+    options: List[str]
+    correct_answer: str
+    explanation: Optional[str] = None
