@@ -19,7 +19,7 @@ const INITIAL_GRADES: Grade[] = Array.from({ length: 12 }, (_, i) => ({
 
 const QuestionBank: React.FC = () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [grades, setGrades] = useState<Grade[]>(INITIAL_GRADES);
+    const [grades, _setGrades] = useState<Grade[]>(INITIAL_GRADES);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
 

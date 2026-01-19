@@ -21,7 +21,7 @@ const QuestionBankDetails: React.FC = () => {
     const { gradeId } = useParams<{ gradeId: string }>();
     const navigate = useNavigate();
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [pdfs, setPdfs] = useState<PdfFile[]>(MOCK_PDFS);
+    const [pdfs, _setPdfs] = useState<PdfFile[]>(MOCK_PDFS);
 
     // Mock grade name derivation (in real app, fetch details by ID)
     const gradeName = `Grade ${gradeId}`;

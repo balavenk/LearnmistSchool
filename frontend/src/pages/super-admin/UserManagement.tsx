@@ -77,7 +77,7 @@ const UserManagement: React.FC = () => {
     const ITEMS_PER_PAGE = 10;
 
     // --- Derived State ---
-    const currentSchool = SCHOOLS.find(s => s.id === selectedSchoolId);
+    // const currentSchool = SCHOOLS.find(s => s.id === selectedSchoolId);
 
     const filteredUsers = useMemo(() => {
         if (!selectedSchoolId) return [];
@@ -144,8 +144,8 @@ const UserManagement: React.FC = () => {
                         <button
                             onClick={() => handleTabChange('SCHOOL_ADMIN')}
                             className={`flex-1 py-4 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'SCHOOL_ADMIN'
-                                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                 }`}
                         >
                             School Admins
@@ -153,8 +153,8 @@ const UserManagement: React.FC = () => {
                         <button
                             onClick={() => handleTabChange('TEACHER')}
                             className={`flex-1 py-4 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'TEACHER'
-                                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                 }`}
                         >
                             Teachers
@@ -162,8 +162,8 @@ const UserManagement: React.FC = () => {
                         <button
                             onClick={() => handleTabChange('STUDENT')}
                             className={`flex-1 py-4 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'STUDENT'
-                                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                 }`}
                         >
                             Students

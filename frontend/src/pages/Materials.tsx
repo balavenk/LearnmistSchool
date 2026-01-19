@@ -28,8 +28,14 @@ const Materials: React.FC = () => {
         }
     };
 
+    const [classNum, setClassNum] = useState('');
+    const [category, setCategory] = useState('');
+    const [userRole, setUserRole] = useState<string>('');
+
     useEffect(() => {
         fetchMaterials();
+        const role = localStorage.getItem('role') || '';
+        setUserRole(role);
     }, []);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +55,13 @@ const Materials: React.FC = () => {
         formData.append('file', selectedFile);
         formData.append('subject', subject);
 
+        // Construct extra_tags JSON
+        const extraTags = {
+            "Class": classNum,
+            "Category": category
+        };
+        formData.append('extra_tags', JSON.stringify(extraTags));
+
         setUploading(true);
         setMessage(null);
 
@@ -60,6 +73,9 @@ const Materials: React.FC = () => {
             });
             setMessage({ text: "File uploaded successfully!", type: 'success' });
             setSelectedFile(null);
+            setClassNum('');
+            setCategory('');
+
             // Reset file input manually if needed or just let it be
             fetchMaterials();
         } catch (error) {
@@ -99,28 +115,52 @@ const Materials: React.FC = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleUpload} className="flex flex-col md:flex-row gap-6 items-end">
-                    <div className="w-full md:w-1/3">
-                        <label className="block text-sm font-medium text-slate-600 mb-2">Subject</label>
-                        <select
-                            value={subject}
-                            onChange={(e) => setSubject(e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
+                <form onSubmit={handleUpload} className="flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row gap-6 items-end">
+                        <div className="w-full md:w-1/4">
+                            <label className="block text-sm font-medium text-slate-600 mb-2">Subject</label>
+                            <select
+                                value={subject}
+                                onChange={(e) => setSubject(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="w-full md:w-1/4">
+                            <label className="block text-sm font-medium text-slate-600 mb-2">Class / Grade</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. 10, XII, Grade 5"
+                                value={classNum}
+                                onChange={(e) => setClassNum(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+
+                        <div className="w-full md:w-1/4">
+                            <label className="block text-sm font-medium text-slate-600 mb-2">Category</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. Textbook, Chapter 1"
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+
+                        <div className="w-full md:w-1/4">
+                            <label className="block text-sm font-medium text-slate-600 mb-2">File</label>
+                            <input
+                                type="file"
+                                onChange={handleFileChange}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                            />
+                        </div>
                     </div>
 
-                    <div className="w-full md:w-1/3">
-                        <label className="block text-sm font-medium text-slate-600 mb-2">File</label>
-                        <input
-                            type="file"
-                            onChange={handleFileChange}
-                            className="w-full px-4 py-2 rounded-lg border border-slate-300 text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                        />
-                    </div>
-
-                    <div className="w-full md:w-auto">
+                    <div className="self-end mt-2">
                         <button
                             type="submit"
                             disabled={uploading}
@@ -155,11 +195,58 @@ const Materials: React.FC = () => {
                                 href={`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/${material.file_path}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center"
+                                className="text-indigo-600 hover:text-indigo-800 font-medium text-sm flex items-center bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
                             >
                                 Download ⬇
                             </a>
                         </div>
+
+                        {/* Train Button (Super Admin) */}
+                        {userRole && userRole.toUpperCase() === 'SUPER_ADMIN' && (
+                            <div className="mt-3 border-t border-slate-100 pt-3 flex justify-end gap-2">
+                                <button
+                                    onClick={async () => {
+                                        if (!window.confirm("Are you sure you want to delete this file? This cannot be undone.")) return;
+                                        try {
+                                            await api.delete(`/materials/${material.id}`);
+                                            setMessage({ text: "File deleted successfully.", type: 'success' });
+                                            fetchMaterials(); // Refresh list
+                                        } catch (err: any) {
+                                            console.error(err);
+                                            setMessage({ text: "Failed to delete file.", type: 'error' });
+                                        }
+                                    }}
+                                    className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-md hover:bg-red-100 transition-colors flex items-center gap-1 border border-red-200"
+                                >
+                                    🗑 Delete
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            setMessage({ text: `Training model with ${material.filename}...`, type: 'success' }); // Info/Success hack
+                                            const res = await api.post(`/materials/train/${material.id}`);
+                                            const meta = res.data.metadata_used || {};
+                                            // Handle cases where keys might be different case or missing
+                                            const metaSubject = meta.subject || meta.Subject || 'Unknown';
+                                            const metaClass = meta.Class || meta.class || 'Unknown';
+                                            const metaCategory = meta.Category || meta.category || 'Unknown';
+
+                                            setMessage({
+                                                text: `Success! Trained ${res.data.chunks_processed} chunks. Metadata Used -> Subject: ${metaSubject}, Class: ${metaClass}, Category: ${metaCategory}`,
+                                                type: 'success'
+                                            });
+                                        } catch (err: any) {
+                                            console.error(err);
+                                            const errorMsg = err.response?.data?.detail || "Training failed";
+                                            setMessage({ text: errorMsg, type: 'error' });
+                                        }
+                                    }}
+                                    className="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-md hover:bg-slate-700 transition-colors flex items-center gap-1"
+                                >
+                                    🧠 Train AI
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ))}
 
@@ -169,7 +256,7 @@ const Materials: React.FC = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 
