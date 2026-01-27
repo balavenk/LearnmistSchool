@@ -30,6 +30,8 @@ const Materials: React.FC = () => {
 
     const [classNum, setClassNum] = useState('');
     const [category, setCategory] = useState('');
+    const [board, setBoard] = useState('Central');
+    const [language, setLanguage] = useState('English');
     const [userRole, setUserRole] = useState<string>('');
 
     useEffect(() => {
@@ -58,7 +60,9 @@ const Materials: React.FC = () => {
         // Construct extra_tags JSON
         const extraTags = {
             "Class": classNum,
-            "Category": category
+            "Category": category,
+            "Board": board,
+            "Language": language
         };
         formData.append('extra_tags', JSON.stringify(extraTags));
 
@@ -75,6 +79,8 @@ const Materials: React.FC = () => {
             setSelectedFile(null);
             setClassNum('');
             setCategory('');
+            setBoard('Central');
+            setLanguage('English');
 
             // Reset file input manually if needed or just let it be
             fetchMaterials();
@@ -116,8 +122,8 @@ const Materials: React.FC = () => {
                 )}
 
                 <form onSubmit={handleUpload} className="flex flex-col gap-4">
-                    <div className="flex flex-col md:flex-row gap-6 items-end">
-                        <div className="w-full md:w-1/4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div>
                             <label className="block text-sm font-medium text-slate-600 mb-2">Subject</label>
                             <select
                                 value={subject}
@@ -128,7 +134,7 @@ const Materials: React.FC = () => {
                             </select>
                         </div>
 
-                        <div className="w-full md:w-1/4">
+                        <div>
                             <label className="block text-sm font-medium text-slate-600 mb-2">Class / Grade</label>
                             <input
                                 type="text"
@@ -139,7 +145,7 @@ const Materials: React.FC = () => {
                             />
                         </div>
 
-                        <div className="w-full md:w-1/4">
+                        <div>
                             <label className="block text-sm font-medium text-slate-600 mb-2">Category</label>
                             <input
                                 type="text"
@@ -150,7 +156,32 @@ const Materials: React.FC = () => {
                             />
                         </div>
 
-                        <div className="w-full md:w-1/4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 mb-2">Board</label>
+                            <select
+                                value={board}
+                                onChange={(e) => setBoard(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="Central">Central (CBSE/ICSE)</option>
+                                <option value="State">State Board</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 mb-2">Language</label>
+                            <select
+                                value={language}
+                                onChange={(e) => setLanguage(e.target.value)}
+                                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                                <option value="English">English</option>
+                                <option value="Hindi">Hindi</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div>
                             <label className="block text-sm font-medium text-slate-600 mb-2">File</label>
                             <input
                                 type="file"

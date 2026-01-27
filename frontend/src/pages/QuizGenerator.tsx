@@ -21,6 +21,8 @@ const QuizGenerator: React.FC = () => {
     const [quiz, setQuiz] = useState<Question[]>([]);
     const [error, setError] = useState('');
 
+    const [saving, setSaving] = useState(false);
+
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -41,6 +43,26 @@ const QuizGenerator: React.FC = () => {
             setError(err.response?.data?.detail || "Failed to generate quiz. Make sure you have trained materials and a valid API Key.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        const title = window.prompt("Enter a title for this quiz:", `${subject} Quiz - ${new Date().toLocaleDateString()}`);
+        if (!title) return;
+
+        setSaving(true);
+        try {
+            await api.post('/quiz/save', {
+                title,
+                subject,
+                questions: JSON.stringify(quiz)
+            });
+            alert("Quiz saved to Question Bank successfully!");
+        } catch (err: any) {
+            console.error(err);
+            alert("Failed to save quiz.");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -166,6 +188,18 @@ const QuizGenerator: React.FC = () => {
                     </div>
                 ))}
             </div>
+
+            {quiz.length > 0 && (
+                <div className="mt-8 flex justify-center pb-12">
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="px-8 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 transition-colors shadow-lg flex items-center gap-2 transform hover:scale-105 active:scale-95 duration-200"
+                    >
+                        {saving ? 'Saving...' : '💾 Save to Question Bank'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

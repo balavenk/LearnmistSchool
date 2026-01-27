@@ -27,6 +27,7 @@ import StudentAssignments from './pages/student/Assignments';
 import Schedule from './pages/student/Schedule';
 import Materials from './pages/Materials';
 import QuizGenerator from './pages/QuizGenerator';
+import QuizBank from './pages/QuizBank';
 
 
 const App: React.FC = () => {
@@ -68,6 +69,7 @@ const App: React.FC = () => {
           {/* COMMON SHARED */}
           <Route path="materials" element={<Materials />} />
           <Route path="quiz-generator" element={<QuizGenerator />} />
+          <Route path="quiz-bank" element={<QuizBank />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

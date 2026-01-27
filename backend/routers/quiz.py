@@ -127,3 +127,30 @@ def generate_quiz(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Quiz generation failed: {str(e)}")
+
+@router.post("/save", response_model=schemas.Quiz)
+def save_quiz(
+    quiz_data: schemas.QuizCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    # Verify teacher role logic if strict, but let's allow any authorized user for now
+    
+    db_quiz = models.Quiz(
+        title=quiz_data.title,
+        subject=quiz_data.subject,
+        questions=quiz_data.questions, # specific questions JSON string
+        teacher_id=current_user.id
+    )
+    db.add(db_quiz)
+    db.commit()
+    db.refresh(db_quiz)
+    return db_quiz
+
+@router.get("/saved", response_model=List[schemas.Quiz])
+def get_saved_quizzes(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    # Retrieve quizzes created by current user
+    return db.query(models.Quiz).filter(models.Quiz.teacher_id == current_user.id).all()

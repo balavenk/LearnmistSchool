@@ -172,6 +172,9 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                         <NavLink to="/quiz-generator" className="flex items-center px-2 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
                             <span className="mr-3">🪄</span> Quiz Gen
                         </NavLink>
+                        <NavLink to="/quiz-bank" className="flex items-center px-2 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                            <span className="mr-3">🗳️</span> Quiz Bank
+                        </NavLink>
                     </div>
                 </div>
             </nav>

@@ -3,10 +3,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import database, models, schemas, auth
-from routers import super_admin, school_admin, teacher, student, materials, quiz
+from routers import super_admin, school_admin, teacher, student, materials, quiz, assignments
 from datetime import timedelta
 
-# models.Base.metadata.create_all(bind=database.engine)
+models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(
     title="LearnmistSchool API",
@@ -37,6 +37,7 @@ app.include_router(teacher.router)
 app.include_router(student.router)
 app.include_router(materials.router)
 app.include_router(quiz.router)
+app.include_router(assignments.router)
 
 
 @app.post("/token", response_model=schemas.Token, tags=["auth"])

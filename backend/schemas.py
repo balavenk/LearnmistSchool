@@ -116,12 +116,14 @@ class AssignmentBase(BaseModel):
 class AssignmentCreate(AssignmentBase):
     assigned_to_class_id: int # Explicitly assign to a class for now
     subject_id: Optional[int] = None
+    quiz_id: Optional[int] = None
 
 class Assignment(AssignmentBase):
     id: int
     teacher_id: int
     class_id: Optional[int]
     subject_id: Optional[int] = None
+    quiz_id: Optional[int] = None
     
     class Config:
         from_attributes = True
@@ -180,3 +182,19 @@ class QuizQuestion(BaseModel):
     options: List[str]
     correct_answer: str
     explanation: Optional[str] = None
+
+class QuizBase(BaseModel):
+    title: str
+    subject: str
+    questions: str # JSON string (or List[QuizQuestion] if we parse it)
+
+class QuizCreate(QuizBase):
+    pass
+
+class Quiz(QuizBase):
+    id: int
+    teacher_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

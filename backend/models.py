@@ -50,6 +50,7 @@ class User(Base):
     school = relationship("School", back_populates="users")
     teacher_assignments = relationship("TeacherAssignment", back_populates="teacher")
     created_assignments = relationship("Assignment", back_populates="teacher") # Assignments created by this teacher
+    created_quizzes = relationship("Quiz", back_populates="teacher")
 
 class Subject(Base):
     __tablename__ = "subjects"
@@ -134,6 +135,9 @@ class Assignment(Base):
     teacher_id = Column(Integer, ForeignKey("users.id"))
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True) # Null means assigned to who? Maybe all classes of teacher? Let's say specific class for now.
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True) # Optional link to subject
+    quiz_id = Column(Integer, ForeignKey("quizzes.id"), nullable=True)
+
+    quiz = relationship("Quiz", back_populates="assignments")
 
     teacher = relationship("User", back_populates="created_assignments")
     assigned_class = relationship("Class", back_populates="assignments")
@@ -172,3 +176,16 @@ class FileArtifact(Base):
     submission_id = Column(Integer, ForeignKey("submissions.id"), nullable=True)
 
     uploaded_by = relationship("User")
+
+class Quiz(Base):
+    __tablename__ = "quizzes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200))
+    subject = Column(String(100))
+    teacher_id = Column(Integer, ForeignKey("users.id"))
+    questions = Column(Text) # JSON string of the questions list
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    teacher = relationship("User", back_populates="created_quizzes")
+    assignments = relationship("Assignment", back_populates="quiz")
