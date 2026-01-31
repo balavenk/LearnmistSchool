@@ -235,3 +235,8 @@ class DashboardStats(BaseModel):
     total_students: int
     total_classes: int
     classes: List[ClassStats]
+
+class SchoolAdminStats(BaseModel):
+    total_students: int
+    total_teachers: int
+    total_classes: int

@@ -133,3 +133,27 @@ def assign_class_teacher(class_id: int, teacher_id: int, db: Session = Depends(d
     class_obj.class_teacher_id = teacher_id
     db.commit()
     return {"message": "Teacher assigned to class successfully"}
+
+@router.get("/students/", response_model=List[schemas.Student])
+def read_students(grade_id: int = None, class_id: int = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    query = db.query(models.Student).filter(models.Student.school_id == current_user.school_id)
+    
+    if class_id:
+        query = query.filter(models.Student.class_id == class_id)
+        
+    return query.all()
+
+@router.get("/dashboard/stats", response_model=schemas.SchoolAdminStats)
+def read_dashboard_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    total_students = db.query(models.Student).filter(models.Student.school_id == current_user.school_id).count()
+    total_teachers = db.query(models.User).filter(
+        models.User.school_id == current_user.school_id, 
+        models.User.role == models.UserRole.TEACHER
+    ).count()
+    total_classes = db.query(models.Class).filter(models.Class.school_id == current_user.school_id).count()
+    
+    return schemas.SchoolAdminStats(
+        total_students=total_students,
+        total_teachers=total_teachers,
+        total_classes=total_classes
+    )
