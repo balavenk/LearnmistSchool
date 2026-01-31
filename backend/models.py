@@ -208,6 +208,7 @@ class Submission(Base):
 
     assignment = relationship("Assignment", back_populates="submissions")
     student = relationship("Student", back_populates="submissions")
+    answers = relationship("StudentAnswer", back_populates="submission", cascade="all, delete-orphan")
 
 class FileArtifact(Base):
     __tablename__ = "file_artifacts"

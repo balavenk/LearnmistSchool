@@ -67,6 +67,14 @@ class School(SchoolBase):
     class Config:
         from_attributes = True
 
+class StudentSubjectStats(BaseModel):
+    subject_id: int
+    subject_name: str
+    total_assignments: int
+    completed_assignments: int
+    pending_assignments: int
+
+
 class UserBase(BaseModel):
     username: str
     email: Optional[str] = None
@@ -172,6 +180,7 @@ class AssignmentOut(Assignment):
     subject_name: Optional[str] = "General"
     teacher_name: Optional[str] = "Unknown"
     created_at: Optional[datetime] = None # Assuming we might add this to model or map it
+    submission_id: Optional[int] = None
 
 class QuestionOptionBase(BaseModel):
     text: str
@@ -179,6 +188,14 @@ class QuestionOptionBase(BaseModel):
 
 class QuestionOptionCreate(QuestionOptionBase):
     pass
+
+class QuestionOptionOut(BaseModel):
+    id: int
+    text: str
+    question_id: int
+    # No is_correct here
+    class Config:
+        from_attributes = True
 
 class QuestionOption(QuestionOptionBase):
     id: int
@@ -200,6 +217,14 @@ class QuestionUpdate(BaseModel):
     question_type: Optional[str] = None
     options: Optional[List[QuestionOptionCreate]] = None
 
+class QuestionOut(QuestionBase):
+    id: int
+    assignment_id: int
+    options: List[QuestionOptionOut] = []
+    
+    class Config:
+        from_attributes = True
+
 class Question(QuestionBase):
     id: int
     assignment_id: int
@@ -213,8 +238,17 @@ class Question(QuestionBase):
 class SubmissionBase(BaseModel):
     pass
 
+class StudentAnswerBase(BaseModel):
+    question_id: int
+    selected_option_id: Optional[int] = None
+    text_answer: Optional[str] = None
+
+class StudentAnswerCreate(StudentAnswerBase):
+    pass
+
 class SubmissionCreate(SubmissionBase):
     assignment_id: int
+    answers: List[StudentAnswerCreate] = []
 
 class SubmissionUpdate(BaseModel):
     status: Optional[SubmissionStatus] = None
@@ -235,13 +269,7 @@ class Submission(BaseModel):
 
 # --- Grading Schemas ---
 
-class StudentAnswerBase(BaseModel):
-    question_id: int
-    selected_option_id: Optional[int] = None
-    text_answer: Optional[str] = None
-
-class StudentAnswerCreate(StudentAnswerBase):
-    pass
+# --- Grading Schemas ---
 
 class StudentAnswer(StudentAnswerBase):
     id: int

@@ -32,6 +32,7 @@ import StudentGrading from './pages/teacher/StudentGrading';
 // Student Pages
 import StudentAssignments from './pages/student/Assignments';
 import Schedule from './pages/student/Schedule';
+import StudentGrades from './pages/student/Grades';
 
 
 const App: React.FC = () => {
@@ -76,8 +77,9 @@ const App: React.FC = () => {
           <Route path="assignments" element={<Navigate to="/teacher/assignments" replace />} />
 
           {/* STUDENT */}
-          <Route path="student" element={<StudentDashboard />} />
+          <Route path="student" element={<Navigate to="/my-grades" replace />} />
           <Route path="student/assignments" element={<StudentAssignments />} />
+          <Route path="my-grades" element={<StudentGrades />} />
           <Route path="schedule" element={<Schedule />} />
         </Route>
 

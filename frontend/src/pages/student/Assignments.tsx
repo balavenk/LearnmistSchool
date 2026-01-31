@@ -11,10 +11,15 @@ interface Assignment {
     status: string; // 'DRAFT', 'PUBLISHED'
 }
 
+import TakeQuiz from './TakeQuiz';
+import ReviewQuiz from './ReviewQuiz';
+
 const StudentAssignments: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'open' | 'completed'>('open');
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [loading, setLoading] = useState(true);
+    const [takingQuizId, setTakingQuizId] = useState<number | null>(null);
+    const [reviewSubmissionId, setReviewSubmissionId] = useState<number | null>(null);
 
     const fetchAssignments = async () => {
         try {
@@ -33,24 +38,43 @@ const StudentAssignments: React.FC = () => {
         fetchAssignments();
     }, [activeTab]);
 
-    const handleSubmit = async (assignmentId: number) => {
-        if (!window.confirm("Are you sure you want to submit this assignment?")) return;
+    const handleTakeTest = (assignmentId: number) => {
+        setTakingQuizId(assignmentId);
+    };
 
-        try {
-            await api.post('/student/submissions/', {
-                assignment_id: assignmentId,
-            });
-            alert("Assignment submitted successfully!");
-            // Refresh list
-            fetchAssignments();
-        } catch (error) {
-            console.error("Failed to submit", error);
-            alert("Failed to submit assignment.");
-        }
+    const handleQuizClose = () => {
+        setTakingQuizId(null);
+    };
+
+    const handleQuizSubmitSuccess = () => {
+        setTakingQuizId(null);
+        fetchAssignments(); // Refresh to move it to completed
+    };
+
+    const handleReview = (submissionId: number) => {
+        setReviewSubmissionId(submissionId);
+    };
+
+    const handleReviewClose = () => {
+        setReviewSubmissionId(null);
     };
 
     return (
         <div className="space-y-6">
+            {takingQuizId && (
+                <TakeQuiz
+                    assignmentId={takingQuizId}
+                    onClose={handleQuizClose}
+                    onSubmitSuccess={handleQuizSubmitSuccess}
+                />
+            )}
+
+            {reviewSubmissionId && (
+                <ReviewQuiz
+                    submissionId={reviewSubmissionId}
+                    onClose={handleReviewClose}
+                />
+            )}
             <div>
                 <h1 className="text-3xl font-bold text-slate-900">My Assignments</h1>
                 <p className="text-slate-500 mt-1">Manage and track your school work.</p>
@@ -61,8 +85,8 @@ const StudentAssignments: React.FC = () => {
                 <button
                     onClick={() => setActiveTab('open')}
                     className={`pb-4 px-6 text-sm font-medium transition-colors relative ${activeTab === 'open'
-                            ? 'text-indigo-600 border-b-2 border-indigo-600'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'text-indigo-600 border-b-2 border-indigo-600'
+                        : 'text-slate-500 hover:text-slate-700'
                         }`}
                 >
                     Open Assignments
@@ -70,8 +94,8 @@ const StudentAssignments: React.FC = () => {
                 <button
                     onClick={() => setActiveTab('completed')}
                     className={`pb-4 px-6 text-sm font-medium transition-colors relative ${activeTab === 'completed'
-                            ? 'text-indigo-600 border-b-2 border-indigo-600'
-                            : 'text-slate-500 hover:text-slate-700'
+                        ? 'text-indigo-600 border-b-2 border-indigo-600'
+                        : 'text-slate-500 hover:text-slate-700'
                         }`}
                 >
                     Completed
@@ -117,15 +141,25 @@ const StudentAssignments: React.FC = () => {
                                 <div className="col-span-2 text-right">
                                     {activeTab === 'open' ? (
                                         <button
-                                            onClick={() => handleSubmit(assignment.id)}
+                                            onClick={() => handleTakeTest(assignment.id)}
                                             className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition-colors"
                                         >
-                                            Submit
+                                            Take Test
                                         </button>
                                     ) : (
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                            Completed
-                                        </span>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                Completed
+                                            </span>
+                                            {(assignment as any).submission_id && (
+                                                <button
+                                                    onClick={() => handleReview((assignment as any).submission_id)}
+                                                    className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                                                >
+                                                    Review
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>

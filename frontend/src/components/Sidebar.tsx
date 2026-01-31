@@ -136,11 +136,6 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                     {role === 'STUDENT' && (
                         <>
                             <li>
-                                <NavLink to="/student" end className={linkClass}>
-                                    Dashboard
-                                </NavLink>
-                            </li>
-                            <li>
                                 <NavLink to="/my-grades" className={linkClass}>
                                     My Grades
                                 </NavLink>
