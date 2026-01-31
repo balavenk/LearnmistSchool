@@ -85,6 +85,7 @@ class User(Base):
     role = Column(Enum(UserRole), default=UserRole.STUDENT)
     active = Column(Boolean, default=True)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=True)
+    last_login = Column(DateTime, nullable=True)
 
     school = relationship("School", back_populates="users")
     teacher_assignments = relationship("TeacherAssignment", back_populates="teacher")
@@ -149,6 +150,14 @@ class Student(Base):
     grade = relationship("Grade", back_populates="students")
     class_ = relationship("Class", back_populates="students")
     submissions = relationship("Submission", back_populates="student")
+
+    @property
+    def username(self):
+        return self.user.username if self.user else None
+
+    @property
+    def last_login(self):
+        return self.user.last_login if self.user else None
 
 class TeacherAssignment(Base):
     __tablename__ = "teacher_assignments"

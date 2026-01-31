@@ -52,6 +52,12 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     access_token = auth.create_access_token(
         data={"sub": user.username, "role": user.role, "school_id": user.school_id}, expires_delta=access_token_expires
     )
+    
+    # Update last login
+    from datetime import datetime
+    user.last_login = datetime.utcnow()
+    db.commit()
+    
     return {
         "access_token": access_token, 
         "token_type": "bearer",

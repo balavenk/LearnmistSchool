@@ -81,6 +81,7 @@ class User(UserBase):
     active: bool
     role: UserRole
     school_id: Optional[int] = None
+    last_login: Optional[datetime] = None
     
     class Config:
         from_attributes = True
@@ -141,6 +142,9 @@ class Student(StudentBase):
     school_id: int
     grade_id: int
     class_id: Optional[int] = None
+    username: Optional[str] = None
+    user_id: Optional[int] = None
+    last_login: Optional[datetime] = None
     
     class Config:
         from_attributes = True
@@ -281,5 +285,10 @@ class SchoolAdminStats(BaseModel):
 class SuperAdminStats(BaseModel):
     total_schools: int
     active_users: int
+    total_quizzes: int = 0
+    total_projects: int = 0
     recent_schools: List[School] = [] # Re-using School schema
+
+class PasswordResetRequest(BaseModel):
+    password: str
 

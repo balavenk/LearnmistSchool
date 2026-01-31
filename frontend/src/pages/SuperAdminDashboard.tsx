@@ -4,6 +4,8 @@ const SuperAdminDashboard: React.FC = () => {
     const [stats, setStats] = React.useState({
         total_schools: 0,
         active_users: 0,
+        total_quizzes: 0,
+        total_projects: 0,
         recent_schools: [] as any[]
     });
     const [loading, setLoading] = React.useState(true);
@@ -31,7 +33,7 @@ const SuperAdminDashboard: React.FC = () => {
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-slate-900">Super Admin Dashboard</h1>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 {/* Card 1 */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h3 className="text-lg font-semibold text-slate-700 mb-2">Total Schools</h3>
@@ -44,7 +46,19 @@ const SuperAdminDashboard: React.FC = () => {
                     <p className="text-4xl font-bold text-green-600">{stats.active_users.toLocaleString()}</p>
                     <p className="text-sm text-slate-500 mt-2">Students & Staff</p>
                 </div>
-                {/* Card 3 */}
+                {/* Card 3: Quizzes */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-2">Total Quizzes</h3>
+                    <p className="text-4xl font-bold text-blue-600">{stats.total_quizzes}</p>
+                    <p className="text-sm text-slate-500 mt-2">Questions-based</p>
+                </div>
+                {/* Card 4: Projects */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-2">Projects</h3>
+                    <p className="text-4xl font-bold text-purple-600">{stats.total_projects}</p>
+                    <p className="text-sm text-slate-500 mt-2">Assignments</p>
+                </div>
+                {/* Card 5: System Status */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <h3 className="text-lg font-semibold text-slate-700 mb-2">System Status</h3>
                     <div className="flex items-center mt-1">

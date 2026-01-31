@@ -29,13 +29,24 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
     
     recent_schools = db.query(models.School).order_by(models.School.id.desc()).limit(5).all()
     
-    # Need to populate extra specific fields for schools if required by School schema? 
-    # School schema has 'student_count' and 'teacher_count' as optional.
-    # We can skip expensive counts for the dashboard list if not displayed.
+    # Calculate Quizzes vs Projects
+    # Quiz: Assignment with at least one question
+    # Project: Assignment with zero questions
+    
+    # This query might be expensive if many assignments. Optimizing with count only.
+    # Approach: Count assignments with > 0 questions.
+    # We can join Assignment and Question.
+    
+    total_quizzes = db.query(models.Assignment).join(models.Question).distinct().count()
+    
+    total_assignments = db.query(models.Assignment).count()
+    total_projects = total_assignments - total_quizzes
     
     return {
         "total_schools": total_schools,
         "active_users": total_students + total_users,
+        "total_quizzes": total_quizzes,
+        "total_projects": max(0, total_projects),
         "recent_schools": recent_schools
     }
 
@@ -141,10 +152,46 @@ def read_school_users(school_id: int, role: models.UserRole = None, db: Session 
 
 @router.get("/schools/{school_id}/students", response_model=List[schemas.Student])
 def read_school_students(school_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
-     school = db.query(models.School).filter(models.School.id == school_id).first()
-     if not school:
-        raise HTTPException(status_code=404, detail="School not found")
-     return db.query(models.Student).filter(models.Student.school_id == school_id).all()
+    school = db.query(models.School).filter(models.School.id == school_id).first()
+    if not school:
+       raise HTTPException(status_code=404, detail="School not found")
+    return db.query(models.Student).filter(models.Student.school_id == school_id).all()
+
+@router.post("/users/{user_id}/deactivate")
+def deactivate_user(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Toggle active status or strict deactivate? Request said "deactivate link".
+    # But usually a toggle is better. However, to stick to prompt "Deactive" -> Deactivate.
+    # User said: "on click of deactivate link that user login should be deactivated"
+    # I'll implement strict deactivation. If they want activation, they might ask, or I can add a dedicated Activate endpoint or toggle.
+    # Let's make it a Toggle for usability but rename button in frontend if needed? 
+    # Actually, simpler is: active = !active. 
+    user.active = False 
+    db.commit()
+    return {"message": "User deactivated successfully", "active": user.active}
+
+@router.post("/users/{user_id}/activate")
+def activate_user(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.active = True
+    db.commit()
+    return {"message": "User activated successfully", "active": user.active}
+
+@router.post("/users/{user_id}/reset-password")
+def reset_password(user_id: int, request: schemas.PasswordResetRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    hashed_password = auth.get_password_hash(request.password)
+    user.hashed_password = hashed_password
+    db.commit()
+    return {"message": "Password reset successfully"}
 
 # Master Data Endpoints
 
