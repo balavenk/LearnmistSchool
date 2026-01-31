@@ -17,6 +17,7 @@ interface ClassOption {
     id: number;
     name: string;
     section: string;
+    grade?: { name: string };
 }
 
 interface SubjectOption {
@@ -47,6 +48,10 @@ const TeacherAssignments: React.FC = () => {
     const [aiDifficulty, setAiDifficulty] = useState('Medium');
     const [aiQuestionCount, setAiQuestionCount] = useState(10);
     const [aiQuestionType, setAiQuestionType] = useState('Multiple Choice');
+    const [aiDueDate, setAiDueDate] = useState('');
+    const [aiSubjectId, setAiSubjectId] = useState<number | ''>('');
+    const [aiClassId, setAiClassId] = useState<number | ''>('');
+
 
     // Fetch Data
     const fetchData = async () => {
@@ -102,9 +107,11 @@ const TeacherAssignments: React.FC = () => {
             const response = await api.post('/teacher/assignments/ai-generate', null, {
                 params: {
                     topic: aiTopic,
-                    grade_level: aiGrade,
+                    grade_level: aiGrade, // This is now updated when class is selected
                     difficulty: aiDifficulty,
-                    question_count: aiQuestionCount
+                    question_count: aiQuestionCount,
+                    due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
+                    subject_id: Number(aiSubjectId)
                 }
             });
             // The AI generate endpoint creates a draft in DB
@@ -114,6 +121,20 @@ const TeacherAssignments: React.FC = () => {
         } catch (error) {
             console.error("Failed to generate AI assignment", error);
             alert("Failed to generate AI assignment.");
+        }
+    };
+
+    // ... (rest of methods)
+
+    const handlePublish = async (id: number) => {
+        if (!confirm("Are you sure you want to publish this quiz? Students will be able to see it immediately.")) return;
+        try {
+            await api.put(`/teacher/assignments/${id}/publish`);
+            fetchData();
+            alert("Quiz published successfully!");
+        } catch (error) {
+            console.error("Failed to publish", error);
+            alert("Failed to publish quiz.");
         }
     };
 
@@ -133,6 +154,9 @@ const TeacherAssignments: React.FC = () => {
         setAiDifficulty('Medium');
         setAiQuestionCount(10);
         setAiQuestionType('Multiple Choice');
+        setAiDueDate('');
+        setAiSubjectId('');
+        setAiClassId('');
     };
 
     const getClassName = (id?: number | null) => {
@@ -207,6 +231,23 @@ const TeacherAssignments: React.FC = () => {
                             <p><strong>Due:</strong> {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No Due Date'}</p>
                             <p><strong>Assigned to:</strong> {getClassName(assignment.class_id)}</p>
                         </div>
+
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                            {assignment.status === 'DRAFT' && (
+                                <button
+                                    onClick={() => handlePublish(assignment.id)}
+                                    className="text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm font-medium transition-colors shadow-sm"
+                                >
+                                    Publish Now
+                                </button>
+                            )}
+                            <a
+                                href={`/teacher/assignments/${assignment.id}/questions`}
+                                className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center ml-auto"
+                            >
+                                Manage Questions →
+                            </a>
+                        </div>
                     </div>
                 ))}
                 {!loading && filteredAssignments.length === 0 && (
@@ -276,7 +317,7 @@ const TeacherAssignments: React.FC = () => {
                 </div>
             )}
 
-            {/* AI Modal remains mostly the same, connected via handleAIGenerate */}
+            {/* AI Modal */}
             {isAIModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
                     <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6 relative overflow-hidden">
@@ -307,17 +348,49 @@ const TeacherAssignments: React.FC = () => {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Grade Level</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
                                     <select
-                                        value={aiGrade}
-                                        onChange={(e) => setAiGrade(e.target.value)}
+                                        required
+                                        value={aiSubjectId}
+                                        onChange={(e) => setAiSubjectId(Number(e.target.value))}
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                     >
-                                        {['Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map(g => (
-                                            <option key={g} value={g}>{g}</option>
+                                        <option value="">Select Subject</option>
+                                        {subjects.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
                                         ))}
                                     </select>
                                 </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                                    <select
+                                        required
+                                        value={aiClassId}
+                                        onChange={(e) => {
+                                            const id = Number(e.target.value);
+                                            setAiClassId(id);
+                                            // Auto-update grade level based on class if needed for prompt
+                                            const cls = classes.find(c => c.id === id);
+                                            if (cls) setAiGrade(cls.grade?.name || 'Grade 10');
+                                        }}
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                    >
+                                        <option value="">Select Class</option>
+                                        {classes.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                    {aiClassId && (
+                                        <div className="mt-1 text-xs text-slate-500 flex gap-2">
+                                            <span>Section: {classes.find(c => c.id === aiClassId)?.section}</span>
+                                            <span>•</span>
+                                            <span>Grade: {classes.find(c => c.id === aiClassId)?.grade?.name || 'N/A'}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Difficulty</label>
                                     <select
@@ -330,9 +403,6 @@ const TeacherAssignments: React.FC = () => {
                                         ))}
                                     </select>
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Number of Questions</label>
                                     <input
@@ -344,6 +414,9 @@ const TeacherAssignments: React.FC = () => {
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                     />
                                 </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Question Type</label>
                                     <select
@@ -355,6 +428,16 @@ const TeacherAssignments: React.FC = () => {
                                             <option key={t} value={t}>{t}</option>
                                         ))}
                                     </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={aiDueDate}
+                                        onChange={(e) => setAiDueDate(e.target.value)}
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                    />
                                 </div>
                             </div>
 

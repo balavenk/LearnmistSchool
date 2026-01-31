@@ -5,38 +5,25 @@ interface Assignment {
     id: number;
     title: string;
     description: string;
-    course?: string; // Not directly in Assignment model, maybe need subject
+    subject_name: string;
+    teacher_name: string; // From API enrichment
     due_date: string;
-    // status: 'Pending' | 'Submitted' | 'Graded'; // Backend status is about assignment itself
-    // We need submission status. 
-    // Assignment model: { id, title, description, due_date, status, teacher_id, class_id, subject_id }
-    // We need to fetch submissions to know if it's submitted.
-    // simpler for now: just show assignments.
-    status?: string; // Placeholder
-}
-
-interface Submission {
-    assignment_id: number;
-    status: string;
-    grade?: string;
+    status: string; // 'DRAFT', 'PUBLISHED'
 }
 
 const StudentAssignments: React.FC = () => {
+    const [activeTab, setActiveTab] = useState<'open' | 'completed'>('open');
     const [assignments, setAssignments] = useState<Assignment[]>([]);
-    const [submissions, setSubmissions] = useState<Submission[]>([]); // To track status
     const [loading, setLoading] = useState(true);
 
     const fetchAssignments = async () => {
         try {
             setLoading(true);
-            const [assignmentsRes, submissionsRes] = await Promise.all([
-                api.get('/student/assignments/'),
-                api.get('/student/submissions/')
-            ]);
-            setAssignments(assignmentsRes.data);
-            setSubmissions(submissionsRes.data);
+            const endpoint = activeTab === 'open' ? '/student/assignments/open' : '/student/assignments/completed';
+            const response = await api.get(endpoint);
+            setAssignments(response.data);
         } catch (error) {
-            console.error("Failed to fetch assignments data", error);
+            console.error("Failed to fetch assignments", error);
         } finally {
             setLoading(false);
         }
@@ -44,80 +31,107 @@ const StudentAssignments: React.FC = () => {
 
     useEffect(() => {
         fetchAssignments();
-    }, []);
+    }, [activeTab]);
 
     const handleSubmit = async (assignmentId: number) => {
+        if (!window.confirm("Are you sure you want to submit this assignment?")) return;
+
         try {
             await api.post('/student/submissions/', {
                 assignment_id: assignmentId,
-                content: "Submitting assignment..." // Schema might need content? Checked schema: SubmissionCreate(assignment_id). content optional? 
-                // Wait, checked schema.py earlier, didn't see content field in snippets. 
-                // Let's assume standard submission.
             });
             alert("Assignment submitted successfully!");
-            // Update local state or re-fetch
-            setSubmissions([...submissions, { assignment_id: assignmentId, status: 'SUBMITTED' }]);
+            // Refresh list
+            fetchAssignments();
         } catch (error) {
             console.error("Failed to submit", error);
             alert("Failed to submit assignment.");
         }
     };
 
-    const getStatus = (assignmentId: number) => {
-        const sub = submissions.find(s => s.assignment_id === assignmentId);
-        if (sub) return sub.status;
-        return 'PENDING';
-    };
-
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="text-3xl font-bold text-slate-900">My Assignments</h1>
-                <p className="text-slate-500 mt-1">View upcoming and past works.</p>
+                <p className="text-slate-500 mt-1">Manage and track your school work.</p>
             </div>
 
-            <div className="space-y-4">
-                {loading ? <p>Loading assignments...</p> : assignments.map((assignment) => {
-                    const status = getStatus(assignment.id);
-                    return (
-                        <div key={assignment.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center hover:shadow-md transition-all">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-1">
-                                    <h3 className="text-lg font-bold text-slate-900">{assignment.title}</h3>
-                                    <span className={`px-2 py-0.5 rounded text-xs font-semibold 
-                                        ${status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                                            status === 'SUBMITTED' ? 'bg-blue-100 text-blue-800' :
-                                                'bg-green-100 text-green-800'}`}>
-                                        {status}
-                                    </span>
-                                </div>
-                                <p className="text-slate-600 text-sm mb-2">{assignment.description}</p>
-                                <div className="text-xs text-slate-500 flex gap-4">
-                                    {/* <span><strong>Course:</strong> {assignment.course}</span> */}
-                                    <span><strong>Due:</strong> {new Date(assignment.due_date).toLocaleDateString()}</span>
-                                </div>
-                            </div>
+            {/* Tabs */}
+            <div className="flex border-b border-slate-200">
+                <button
+                    onClick={() => setActiveTab('open')}
+                    className={`pb-4 px-6 text-sm font-medium transition-colors relative ${activeTab === 'open'
+                            ? 'text-indigo-600 border-b-2 border-indigo-600'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                >
+                    Open Assignments
+                </button>
+                <button
+                    onClick={() => setActiveTab('completed')}
+                    className={`pb-4 px-6 text-sm font-medium transition-colors relative ${activeTab === 'completed'
+                            ? 'text-indigo-600 border-b-2 border-indigo-600'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                >
+                    Completed
+                </button>
+            </div>
 
-                            <div className="mt-4 md:mt-0 md:ml-6 flex items-center gap-4">
-                                <button
-                                    onClick={() => handleSubmit(assignment.id)}
-                                    disabled={status === 'SUBMITTED'}
-                                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${status === 'SUBMITTED'
-                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                        }`}
-                                >
-                                    {status === 'SUBMITTED' ? 'Submitted' : 'Start / Submit'}
-                                </button>
-                            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                {/* Grid Header */}
+                <div className="grid grid-cols-12 gap-4 p-4 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <div className="col-span-2">Subject</div>
+                    <div className="col-span-4">Assignment Name</div>
+                    <div className="col-span-2">Teacher</div>
+                    <div className="col-span-2">Due Date</div>
+                    <div className="col-span-2 text-right">Action</div>
+                </div>
+
+                {/* Grid Content */}
+                <div className="divide-y divide-slate-100">
+                    {loading ? (
+                        <div className="p-8 text-center text-slate-500">Loading assignments...</div>
+                    ) : assignments.length === 0 ? (
+                        <div className="p-8 text-center text-slate-500">
+                            {activeTab === 'open' ? 'No open assignments!' : 'No completed assignments yet.'}
                         </div>
-                    );
-                })}
-                {!loading && assignments.length === 0 && (
-                    <div className="text-center py-10 text-slate-500">
-                        No assignments found for your class.
-                    </div>
-                )}
+                    ) : (
+                        assignments.map((assignment) => (
+                            <div key={assignment.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50 transition-colors">
+                                <div className="col-span-2 font-medium text-slate-700">
+                                    {assignment.subject_name || <span className="text-slate-400 italic">General</span>}
+                                </div>
+                                <div className="col-span-4">
+                                    <h4 className="font-semibold text-slate-900">{assignment.title}</h4>
+                                    {assignment.description && (
+                                        <p className="text-xs text-slate-500 truncate mt-0.5">{assignment.description}</p>
+                                    )}
+                                </div>
+                                <div className="col-span-2 text-sm text-slate-600">
+                                    {assignment.teacher_name}
+                                </div>
+                                <div className="col-span-2 text-sm text-slate-600">
+                                    {new Date(assignment.due_date).toLocaleDateString()}
+                                </div>
+                                <div className="col-span-2 text-right">
+                                    {activeTab === 'open' ? (
+                                        <button
+                                            onClick={() => handleSubmit(assignment.id)}
+                                            className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded hover:bg-indigo-700 transition-colors"
+                                        >
+                                            Submit
+                                        </button>
+                                    ) : (
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Completed
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
         </div>
     );

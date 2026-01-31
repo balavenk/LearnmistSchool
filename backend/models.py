@@ -138,6 +138,11 @@ class Assignment(Base):
     teacher = relationship("User", back_populates="created_assignments")
     assigned_class = relationship("Class", back_populates="assignments")
     submissions = relationship("Submission", back_populates="assignment")
+    submissions = relationship("Submission", back_populates="assignment")
+    subject = relationship("Subject")
+    questions = relationship("Question", back_populates="assignment", cascade="all, delete-orphan")
+
+
 
 class Submission(Base):
     __tablename__ = "submissions"
@@ -172,3 +177,51 @@ class FileArtifact(Base):
     submission_id = Column(Integer, ForeignKey("submissions.id"), nullable=True)
 
     uploaded_by = relationship("User")
+
+class QuestionType(str, enum.Enum):
+    MULTIPLE_CHOICE = "MULTIPLE_CHOICE"
+    TRUE_FALSE = "TRUE_FALSE"
+    SHORT_ANSWER = "SHORT_ANSWER"
+
+class Question(Base):
+    __tablename__ = "questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    text = Column(Text)
+    points = Column(Integer, default=1)
+    question_type = Column(Enum(QuestionType), default=QuestionType.MULTIPLE_CHOICE)
+    assignment_id = Column(Integer, ForeignKey("assignments.id"))
+
+    assignment = relationship("Assignment", back_populates="questions")
+    options = relationship("QuestionOption", back_populates="question", cascade="all, delete-orphan")
+
+class QuestionOption(Base):
+    __tablename__ = "question_options"
+
+    id = Column(Integer, primary_key=True, index=True)
+    text = Column(String(500))
+    is_correct = Column(Boolean, default=False)
+    question_id = Column(Integer, ForeignKey("questions.id"))
+
+    question = relationship("Question", back_populates="options")
+
+# Update Assignment to include questions relationship
+# Assignment.questions = relationship("Question", back_populates="assignment", cascade="all, delete-orphan")
+
+class StudentAnswer(Base):
+    __tablename__ = "student_answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    submission_id = Column(Integer, ForeignKey("submissions.id"))
+    question_id = Column(Integer, ForeignKey("questions.id"))
+    selected_option_id = Column(Integer, ForeignKey("question_options.id"), nullable=True) # For MCQ
+    text_answer = Column(Text, nullable=True) # For Short Answer / Text
+    is_correct = Column(Boolean, default=False)
+    points_awarded = Column(Integer, default=0)
+
+    submission = relationship("Submission", back_populates="answers")
+    question = relationship("Question")
+    selected_option = relationship("QuestionOption")
+
+# Update Submission relationship
+Submission.answers = relationship("StudentAnswer", back_populates="submission", cascade="all, delete-orphan")

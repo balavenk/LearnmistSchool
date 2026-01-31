@@ -86,6 +86,7 @@ class Class(ClassBase):
     school_id: int
     grade_id: int
     class_teacher_id: Optional[int] = None
+    grade: Optional['Grade'] = None
     
     class Config:
         from_attributes = True
@@ -126,6 +127,48 @@ class Assignment(AssignmentBase):
     class Config:
         from_attributes = True
 
+class AssignmentOut(Assignment):
+    subject_name: Optional[str] = "General"
+    teacher_name: Optional[str] = "Unknown"
+    created_at: Optional[datetime] = None # Assuming we might add this to model or map it
+
+class QuestionOptionBase(BaseModel):
+    text: str
+    is_correct: bool
+
+class QuestionOptionCreate(QuestionOptionBase):
+    pass
+
+class QuestionOption(QuestionOptionBase):
+    id: int
+    question_id: int
+    class Config:
+        from_attributes = True
+
+class QuestionBase(BaseModel):
+    text: str
+    points: int
+    question_type: str # string representation of Enum
+
+class QuestionCreate(QuestionBase):
+    options: List[QuestionOptionCreate] = []
+
+class QuestionUpdate(BaseModel):
+    text: Optional[str] = None
+    points: Optional[int] = None
+    question_type: Optional[str] = None
+    options: Optional[List[QuestionOptionCreate]] = None
+
+class Question(QuestionBase):
+    id: int
+    assignment_id: int
+    options: List[QuestionOption] = []
+    
+    class Config:
+        from_attributes = True
+
+
+
 class SubmissionBase(BaseModel):
     pass
 
@@ -148,3 +191,35 @@ class Submission(BaseModel):
     
     class Config:
         from_attributes = True
+
+# --- Grading Schemas ---
+
+class StudentAnswerBase(BaseModel):
+    question_id: int
+    selected_option_id: Optional[int] = None
+    text_answer: Optional[str] = None
+
+class StudentAnswerCreate(StudentAnswerBase):
+    pass
+
+class StudentAnswer(StudentAnswerBase):
+    id: int
+    submission_id: int
+    is_correct: bool
+    points_awarded: int
+
+    class Config:
+        from_attributes = True
+
+class GradingUpdate(BaseModel):
+    grade: str # Letter grade or score
+    feedback: Optional[str] = None
+    answers: List[dict] # List of {question_id: int, points: int, is_correct: bool}
+
+class AssignmentDetail(Assignment):
+    questions: List[Question] = []
+
+class SubmissionDetail(Submission):
+    answers: List[StudentAnswer] = []
+    assignment: AssignmentDetail
+    student: Student

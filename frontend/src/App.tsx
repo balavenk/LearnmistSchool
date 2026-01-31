@@ -20,7 +20,10 @@ import Classes from './pages/school-admin/Classes';
 
 // Teacher Pages
 import TeacherAssignments from './pages/teacher/Assignments';
+import QuizDetails from './pages/teacher/QuizDetails';
 import TeacherStudents from './pages/teacher/Students';
+import TeacherGrading from './pages/teacher/Grading';
+import StudentGrading from './pages/teacher/StudentGrading';
 
 // Student Pages
 import StudentAssignments from './pages/student/Assignments';
@@ -53,7 +56,12 @@ const App: React.FC = () => {
           {/* TEACHER */}
           <Route path="teacher" element={<TeacherDashboard />} />
           <Route path="teacher/assignments" element={<TeacherAssignments />} />
+          <Route path="teacher/assignments" element={<TeacherAssignments />} />
+          <Route path="teacher/assignments/:assignmentId/questions" element={<QuizDetails />} />
           <Route path="teacher/students" element={<TeacherStudents />} />
+          <Route path="grading" element={<TeacherGrading />} />
+          <Route path="grading/:studentId" element={<StudentGrading />} />
+
 
           {/* Backwards compatibility / Redirects if needed */}
           <Route path="assignments" element={<Navigate to="/teacher/assignments" replace />} />
