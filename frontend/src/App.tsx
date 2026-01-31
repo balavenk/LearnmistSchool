@@ -7,6 +7,10 @@ import SchoolAdminDashboard from './pages/SchoolAdminDashboard';
 import TeacherDashboard from './pages/teacher/Dashboard';
 import StudentDashboard from './pages/student/Dashboard';
 // import Settings from './pages/super-admin/Settings';
+import Settings from './pages/super-admin/Settings';
+import Countries from './pages/super-admin/Countries';
+import Curriculums from './pages/super-admin/Curriculums';
+import SchoolTypes from './pages/super-admin/SchoolTypes';
 import UserManagement from './pages/super-admin/UserManagement';
 
 // School Admin Pages
@@ -43,6 +47,11 @@ const App: React.FC = () => {
           <Route path="super-admin" element={<SuperAdminDashboard />} />
           <Route path="schools" element={<Schools />} />
           <Route path="user-management" element={<UserManagement />} />
+          <Route path="settings" element={<Settings />} />
+          {/* Settings Sub-routes */}
+          <Route path="settings/countries" element={<Countries />} />
+          <Route path="settings/curriculums" element={<Curriculums />} />
+          <Route path="settings/school-types" element={<SchoolTypes />} />
           {/* SCHOOL ADMIN */}
           <Route path="school-admin" element={<SchoolAdminDashboard />} />
           <Route path="school-admin/teachers" element={<TeachersList />} />

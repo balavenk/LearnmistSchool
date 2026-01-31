@@ -1,99 +1,107 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import api from '../../api/axios';
 
-// --- Mock Data Types ---
+// --- Types ---
 type UserRole = 'SCHOOL_ADMIN' | 'TEACHER' | 'STUDENT';
 
-interface MockUser {
+interface School {
     id: number;
-    schoolId: number;
     name: string;
+}
+
+interface User {
+    id: number;
+    username: string; // Map to name for display if needed, or use username
     email: string;
-    role: UserRole;
-    status: 'Active' | 'Inactive';
-    // Role specific fields (optional for mock simplicity)
-    grade?: string; // For students
-    subject?: string; // For teachers
+    role: string;
+    active: boolean;
+    // Helper fields for display
+    name?: string;
+    status?: string;
+    subject?: string;
 }
 
-interface MockSchool {
+interface Student {
     id: number;
     name: string;
+    active: boolean;
+    // grade_id? class_id?
+    grade_id: number;
 }
-
-// --- Mock Data Generation ---
-const SCHOOLS: MockSchool[] = Array.from({ length: 15 }, (_, i) => ({
-    id: i + 1,
-    name: `Learnmist School ${String.fromCharCode(65 + i)}`,
-}));
-
-const USERS: MockUser[] = [];
-// Generate users for each school
-SCHOOLS.forEach(school => {
-    // 3 Admins
-    for (let i = 1; i <= 3; i++) {
-        USERS.push({
-            id: USERS.length + 1,
-            schoolId: school.id,
-            name: `${school.name} Admin ${i}`,
-            email: `admin${i}@${school.name.replace(/\s/g, '').toLowerCase()}.com`,
-            role: 'SCHOOL_ADMIN',
-            status: 'Active'
-        });
-    }
-    // 10 Teachers
-    for (let i = 1; i <= 10; i++) {
-        USERS.push({
-            id: USERS.length + 1,
-            schoolId: school.id,
-            name: `${school.name} Teacher ${i}`,
-            email: `teacher${i}@${school.name.replace(/\s/g, '').toLowerCase()}.com`,
-            role: 'TEACHER',
-            status: 'Active',
-            subject: ['Math', 'Science', 'History', 'English', 'Art'][i % 5]
-        });
-    }
-    // 50 Students
-    for (let i = 1; i <= 50; i++) {
-        USERS.push({
-            id: USERS.length + 1,
-            schoolId: school.id,
-            name: `${school.name} Student ${i}`,
-            email: `student${i}@${school.name.replace(/\s/g, '').toLowerCase()}.com`,
-            role: 'STUDENT',
-            status: i % 10 === 0 ? 'Inactive' : 'Active',
-            grade: `${(i % 12) + 1}th Grade`
-        });
-    }
-});
 
 const UserManagement: React.FC = () => {
     // --- State ---
+    const [schools, setSchools] = useState<School[]>([]);
     const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
     const [activeTab, setActiveTab] = useState<UserRole>('SCHOOL_ADMIN');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
 
+    // Data State
+    const [users, setUsers] = useState<User[]>([]);
+    const [students, setStudents] = useState<Student[]>([]);
+    const [loading, setLoading] = useState(false);
+
     // --- Constants ---
     const ITEMS_PER_PAGE = 10;
 
+    // --- Fetch Schools ---
+    useEffect(() => {
+        const fetchSchools = async () => {
+            try {
+                const res = await api.get('/super-admin/schools/');
+                setSchools(res.data);
+            } catch (err) {
+                console.error("Failed to fetch schools", err);
+            }
+        };
+        fetchSchools();
+    }, []);
+
+    // --- Fetch Users/Students when School or Tab changes ---
+    useEffect(() => {
+        if (!selectedSchoolId) {
+            setUsers([]);
+            setStudents([]);
+            return;
+        }
+
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                if (activeTab === 'STUDENT') {
+                    const res = await api.get(`/super-admin/schools/${selectedSchoolId}/students`);
+                    setStudents(res.data);
+                } else {
+                    const res = await api.get(`/super-admin/schools/${selectedSchoolId}/users`, {
+                        params: { role: activeTab }
+                    });
+                    setUsers(res.data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch data", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [selectedSchoolId, activeTab]);
+
     // --- Derived State ---
-    const currentSchool = SCHOOLS.find(s => s.id === selectedSchoolId);
+    const filteredList = useMemo(() => {
+        let list: any[] = activeTab === 'STUDENT' ? students : users;
 
-    const filteredUsers = useMemo(() => {
-        if (!selectedSchoolId) return [];
-
-        return USERS.filter(user => {
-            const matchesSchool = user.schoolId === selectedSchoolId;
-            const matchesRole = user.role === activeTab;
-            const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchTerm.toLowerCase());
-
-            return matchesSchool && matchesRole && matchesSearch;
+        return list.filter(item => {
+            const searchLower = searchTerm.toLowerCase();
+            const name = (item.name || item.username || '').toLowerCase();
+            const email = (item.email || '').toLowerCase();
+            return name.includes(searchLower) || email.includes(searchLower);
         });
-    }, [selectedSchoolId, activeTab, searchTerm]);
+    }, [users, students, activeTab, searchTerm]);
 
-    const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
-    const paginatedUsers = filteredUsers.slice(
+    const totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE);
+    const paginatedList = filteredList.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     );
@@ -102,7 +110,7 @@ const UserManagement: React.FC = () => {
     const handleTabChange = (tab: UserRole) => {
         setActiveTab(tab);
         setCurrentPage(1); // Reset page on tab change
-        setSearchTerm(''); // Optional: reset search on tab change
+        setSearchTerm(''); // Reset search
     };
 
     const handleSchoolChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -129,7 +137,7 @@ const UserManagement: React.FC = () => {
                             onChange={handleSchoolChange}
                         >
                             <option value="" disabled>-- Choose a School --</option>
-                            {SCHOOLS.map(school => (
+                            {schools.map(school => (
                                 <option key={school.id} value={school.id}>{school.name}</option>
                             ))}
                         </select>
@@ -144,8 +152,8 @@ const UserManagement: React.FC = () => {
                         <button
                             onClick={() => handleTabChange('SCHOOL_ADMIN')}
                             className={`flex-1 py-4 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'SCHOOL_ADMIN'
-                                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                 }`}
                         >
                             School Admins
@@ -153,8 +161,8 @@ const UserManagement: React.FC = () => {
                         <button
                             onClick={() => handleTabChange('TEACHER')}
                             className={`flex-1 py-4 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'TEACHER'
-                                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                 }`}
                         >
                             Teachers
@@ -162,8 +170,8 @@ const UserManagement: React.FC = () => {
                         <button
                             onClick={() => handleTabChange('STUDENT')}
                             className={`flex-1 py-4 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'STUDENT'
-                                    ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                                ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
                                 }`}
                         >
                             Students
@@ -183,7 +191,7 @@ const UserManagement: React.FC = () => {
                             <span className="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
                         </div>
                         <div className="text-sm text-slate-500">
-                            Total: <span className="font-semibold text-slate-900">{filteredUsers.length}</span>
+                            Total: <span className="font-semibold text-slate-900">{filteredList.length}</span>
                         </div>
                     </div>
 
@@ -193,32 +201,37 @@ const UserManagement: React.FC = () => {
                             <thead className="bg-slate-50 text-slate-500 font-semibold sticky top-0 border-b border-slate-200">
                                 <tr>
                                     <th className="px-6 py-3">Name</th>
-                                    <th className="px-6 py-3">Email</th>
+                                    {activeTab !== 'STUDENT' && <th className="px-6 py-3">Email</th>}
                                     <th className="px-6 py-3">Status</th>
-                                    {activeTab === 'TEACHER' && <th className="px-6 py-3">Subject</th>}
-                                    {activeTab === 'STUDENT' && <th className="px-6 py-3">Grade</th>}
+                                    {/* {activeTab === 'TEACHER' && <th className="px-6 py-3">Subject</th>} */}
+                                    {/* {activeTab === 'STUDENT' && <th className="px-6 py-3">Grade</th>} */}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {paginatedUsers.length > 0 ? (
-                                    paginatedUsers.map((user) => (
-                                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-3 font-medium text-slate-900">{user.name}</td>
-                                            <td className="px-6 py-3 text-slate-500">{user.email}</td>
+                                {loading ? (
+                                    <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-500">Loading...</td></tr>
+                                ) : paginatedList.length > 0 ? (
+                                    paginatedList.map((item) => (
+                                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-3 font-medium text-slate-900">
+                                                {item.username || item.name} {/* Handle both User and Student models */}
+                                            </td>
+                                            {activeTab !== 'STUDENT' && (
+                                                <td className="px-6 py-3 text-slate-500">{item.email}</td>
+                                            )}
                                             <td className="px-6 py-3">
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${(item.active !== false) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                                                     }`}>
-                                                    {user.status}
+                                                    {(item.active !== false) ? 'Active' : 'Inactive'}
                                                 </span>
                                             </td>
-                                            {activeTab === 'TEACHER' && <td className="px-6 py-3 text-slate-600">{user.subject}</td>}
-                                            {activeTab === 'STUDENT' && <td className="px-6 py-3 text-slate-600">{user.grade}</td>}
+                                            {/* Add extra columns if data available */}
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                                            No users found.
+                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                                            No {activeTab.toLowerCase().replace('_', ' ')}s found.
                                         </td>
                                     </tr>
                                 )}

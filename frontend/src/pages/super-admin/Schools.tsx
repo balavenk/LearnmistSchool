@@ -38,6 +38,16 @@ const Schools: React.FC = () => {
     const [tempAdminUsername, setTempAdminUsername] = useState('');
     const [tempAdminPassword, setTempAdminPassword] = useState('');
 
+    // Master Data State
+    const [countries, setCountries] = useState<{ id: number, name: string }[]>([]);
+    const [curriculums, setCurriculums] = useState<{ id: number, name: string }[]>([]);
+    const [schoolTypes, setSchoolTypes] = useState<{ id: number, name: string }[]>([]);
+
+    // Form Selection State
+    const [selectedCountryId, setSelectedCountryId] = useState<number | ''>('');
+    const [selectedCurriculumId, setSelectedCurriculumId] = useState<number | ''>('');
+    const [selectedSchoolTypeId, setSelectedSchoolTypeId] = useState<number | ''>('');
+
     // Pagination Config
     const ITEMS_PER_PAGE = 8;
 
@@ -46,15 +56,12 @@ const Schools: React.FC = () => {
         try {
             setLoading(true);
             const response = await api.get('/super-admin/schools/');
-            // Transform API response to match UI needs if necessary.
-            // API returns: { id, name, address, active, max_... }
-            // We need to add mock/placeholder stats since API doesn't return them yet
             const data = response.data.map((s: any) => ({
                 ...s,
-                students: 0, // Placeholder
-                teachers: 0, // Placeholder
+                students: s.student_count || 0,
+                teachers: s.teacher_count || 0,
                 admins: [],  // Placeholder
-                status: s.active ? 'Active' : 'Inactive' // Map boolean to string for UI
+                status: s.active ? 'Active' : 'Inactive'
             }));
             setSchools(data);
         } catch (error) {
@@ -64,9 +71,45 @@ const Schools: React.FC = () => {
         }
     };
 
+    const fetchCountries = async () => {
+        try {
+            const res = await api.get('/super-admin/master/countries');
+            setCountries(res.data);
+        } catch (error) {
+            console.error("Failed to fetch countries", error);
+        }
+    };
+
     useEffect(() => {
         fetchSchools();
+        fetchCountries();
     }, []);
+
+    // Cascading Logic
+    useEffect(() => {
+        if (selectedCountryId) {
+            // Fetch Curriculums and School Types for selected country
+            const fetchData = async () => {
+                try {
+                    const [currRes, typeRes] = await Promise.all([
+                        api.get(`/super-admin/master/curriculums?country_id=${selectedCountryId}`),
+                        api.get(`/super-admin/master/school-types?country_id=${selectedCountryId}`)
+                    ]);
+                    setCurriculums(currRes.data);
+                    setSchoolTypes(typeRes.data);
+                } catch (error) {
+                    console.error("Failed to fetch cascading data", error);
+                }
+            };
+            fetchData();
+        } else {
+            setCurriculums([]);
+            setSchoolTypes([]);
+        }
+        // Reset dependent selections when country changes
+        setSelectedCurriculumId('');
+        setSelectedSchoolTypeId('');
+    }, [selectedCountryId]);
 
     // Filter Logic
     const filteredSchools = useMemo(() => {
@@ -121,7 +164,10 @@ const Schools: React.FC = () => {
                 address: newSchoolAddress,
                 max_teachers: 100, // Defaults
                 max_students: 1000,
-                max_classes: 50
+                max_classes: 50,
+                country_id: Number(selectedCountryId),
+                curriculum_id: Number(selectedCurriculumId),
+                school_type_id: Number(selectedSchoolTypeId)
             });
             const createdSchool = schoolRes.data;
 
@@ -308,7 +354,6 @@ const Schools: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Address (International)</label>
                                     <textarea
                                         value={newSchoolAddress}
                                         onChange={(e) => setNewSchoolAddress(e.target.value)}
@@ -317,6 +362,46 @@ const Schools: React.FC = () => {
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                                         placeholder="Enter full address..."
                                     />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Country</label>
+                                        <select
+                                            value={selectedCountryId}
+                                            onChange={(e) => setSelectedCountryId(Number(e.target.value))}
+                                            required
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        >
+                                            <option value="">Select Country...</option>
+                                            {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Curriculum</label>
+                                        <select
+                                            value={selectedCurriculumId}
+                                            onChange={(e) => setSelectedCurriculumId(Number(e.target.value))}
+                                            required
+                                            disabled={!selectedCountryId}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-slate-100"
+                                        >
+                                            <option value="">Select Curriculum...</option>
+                                            {curriculums.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">School Type</label>
+                                        <select
+                                            value={selectedSchoolTypeId}
+                                            onChange={(e) => setSelectedSchoolTypeId(Number(e.target.value))}
+                                            required
+                                            disabled={!selectedCountryId}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-slate-100"
+                                        >
+                                            <option value="">Select Type...</option>
+                                            {schoolTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 

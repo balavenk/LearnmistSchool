@@ -19,6 +19,36 @@ class SubmissionStatus(str, enum.Enum):
     SUBMITTED = "SUBMITTED"
     GRADED = "GRADED"
 
+class Country(Base):
+    __tablename__ = "countries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True)
+
+    curriculums = relationship("Curriculum", back_populates="country")
+    school_types = relationship("SchoolType", back_populates="country")
+    schools = relationship("School", back_populates="country")
+
+class Curriculum(Base):
+    __tablename__ = "curriculums"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100))
+    country_id = Column(Integer, ForeignKey("countries.id"))
+
+    country = relationship("Country", back_populates="curriculums")
+    schools = relationship("School", back_populates="curriculum")
+
+class SchoolType(Base):
+    __tablename__ = "school_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100))
+    country_id = Column(Integer, ForeignKey("countries.id"))
+
+    country = relationship("Country", back_populates="school_types")
+    schools = relationship("School", back_populates="school_type")
+
 class School(Base):
     __tablename__ = "schools"
 
@@ -28,7 +58,16 @@ class School(Base):
     active = Column(Boolean, default=True)
     max_teachers = Column(Integer, default=100)
     max_students = Column(Integer, default=1000)
-    max_classes = Column(Integer, default=50) # Added limit
+    max_classes = Column(Integer, default=50)
+
+    # New FKs
+    country_id = Column(Integer, ForeignKey("countries.id"), nullable=True)
+    curriculum_id = Column(Integer, ForeignKey("curriculums.id"), nullable=True)
+    school_type_id = Column(Integer, ForeignKey("school_types.id"), nullable=True)
+
+    country = relationship("Country", back_populates="schools")
+    curriculum = relationship("Curriculum", back_populates="schools")
+    school_type = relationship("SchoolType", back_populates="schools")
 
     users = relationship("User", back_populates="school")
     subjects = relationship("Subject", back_populates="school")
@@ -102,6 +141,9 @@ class Student(Base):
     school_id = Column(Integer, ForeignKey("schools.id"))
     grade_id = Column(Integer, ForeignKey("grades.id"))
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True) # Link to specific class/section
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Link to login user
+
+    user = relationship("User", foreign_keys=[user_id])
 
     school = relationship("School", back_populates="students")
     grade = relationship("Grade", back_populates="students")

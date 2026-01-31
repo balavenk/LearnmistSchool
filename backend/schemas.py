@@ -14,9 +14,44 @@ class TokenData(BaseModel):
     role: Optional[str] = None
     school_id: Optional[int] = None
 
+class CountryBase(BaseModel):
+    name: str
+
+class CountryCreate(CountryBase):
+    pass
+
+class Country(CountryBase):
+    id: int
+    class Config: from_attributes = True
+
+class CurriculumBase(BaseModel):
+    name: str
+    country_id: int
+
+class CurriculumCreate(CurriculumBase):
+    pass
+
+class Curriculum(CurriculumBase):
+    id: int
+    class Config: from_attributes = True
+
+class SchoolTypeBase(BaseModel):
+    name: str
+    country_id: int
+
+class SchoolTypeCreate(SchoolTypeBase):
+    pass
+
+class SchoolType(SchoolTypeBase):
+    id: int
+    class Config: from_attributes = True
+
 class SchoolBase(BaseModel):
     name: str
     address: Optional[str] = None
+    country_id: Optional[int] = None
+    curriculum_id: Optional[int] = None
+    school_type_id: Optional[int] = None
 
 class SchoolCreate(SchoolBase):
     max_teachers: Optional[int] = 100
@@ -26,6 +61,8 @@ class SchoolCreate(SchoolBase):
 class School(SchoolBase):
     id: int
     active: bool
+    student_count: Optional[int] = 0
+    teacher_count: Optional[int] = 0
     
     class Config:
         from_attributes = True
@@ -240,3 +277,9 @@ class SchoolAdminStats(BaseModel):
     total_students: int
     total_teachers: int
     total_classes: int
+
+class SuperAdminStats(BaseModel):
+    total_schools: int
+    active_users: int
+    recent_schools: List[School] = [] # Re-using School schema
+
