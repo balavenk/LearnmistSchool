@@ -91,7 +91,11 @@ const TeacherGrading: React.FC = () => {
                         {classes.map((cls) => (
                             <div
                                 key={cls.id}
-                                onClick={() => setSelectedClassId(cls.id)}
+                                onClick={() => {
+                                    setSelectedClassId(cls.id);
+                                    setStudents([]); // Clear previous students
+                                    setSelectedSubjectId(''); // Reset subject
+                                }}
                                 className={`cursor-pointer rounded-xl border p-4 transition-all ${selectedClassId === cls.id
                                     ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-md'
                                     : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm'

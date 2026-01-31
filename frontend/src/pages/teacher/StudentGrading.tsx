@@ -47,6 +47,7 @@ const StudentGrading: React.FC = () => {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'quiz' | 'project'>('quiz');
+    const [studentName, setStudentName] = useState('');
 
     // Grading Detail State
     const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | null>(null);
@@ -60,8 +61,20 @@ const StudentGrading: React.FC = () => {
 
 
     useEffect(() => {
-        if (studentId) fetchSubmissions();
+        if (studentId) {
+            fetchSubmissions();
+            fetchStudentDetails();
+        }
     }, [studentId]);
+
+    const fetchStudentDetails = async () => {
+        try {
+            const res = await api.get(`/teacher/students/${studentId}`);
+            setStudentName(res.data.name);
+        } catch (error) {
+            console.error("Failed to fetch student details", error);
+        }
+    };
 
     const fetchSubmissions = async () => {
         try {
@@ -150,9 +163,12 @@ const StudentGrading: React.FC = () => {
     // Calculate live total
     const currentTotalScore = Object.values(gradedAnswers).reduce((sum, item) => sum + item.points, 0);
 
-    // Filter submissions based on tab (Assuming distinction logic, but for now showing all in quiz as requested initially, or filtering by title/type if available)
-    // For this MVP, let's treat all as Quizzes since Project type implies different structure not fully spec'd.
-    const filteredSubmissions = submissions;
+    // Filter submissions based on tab
+    const filteredSubmissions = submissions.filter(sub => {
+        const questions = (sub.assignment as any).questions || [];
+        if (activeTab === 'quiz') return questions.length > 0;
+        return questions.length === 0;
+    });
 
     if (loading) return <div className="p-8 text-center text-slate-500">Loading submissions...</div>;
 
@@ -160,7 +176,10 @@ const StudentGrading: React.FC = () => {
         <div className="space-y-6">
             <div className="flex items-center gap-4">
                 <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-slate-600">← Back</button>
-                <h1 className="text-3xl font-bold text-slate-900">Grade Assignments</h1>
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900">Grade Assignments</h1>
+                    {studentName && <p className="text-indigo-600 font-medium mt-1">Student: {studentName}</p>}
+                </div>
             </div>
 
             {/* Tabs */}
@@ -185,15 +204,15 @@ const StudentGrading: React.FC = () => {
                 {/* Left: List of Submissions */}
                 <div className="lg:col-span-1 space-y-4">
                     {filteredSubmissions.length === 0 ? (
-                        <div className="text-slate-400 text-sm">No pending submissions found.</div>
+                        <div className="text-slate-400 text-sm">No pending submissions found for {activeTab}.</div>
                     ) : (
                         filteredSubmissions.map(sub => (
                             <div
                                 key={sub.id}
                                 onClick={() => fetchSubmissionDetail(sub.id)}
                                 className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedSubmissionId === sub.id
-                                        ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500'
-                                        : 'bg-white border-slate-200 hover:border-indigo-300'
+                                    ? 'bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500'
+                                    : 'bg-white border-slate-200 hover:border-indigo-300'
                                     }`}
                             >
                                 <div className="font-semibold text-slate-800">{sub.assignment.title}</div>

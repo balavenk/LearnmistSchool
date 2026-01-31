@@ -223,3 +223,15 @@ class SubmissionDetail(Submission):
     answers: List[StudentAnswer] = []
     assignment: AssignmentDetail
     student: Student
+
+class ClassStats(BaseModel):
+    id: int
+    name: str
+    section: str
+    student_count: int
+    grade_name: str
+
+class DashboardStats(BaseModel):
+    total_students: int
+    total_classes: int
+    classes: List[ClassStats]

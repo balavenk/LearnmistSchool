@@ -1,50 +1,60 @@
 from sqlalchemy.orm import Session
 from database import SessionLocal
 import models
-from datetime import datetime
 
-def debug_data():
-    db = SessionLocal()
-    try:
-        print("--- Debugging Data ---")
-        student = db.query(models.Student).filter(models.Student.name == "student1").first()
-        if not student:
-            print("Student 'student1' not found!")
-            return
+db: Session = SessionLocal()
 
-        print(f"Student: {student.name}, ID: {student.id}, Class ID: {student.class_id}")
+def debug_assignments():
+    teacher = db.query(models.User).filter(models.User.username == "teacher1").first()
+    if not teacher:
+        print("Teacher1 not found")
+        return
+
+    print(f"Checking assignments for teacher: {teacher.username} (ID: {teacher.id})")
+    
+    # Get all assignments for this teacher
+    assignments = db.query(models.Assignment).filter(models.Assignment.teacher_id == teacher.id).all()
+    print(f"Found {len(assignments)} assignments.")
+
+    # Get all classes in DB
+    all_classes = {c.id: c for c in db.query(models.Class).all()}
+    
+    # Get classes assigned to teacher
+    assigned_classes_ids = []
+    # Logic from router.read_classes
+    # Explicit assignments
+    t_assigns = db.query(models.TeacherAssignment).filter(models.TeacherAssignment.teacher_id == teacher.id).all()
+    for ta in t_assigns:
+        if ta.class_id:
+            assigned_classes_ids.append(ta.class_id)
+        elif ta.grade_id:
+            # All classes in grade
+            grade_classes = db.query(models.Class).filter(models.Class.grade_id == ta.grade_id).all()
+            assigned_classes_ids.extend([c.id for c in grade_classes])
+    
+    assigned_classes_ids = list(set(assigned_classes_ids))
+    print(f"Teacher is assigned to Class IDs: {assigned_classes_ids}")
+
+    print("\n--- Assignment Details ---")
+    for a in assignments:
+        status = "OK"
+        issue = ""
+        c_name = "None"
         
-        if not student.class_id:
-            print("Student has no class assigned!")
-            return
-
-        # Check Assignments for this class
-        assignments = db.query(models.Assignment).filter(
-            models.Assignment.class_id == student.class_id,
-            models.Assignment.status == models.AssignmentStatus.PUBLISHED
-        ).all()
+        if a.class_id is None:
+            status = "INVALID"
+            issue = "class_id is None"
+        elif a.class_id not in all_classes:
+            status = "INVALID"
+            issue = f"class_id {a.class_id} does not exist in classes table"
+        elif a.class_id not in assigned_classes_ids:
+            status = "WARNING"
+            c_name = all_classes[a.class_id].name
+            issue = f"Class {c_name} (ID: {a.class_id}) exists but NOT assigned to teacher"
+        else:
+            c_name = all_classes[a.class_id].name
         
-        print(f"Total Published Assignments for Class {student.class_id}: {len(assignments)}")
-        for a in assignments:
-            print(f" - ID: {a.id}, Title: {a.title}, Status: {a.status}, SubjectID: {a.subject_id}")
-            # Try accessing subject_id directly first
-            if a.subject_id:
-               print(f"   Subject ID exists: {a.subject_id}")
-
-
-        # Check Submissions
-        submissions = db.query(models.Submission).filter(models.Submission.student_id == student.id).all()
-        print(f"Total Submissions for Student: {len(submissions)}")
-        submitted_ids = [s.assignment_id for s in submissions]
-        
-        # Check Open Logic
-        open_assignments = [a for a in assignments if a.id not in submitted_ids]
-        print(f"Calculated Open Assignments: {len(open_assignments)}")
-
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        db.close()
+        print(f"[{status}] ID: {a.id}, Title: '{a.title}', ClassID: {a.class_id} ({c_name}) | {issue}")
 
 if __name__ == "__main__":
-    debug_data()
+    debug_assignments()

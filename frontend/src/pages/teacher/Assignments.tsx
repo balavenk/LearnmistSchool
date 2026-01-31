@@ -111,7 +111,8 @@ const TeacherAssignments: React.FC = () => {
                     difficulty: aiDifficulty,
                     question_count: aiQuestionCount,
                     due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
-                    subject_id: Number(aiSubjectId)
+                    subject_id: Number(aiSubjectId),
+                    class_id: Number(aiClassId)
                 }
             });
             // The AI generate endpoint creates a draft in DB
