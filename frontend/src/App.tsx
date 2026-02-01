@@ -14,6 +14,7 @@ import SchoolTypes from './pages/super-admin/SchoolTypes';
 import UserManagement from './pages/super-admin/UserManagement';
 import TrainViaLLM from './pages/super-admin/TrainViaLLM';
 import TrainFileDetails from './pages/super-admin/TrainFileDetails';
+import TrainProgress from './pages/super-admin/TrainProgress';
 
 // School Admin Pages
 import TeachersList from './pages/school-admin/TeachersList';
@@ -54,6 +55,7 @@ const App: React.FC = () => {
           <Route path="settings" element={<Settings />} />
           <Route path="train-llm" element={<TrainViaLLM />} />
           <Route path="train-llm/:fileId" element={<TrainFileDetails />} />
+          <Route path="train-llm/:fileId/progress" element={<TrainProgress />} />
           {/* Settings Sub-routes */}
           <Route path="settings/countries" element={<Countries />} />
           <Route path="settings/curriculums" element={<Curriculums />} />

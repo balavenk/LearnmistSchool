@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from typing import List
 import os
 import shutil
 from datetime import datetime
 import mimetypes
+import json
+import asyncio
 
 import database, models, schemas, auth
 
@@ -16,6 +18,114 @@ router = APIRouter(
 
 # Constants
 STORAGE_ROOT = "storage"
+
+# ... (Previous imports and functions remain)
+
+# Ensure to copy previous unchanged code if replacing whole file or use targeted replace.
+# I will use replace_file_content to target the bottom section (train_file and WS).
+
+from services import pdf_service, rag_service
+import os
+
+@router.post("/training-material/{file_id}/train", response_model=schemas.FileArtifactOut)
+def train_file(
+    file_id: int,
+    status_update: schemas.FileArtifactUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if current_user.role != models.UserRole.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
+    if not artifact:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # 1. Update DB Status - Just save metadata and mark as Processing
+    artifact.file_status = status_update.file_status # Expecting 'Processing' or 'Trained' from frontend, but actual processing happens in WS
+    if status_update.file_metadata:
+        artifact.file_metadata = status_update.file_metadata
+    
+    db.commit()
+    db.refresh(artifact)
+    
+    # 2. RAG Pipeline is NOT triggered here anymore. It will be triggered by WS connection.
+    
+    return artifact
+
+@router.websocket("/ws/train/{file_id}")
+async def websocket_train_file(websocket: WebSocket, file_id: int, db: Session = Depends(database.get_db)):
+    await websocket.accept()
+    
+    try:
+        # Fetch file details
+        artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
+        if not artifact:
+            await websocket.send_text("Error: File not found")
+            await websocket.close()
+            return
+            
+        await websocket.send_text(f"Starting training process for: {artifact.original_filename}")
+        
+        # Resolve Path
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # pointing to backend/
+        file_path = os.path.join(base_dir, artifact.relative_path)
+        
+        if not os.path.exists(file_path):
+             await websocket.send_text(f"Error: File not found on disk at {file_path}")
+             await websocket.close()
+             return
+
+        # Prepare Metadata
+        user_metadata = {}
+        if artifact.file_metadata:
+                try:
+                    user_metadata = json.loads(artifact.file_metadata)
+                except:
+                    pass
+
+        rag_metadata = {
+            "file_id": artifact.id,
+            "school_id": artifact.school_id,
+            "grade_id": artifact.grade_id,
+            "subject_id": artifact.subject_id,
+            "filename": artifact.original_filename,
+            **user_metadata 
+        }
+
+        # Step 1: Parse PDF
+        await websocket.send_text("Step 1: Parsing PDF...")
+        # Note: pdf_service is sync, run in threadpool to avoid blocking event loop
+        # But for simplicity in this demo, calling it directly (it's fast enough or blocks briefly)
+        # Better: chunks = await asyncio.to_thread(pdf_service.parse_pdf, file_path)
+        chunks = pdf_service.parse_pdf(file_path) 
+        await websocket.send_text(f"Parsed {len(chunks)} chunks from PDF.")
+        
+        # Step 2: RAG Pipeline (Async)
+        await websocket.send_text("Step 2: Starting Classification and Embedding Pipeline...")
+        
+        # Define callback to send messages to WS
+        async def ws_callback(msg: str):
+            await websocket.send_text(msg)
+            
+        await rag_service.process_chunks_async(chunks, rag_metadata, progress_callback=ws_callback)
+        
+        # Step 3: Update Status to Trained
+        artifact.file_status = "Trained"
+        db.commit()
+        
+        await websocket.send_text("DONE")
+        
+    except WebSocketDisconnect:
+        print(f"Client disconnected for file {file_id}")
+    except Exception as e:
+        await websocket.send_text(f"Error: {str(e)}")
+        print(f"Error in WS training: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass
 
 def get_current_school_admin(current_user: models.User = Depends(auth.get_current_active_user)):
     if current_user.role not in [models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN]:
@@ -205,6 +315,9 @@ def get_training_material_details(
 from services import pdf_service, rag_service
 import os
 
+from services import pdf_service, rag_service
+import os
+
 @router.post("/training-material/{file_id}/train", response_model=schemas.FileArtifactOut)
 def train_file(
     file_id: int,
@@ -219,59 +332,92 @@ def train_file(
     if not artifact:
         raise HTTPException(status_code=404, detail="File not found")
 
-    # 1. Update DB Status
-    artifact.file_status = status_update.file_status
+    # 1. Update DB Status - Just save metadata and mark as Processing
+    artifact.file_status = status_update.file_status # Expecting 'Processing' or 'Trained', but usually 'Processing' before WS starts
     if status_update.file_metadata:
         artifact.file_metadata = status_update.file_metadata
     
     db.commit()
     db.refresh(artifact)
     
-    # 2. Trigger RAG Pipeline (Background Task preferred in production, doing sync for demo)
+    # 2. RAG Pipeline is NOT triggered here anymore. It will be triggered by WS connection.
+    
+    return artifact
+
+@router.websocket("/ws/train/{file_id}")
+async def websocket_train_file(websocket: WebSocket, file_id: int, db: Session = Depends(database.get_db)):
+    await websocket.accept()
+    
     try:
-        # Construct absolute file path
-        # Assuming relative_path is stored relative to backend/ (e.g. storage/...)
-        # We need to resolve it to absolute path
+        # Fetch file details
+        artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
+        if not artifact:
+            await websocket.send_text("Error: File not found")
+            await websocket.close()
+            return
+            
+        await websocket.send_text(f"Starting training process for: {artifact.original_filename}")
+        
+        # Resolve Path
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # pointing to backend/
         file_path = os.path.join(base_dir, artifact.relative_path)
         
         if not os.path.exists(file_path):
-             print(f"File not found on disk: {file_path}")
-             # We don't fail the request, but log error. Status might need to revert or show error if this was critical.
-        else:
-            print(f"Starting RAG training for {artifact.original_filename}...")
-            
-            # Metadata for Vector Store
-            # Parse user provided metadata
-            user_metadata = {}
-            if artifact.file_metadata:
-                 try:
-                     import json
-                     user_metadata = json.loads(artifact.file_metadata)
-                 except:
-                     pass
+             await websocket.send_text(f"Error: File not found on disk at {file_path}")
+             await websocket.close()
+             return
 
-            rag_metadata = {
-                "file_id": artifact.id,
-                "school_id": artifact.school_id,
-                "grade_id": artifact.grade_id,
-                "subject_id": artifact.subject_id,
-                "filename": artifact.original_filename,
-                **user_metadata # Merge user keys like difficulty, topic etc.
-            }
-            
-            # Parse
-            chunks = pdf_service.parse_pdf(file_path)
-            print(f"Parsed {len(chunks)} chunks.")
-            
-            # Embed & Upsert
-            rag_service.process_chunks(chunks, rag_metadata)
-            print("RAG processing complete.")
+        # Prepare Metadata
+        user_metadata = {}
+        if artifact.file_metadata:
+                try:
+                    user_metadata = json.loads(artifact.file_metadata)
+                except:
+                    pass
 
-    except Exception as e:
-        print(f"RAG Pipeline Failed: {e}")
-        # Optionally update status to 'Failed'
-        # artifact.file_status = 'Failed'
+        rag_metadata = {
+            "file_id": artifact.id,
+            "school_id": artifact.school_id,
+            "grade_id": artifact.grade_id,
+            "subject_id": artifact.subject_id,
+            "filename": artifact.original_filename,
+            **user_metadata 
+        }
+
+        # Step 1: Parse PDF
+        await websocket.send_text("Step 1: Parsing PDF...")
+        # Note: pdf_service is sync, run in threadpool to avoid blocking event loop
+        # But for simplicity in this demo, calling it directly (it's fast enough or blocks briefly)
+        # Better: chunks = await asyncio.to_thread(pdf_service.parse_pdf, file_path)
+        chunks = pdf_service.parse_pdf(file_path) 
+        await websocket.send_text(f"Parsed {len(chunks)} chunks from PDF.")
+        
+        # Step 2: RAG Pipeline (Async)
+        await websocket.send_text("Step 2: Starting Classification and Embedding Pipeline...")
+        
+        # Define callback to send messages to WS
+        async def ws_callback(msg: str):
+            await websocket.send_text(msg)
+            
+        await rag_service.process_chunks_async(chunks, rag_metadata, progress_callback=ws_callback)
+        
+        # Step 3: Update Status to Trained
+        # Re-fetch artifact to ensure session is valid or use merge
+        # artifact.file_status = "Trained"
         # db.commit()
-
-    return artifact
+        # Updating via new query to avoid session detach issues in long async
+        db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).update({"file_status": "Trained"})
+        db.commit()
+        
+        await websocket.send_text("DONE")
+        
+    except WebSocketDisconnect:
+        print(f"Client disconnected for file {file_id}")
+    except Exception as e:
+        await websocket.send_text(f"Error: {str(e)}")
+        print(f"Error in WS training: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass

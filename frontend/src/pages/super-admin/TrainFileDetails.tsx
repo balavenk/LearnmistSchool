@@ -67,11 +67,11 @@ const TrainFileDetails: React.FC = () => {
 
         try {
             await api.post(`/upload/training-material/${fileId}/train`, {
-                file_status: 'Trained',
+                file_status: 'Processing', // Set to Processing initially
                 file_metadata: JSON.stringify(metaObject)
             });
-            alert("Training initiated successfully!");
-            navigate('/train-llm');
+            // Navigate to progress screen to start actual training
+            navigate(`/train-llm/${fileId}/progress`);
         } catch (error) {
             console.error("Training failed", error);
             alert("Failed to initiate training.");
