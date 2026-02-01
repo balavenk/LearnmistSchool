@@ -46,9 +46,36 @@ const TrainViaLLM: React.FC = () => {
         }
     };
 
+    const handleDownload = async (file: PdfFile) => {
+        try {
+            const response = await api.get(`/upload/training-material/${file.id}/download`, {
+                responseType: 'blob'
+            });
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', file.original_filename);
+
+            // Append to html link element page
+            document.body.appendChild(link);
+
+            // Start download
+            link.click();
+
+            // Clean up and remove the link
+            link.parentNode?.removeChild(link);
+        } catch (error) {
+            console.error("Download failed", error);
+            alert("Failed to download file");
+        }
+    };
+
     const filteredFiles = files.filter(f => {
         if (activeTab === 'NOT_TRAINED') {
-            return f.file_status === 'Uploaded' || f.file_status === 'Skipped';
+            // Processing files should also be visible here so user knows they are busy
+            return f.file_status === 'Uploaded' || f.file_status === 'Skipped' || f.file_status === 'Processing';
         } else {
             return f.file_status === 'Trained';
         }
@@ -127,7 +154,9 @@ const TrainViaLLM: React.FC = () => {
                                             ? 'bg-green-100 text-green-700'
                                             : file.file_status === 'Skipped'
                                                 ? 'bg-gray-100 text-gray-700'
-                                                : 'bg-blue-100 text-blue-700'
+                                                : file.file_status === 'Processing'
+                                                    ? 'bg-yellow-100 text-yellow-800'
+                                                    : 'bg-blue-100 text-blue-700'
                                             }`}>
                                             {file.file_status || 'Uploaded'}
                                         </span>
@@ -141,6 +170,16 @@ const TrainViaLLM: React.FC = () => {
                                                     className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition"
                                                 >
                                                     Train
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDownload(file)}
+                                                    className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition flex items-center gap-1"
+                                                    title="Download"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                    </svg>
+                                                    DL
                                                 </button>
                                                 <button
                                                     onClick={() => handleUpdateStatus(file.id, 'Skipped')}

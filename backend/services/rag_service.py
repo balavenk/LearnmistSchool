@@ -54,6 +54,16 @@ async def classify_chunk(client: AsyncOpenAI, text: str) -> Dict:
         print(f"Classification failed: {e}")
         return {}
 
+# Global Singleton
+_qdrant_client = None
+
+def get_qdrant_client():
+    global _qdrant_client
+    if _qdrant_client is None:
+        # Initialize Qdrant (Local Persistent Mode)
+        _qdrant_client = QdrantClient(path="qdrant_db")
+    return _qdrant_client
+
 async def process_chunks_async(
     chunks: List[str], 
     metadata: Dict, 
@@ -79,8 +89,8 @@ async def process_chunks_async(
 
     client_openai = AsyncOpenAI(api_key=openai_api_key)
     
-    # Initialize Qdrant (Local Persistent Mode) - Sync client is fine for local for now, usually fast enough
-    client_qdrant = QdrantClient(path="qdrant_db")
+    # Use Singleton Client
+    client_qdrant = get_qdrant_client()
     
     if progress_callback: await progress_callback(f"Connected to Qdrant at 'qdrant_db'. Checking collection '{collection_name}'...")
 

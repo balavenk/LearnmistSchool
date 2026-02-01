@@ -95,6 +95,31 @@ def read_schools(skip: int = 0, limit: int = 100, db: Session = Depends(database
         
     return results
 
+@router.put("/schools/{school_id}", response_model=schemas.School)
+def update_school(school_id: int, school_update: schemas.SchoolCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
+    db_school = db.query(models.School).filter(models.School.id == school_id).first()
+    if not db_school:
+        raise HTTPException(status_code=404, detail="School not found")
+    
+    # Check name uniqueness if changed
+    if db_school.name != school_update.name:
+        existing = db.query(models.School).filter(models.School.name == school_update.name).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="School name already taken")
+
+    db_school.name = school_update.name
+    db_school.address = school_update.address
+    db_school.max_teachers = school_update.max_teachers
+    db_school.max_students = school_update.max_students
+    db_school.max_classes = school_update.max_classes
+    db_school.country_id = school_update.country_id
+    db_school.curriculum_id = school_update.curriculum_id
+    db_school.school_type_id = school_update.school_type_id
+    
+    db.commit()
+    db.refresh(db_school)
+    return db_school
+
 @router.post("/schools/{school_id}/admin", response_model=schemas.User)
 def create_school_admin(school_id: int, user: schemas.UserCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
     # Verify school exists

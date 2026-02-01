@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import api from '../../api/axios';
 
 interface Subject {
     id: number;
@@ -7,18 +8,11 @@ interface Subject {
     status: 'Active' | 'Inactive';
 }
 
-const INITIAL_SUBJECTS: Subject[] = [
-    { id: 1, name: 'Mathematics', code: 'MATH101', status: 'Active' },
-    { id: 2, name: 'Science', code: 'SCI201', status: 'Active' },
-    { id: 3, name: 'English Literature', code: 'ENG101', status: 'Active' },
-    { id: 4, name: 'History', code: 'HIS101', status: 'Active' },
-    { id: 5, name: 'Art & Design', code: 'ART101', status: 'Active' },
-    { id: 6, name: 'Physical Education', code: 'PE101', status: 'Active' },
-    { id: 7, name: 'Computer Science', code: 'CS101', status: 'Active' },
-];
+// Removed mock data
 
 const SubjectsList: React.FC = () => {
-    const [subjects, setSubjects] = useState<Subject[]>(INITIAL_SUBJECTS);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,6 +22,30 @@ const SubjectsList: React.FC = () => {
     const [newCode, setNewCode] = useState('');
 
     const ITEMS_PER_PAGE = 8;
+
+    const fetchSubjects = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get('/school-admin/subjects/');
+            // Backend returns {id, name, code, school_id}.
+            // Map to frontend interface
+            const data = response.data.map((s: any) => ({
+                id: s.id,
+                name: s.name,
+                code: s.code || 'N/A',
+                status: 'Active'     // Default for now as backend doesn't have status for Subject
+            }));
+            setSubjects(data);
+        } catch (error) {
+            console.error("Failed to fetch subjects", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSubjects();
+    }, []);
 
     const filtered = useMemo(() => {
         return subjects.filter(s =>
@@ -39,16 +57,32 @@ const SubjectsList: React.FC = () => {
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
     const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    const handleCreate = (e: React.FormEvent) => {
+    const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSubjects([{
-            id: Date.now(),
-            name: newName,
-            code: newCode,
-            status: 'Active'
-        }, ...subjects]);
-        setIsModalOpen(false);
-        setNewName(''); setNewCode('');
+        try {
+            await api.post('/school-admin/subjects/', {
+                name: newName,
+                code: newCode
+            });
+            // If success, refresh list
+            fetchSubjects();
+            setIsModalOpen(false);
+            setNewName(''); setNewCode('');
+        } catch (error) {
+            console.error("Failed to create subject", error);
+            alert("Failed to create subject. Might be duplicate.");
+        }
+    };
+
+    const handleDelete = async (id: number) => {
+        if (!window.confirm("Are you sure you want to delete this subject?")) return;
+        try {
+            await api.delete(`/school-admin/subjects/${id}`);
+            fetchSubjects();
+        } catch (error: any) {
+            console.error("Delete failed", error);
+            alert(error.response?.data?.detail || "Failed to delete subject");
+        }
     };
 
     const toggleStatus = (id: number) => {
@@ -88,7 +122,7 @@ const SubjectsList: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {paginated.map(subject => (
+                        {loading ? <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr> : paginated.map(subject => (
                             <tr key={subject.id} className="hover:bg-slate-50">
                                 <td className="px-6 py-4 font-medium text-slate-900">{subject.name}</td>
                                 <td className="px-6 py-4 text-slate-500">{subject.code}</td>
@@ -97,9 +131,12 @@ const SubjectsList: React.FC = () => {
                                         {subject.status}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="px-6 py-4 text-right flex justify-end gap-3 items-center">
                                     <button onClick={() => toggleStatus(subject.id)} className={`text-xs font-medium ${subject.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}>
                                         {subject.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <button onClick={() => handleDelete(subject.id)} className="text-xs font-medium text-red-600 hover:text-red-800">
+                                        Delete
                                     </button>
                                 </td>
                             </tr>

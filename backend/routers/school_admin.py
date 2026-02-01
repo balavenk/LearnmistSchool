@@ -85,6 +85,7 @@ def read_classes(db: Session = Depends(database.get_db), current_user: models.Us
 def create_subject(subject: schemas.SubjectCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
     new_subject = models.Subject(
         name=subject.name,
+        code=subject.code,
         school_id=current_user.school_id
     )
     db.add(new_subject)
@@ -94,7 +95,33 @@ def create_subject(subject: schemas.SubjectCreate, db: Session = Depends(databas
 
 @router.get("/subjects/", response_model=List[schemas.Subject])
 def read_subjects(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
-    return db.query(models.Subject).filter(models.Subject.school_id == current_user.school_id).all()
+    print(f"DEBUG: read_subjects called by {current_user.username} (Role: {current_user.role}, SchoolID: {current_user.school_id})")
+    subjects = db.query(models.Subject).filter(models.Subject.school_id == current_user.school_id).all()
+    print(f"DEBUG: Found {len(subjects)} subjects for SchoolID {current_user.school_id}")
+    return subjects
+
+@router.delete("/subjects/{subject_id}")
+def delete_subject(subject_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    subject = db.query(models.Subject).filter(
+        models.Subject.id == subject_id,
+        models.Subject.school_id == current_user.school_id
+    ).first()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+        
+    # Check constraints
+    if db.query(models.TeacherAssignment).filter(models.TeacherAssignment.subject_id == subject_id).first():
+        raise HTTPException(status_code=400, detail="Cannot delete: Subject assigned to teachers")
+        
+    if db.query(models.Assignment).filter(models.Assignment.subject_id == subject_id).first():
+        raise HTTPException(status_code=400, detail="Cannot delete: Subject has assignments")
+        
+    if db.query(models.FileArtifact).filter(models.FileArtifact.subject_id == subject_id).first():
+        raise HTTPException(status_code=400, detail="Cannot delete: Subject has learning materials")
+
+    db.delete(subject)
+    db.commit()
+    return {"message": "Subject deleted successfully"}
 
 @router.post("/grades/", response_model=schemas.Grade)
 def create_grade(grade: schemas.GradeCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):

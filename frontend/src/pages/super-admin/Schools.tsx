@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../../api/axios';
 
 interface SchoolAdmin {
@@ -37,6 +37,10 @@ const Schools: React.FC = () => {
     // Temp Admin State for Modal
     const [tempAdminUsername, setTempAdminUsername] = useState('');
     const [tempAdminPassword, setTempAdminPassword] = useState('');
+
+    const [editMode, setEditMode] = useState(false);
+    const [selectedSchoolId, setSelectedSchoolId] = useState<number | null>(null);
+    const editPopulationRef = useRef<{ curriculum: number; type: number } | null>(null);
 
     // Master Data State
     const [countries, setCountries] = useState<{ id: number, name: string }[]>([]);
@@ -97,6 +101,13 @@ const Schools: React.FC = () => {
                     ]);
                     setCurriculums(currRes.data);
                     setSchoolTypes(typeRes.data);
+
+                    // Check if we have pending edit values to populate
+                    if (editPopulationRef.current) {
+                        setSelectedCurriculumId(editPopulationRef.current.curriculum);
+                        setSelectedSchoolTypeId(editPopulationRef.current.type);
+                        editPopulationRef.current = null; // Clear after populating
+                    }
                 } catch (error) {
                     console.error("Failed to fetch cascading data", error);
                 }
@@ -106,9 +117,15 @@ const Schools: React.FC = () => {
             setCurriculums([]);
             setSchoolTypes([]);
         }
-        // Reset dependent selections when country changes
-        setSelectedCurriculumId('');
-        setSelectedSchoolTypeId('');
+
+        // Reset dependent selections when country changes, UNLESS we are populating from edit
+        // However, since fetchData is async, we can clear here synchronously.
+        // If it's an edit population, the async callback above will restore the correct values.
+        // If it's a manual change (editPopulationRef.current is null), this clear is correct.
+        if (!editPopulationRef.current) {
+            setSelectedCurriculumId('');
+            setSelectedSchoolTypeId('');
+        }
     }, [selectedCountryId]);
 
     // Filter Logic
@@ -154,45 +171,86 @@ const Schools: React.FC = () => {
         ));
     };
 
-    const handleCreateSchool = async (e: React.FormEvent) => {
+    const handleSaveSchool = async (e: React.FormEvent) => {
         e.preventDefault();
 
         try {
-            // 1. Create School
-            const schoolRes = await api.post('/super-admin/schools/', {
-                name: newSchoolName,
-                address: newSchoolAddress,
-                max_teachers: 100, // Defaults
-                max_students: 1000,
-                max_classes: 50,
-                country_id: Number(selectedCountryId),
-                curriculum_id: Number(selectedCurriculumId),
-                school_type_id: Number(selectedSchoolTypeId)
-            });
-            const createdSchool = schoolRes.data;
+            if (editMode && selectedSchoolId) {
+                // Update School
+                await api.put(`/super-admin/schools/${selectedSchoolId}`, {
+                    name: newSchoolName,
+                    address: newSchoolAddress,
+                    max_teachers: 100,
+                    max_students: 1000,
+                    max_classes: 50,
+                    country_id: Number(selectedCountryId),
+                    curriculum_id: Number(selectedCurriculumId),
+                    school_type_id: Number(selectedSchoolTypeId)
+                });
+                alert("School updated successfully!");
+            } else {
+                // 1. Create School
+                const schoolRes = await api.post('/super-admin/schools/', {
+                    name: newSchoolName,
+                    address: newSchoolAddress,
+                    max_teachers: 100, // Defaults
+                    max_students: 1000,
+                    max_classes: 50,
+                    country_id: Number(selectedCountryId),
+                    curriculum_id: Number(selectedCurriculumId),
+                    school_type_id: Number(selectedSchoolTypeId)
+                });
+                const createdSchool = schoolRes.data;
 
-            // 2. Create Admins
-            for (const admin of newSchoolAdmins) {
-                try {
-                    await api.post(`/super-admin/schools/${createdSchool.id}/admin`, {
-                        username: admin.username,
-                        password: admin.password,
-                        role: "SCHOOL_ADMIN"
-                    });
-                } catch (err) {
-                    console.error(`Failed to create admin ${admin.username}`, err);
-                    alert(`School created, but failed to create admin ${admin.username}. Username might be taken.`);
+                // 2. Create Admins
+                for (const admin of newSchoolAdmins) {
+                    try {
+                        await api.post(`/super-admin/schools/${createdSchool.id}/admin`, {
+                            username: admin.username,
+                            password: admin.password,
+                            role: "SCHOOL_ADMIN"
+                        });
+                    } catch (err) {
+                        console.error(`Failed to create admin ${admin.username}`, err);
+                        alert(`School created, but failed to create admin ${admin.username}. Username might be taken.`);
+                    }
                 }
+                alert("School created successfully!");
             }
 
             // Refresh list
             fetchSchools();
             closeModal();
-            alert("School created successfully!");
         } catch (error) {
-            console.error("Failed to create school", error);
-            alert("Failed to create school. Name might be duplicate.");
+            console.error("Failed to save school", error);
+            alert("Failed to save school. Name might be duplicate.");
         }
+    };
+
+    const handleEditClick = (school: any) => {
+        setEditMode(true);
+        setSelectedSchoolId(school.id);
+        setNewSchoolName(school.name);
+        setNewSchoolAddress(school.address || '');
+
+        // Handle cascading population
+        if (school.country_id !== selectedCountryId) {
+            // Country changing: effect will run. Set pending values in ref.
+            editPopulationRef.current = { curriculum: school.curriculum_id, type: school.school_type_id };
+            setSelectedCountryId(school.country_id);
+        } else {
+            // Country not changing: effect won't run. Set values directly.
+            // Also populate options if list is empty? (Should satisfy if country was already selected)
+            // Just set IDs.
+            editPopulationRef.current = null;
+            setSelectedCurriculumId(school.curriculum_id);
+            setSelectedSchoolTypeId(school.school_type_id);
+        }
+
+        // Admins are not fetched in grid, so we can't edit them here easily without fetching details.
+        // For now, allow editing school details only.
+        setNewSchoolAdmins([]);
+        setIsModalOpen(true);
     };
 
     const closeModal = () => {
@@ -204,6 +262,11 @@ const Schools: React.FC = () => {
         setTempAdminPassword('');
         setSearchTerm('');
         setCurrentPage(1);
+        setEditMode(false);
+        setSelectedSchoolId(null);
+        setSelectedCountryId('');
+        setSelectedCurriculumId('');
+        setSelectedSchoolTypeId('');
     };
 
     return (
@@ -283,6 +346,12 @@ const Schools: React.FC = () => {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <button
+                                        onClick={() => handleEditClick(school)}
+                                        className="text-sm font-medium px-3 py-1 rounded transition-colors text-indigo-600 hover:bg-indigo-50 mr-2"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
                                         onClick={() => toggleSchoolStatus(school.id)}
                                         className={`text-sm font-medium px-3 py-1 rounded transition-colors ${school.active
                                             ? 'text-red-600 hover:bg-red-50'
@@ -334,11 +403,11 @@ const Schools: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
                     <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl p-6 my-8 animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-slate-900">Add New School</h2>
+                            <h2 className="text-xl font-bold text-slate-900">{editMode ? 'Edit School' : 'Add New School'}</h2>
                             <button onClick={closeModal} className="text-slate-400 hover:text-slate-600">✕</button>
                         </div>
 
-                        <form onSubmit={handleCreateSchool} className="space-y-6">
+                        <form onSubmit={handleSaveSchool} className="space-y-6">
                             {/* School Details Section */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">School Details</h3>
@@ -405,82 +474,84 @@ const Schools: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* School Admins Section */}
-                            <div className="space-y-4">
-                                <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">School Admin (Initial User)</h3>
+                            {/* School Admins Section - Only for Creation */}
+                            {!editMode && (
+                                <div className="space-y-4">
+                                    <h3 className="text-lg font-semibold text-slate-800 border-b pb-2">School Admin (Initial User)</h3>
 
-                                {/* Add Admin Form */}
-                                <div className="flex flex-col sm:flex-row gap-3 bg-slate-50 p-4 rounded-lg">
-                                    <input
-                                        type="text"
-                                        value={tempAdminUsername}
-                                        onChange={(e) => setTempAdminUsername(e.target.value)}
-                                        className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
-                                        placeholder="Username"
-                                    />
-                                    <input
-                                        type="password"
-                                        value={tempAdminPassword}
-                                        onChange={(e) => setTempAdminPassword(e.target.value)}
-                                        className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
-                                        placeholder="Password"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={handleAddAdminToGrid}
-                                        disabled={!tempAdminUsername || !tempAdminPassword}
-                                        className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
+                                    {/* Add Admin Form */}
+                                    <div className="flex flex-col sm:flex-row gap-3 bg-slate-50 p-4 rounded-lg">
+                                        <input
+                                            type="text"
+                                            value={tempAdminUsername}
+                                            onChange={(e) => setTempAdminUsername(e.target.value)}
+                                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
+                                            placeholder="Username"
+                                        />
+                                        <input
+                                            type="password"
+                                            value={tempAdminPassword}
+                                            onChange={(e) => setTempAdminPassword(e.target.value)}
+                                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
+                                            placeholder="Password"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleAddAdminToGrid}
+                                            disabled={!tempAdminUsername || !tempAdminPassword}
+                                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                                        >
+                                            Add
+                                        </button>
+                                    </div>
 
-                                {/* Admins Grid */}
-                                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="bg-slate-100 text-slate-600 font-semibold">
-                                            <tr>
-                                                <th className="px-4 py-2">Username</th>
-                                                <th className="px-4 py-2">Status</th>
-                                                <th className="px-4 py-2 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {newSchoolAdmins.length === 0 ? (
+                                    {/* Admins Grid */}
+                                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-slate-100 text-slate-600 font-semibold">
                                                 <tr>
-                                                    <td colSpan={3} className="px-4 py-6 text-center text-slate-400">
-                                                        No admins added yet.
-                                                    </td>
+                                                    <th className="px-4 py-2">Username</th>
+                                                    <th className="px-4 py-2">Status</th>
+                                                    <th className="px-4 py-2 text-right">Actions</th>
                                                 </tr>
-                                            ) : (
-                                                newSchoolAdmins.map((admin) => (
-                                                    <tr key={admin.id}>
-                                                        <td className="px-4 py-2">{admin.username}</td>
-                                                        <td className="px-4 py-2">
-                                                            <span className={`px-2 py-0.5 rounded-full text-xs ${admin.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                                {admin.status}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-4 py-2 text-right">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => toggleNewAdminStatus(admin.id!)}
-                                                                className={`text-xs font-medium hover:underline ${admin.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}
-                                                            >
-                                                                {admin.status === 'Active' ? 'Deactivate' : 'Activate'}
-                                                            </button>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {newSchoolAdmins.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={3} className="px-4 py-6 text-center text-slate-400">
+                                                            No admins added yet.
                                                         </td>
                                                     </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
+                                                ) : (
+                                                    newSchoolAdmins.map((admin) => (
+                                                        <tr key={admin.id}>
+                                                            <td className="px-4 py-2">{admin.username}</td>
+                                                            <td className="px-4 py-2">
+                                                                <span className={`px-2 py-0.5 rounded-full text-xs ${admin.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                                    {admin.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-2 text-right">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleNewAdminStatus(admin.id!)}
+                                                                    className={`text-xs font-medium hover:underline ${admin.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}
+                                                                >
+                                                                    {admin.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div className="flex gap-3 pt-4 border-t border-slate-100">
                                 <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium">Cancel</button>
-                                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md">Create School</button>
+                                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md">{editMode ? 'Save Changes' : 'Create School'}</button>
                             </div>
                         </form>
                     </div>

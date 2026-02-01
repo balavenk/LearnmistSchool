@@ -96,6 +96,7 @@ class Subject(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50))
+    code = Column(String(20), nullable=True) # Added code column
     school_id = Column(Integer, ForeignKey("schools.id"))
 
     school = relationship("School", back_populates="subjects")

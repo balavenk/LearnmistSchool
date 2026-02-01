@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List
 import os
@@ -18,114 +19,6 @@ router = APIRouter(
 
 # Constants
 STORAGE_ROOT = "storage"
-
-# ... (Previous imports and functions remain)
-
-# Ensure to copy previous unchanged code if replacing whole file or use targeted replace.
-# I will use replace_file_content to target the bottom section (train_file and WS).
-
-from services import pdf_service, rag_service
-import os
-
-@router.post("/training-material/{file_id}/train", response_model=schemas.FileArtifactOut)
-def train_file(
-    file_id: int,
-    status_update: schemas.FileArtifactUpdate,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_active_user)
-):
-    if current_user.role != models.UserRole.SUPER_ADMIN:
-        raise HTTPException(status_code=403, detail="Not authorized")
-        
-    artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
-    if not artifact:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    # 1. Update DB Status - Just save metadata and mark as Processing
-    artifact.file_status = status_update.file_status # Expecting 'Processing' or 'Trained' from frontend, but actual processing happens in WS
-    if status_update.file_metadata:
-        artifact.file_metadata = status_update.file_metadata
-    
-    db.commit()
-    db.refresh(artifact)
-    
-    # 2. RAG Pipeline is NOT triggered here anymore. It will be triggered by WS connection.
-    
-    return artifact
-
-@router.websocket("/ws/train/{file_id}")
-async def websocket_train_file(websocket: WebSocket, file_id: int, db: Session = Depends(database.get_db)):
-    await websocket.accept()
-    
-    try:
-        # Fetch file details
-        artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
-        if not artifact:
-            await websocket.send_text("Error: File not found")
-            await websocket.close()
-            return
-            
-        await websocket.send_text(f"Starting training process for: {artifact.original_filename}")
-        
-        # Resolve Path
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # pointing to backend/
-        file_path = os.path.join(base_dir, artifact.relative_path)
-        
-        if not os.path.exists(file_path):
-             await websocket.send_text(f"Error: File not found on disk at {file_path}")
-             await websocket.close()
-             return
-
-        # Prepare Metadata
-        user_metadata = {}
-        if artifact.file_metadata:
-                try:
-                    user_metadata = json.loads(artifact.file_metadata)
-                except:
-                    pass
-
-        rag_metadata = {
-            "file_id": artifact.id,
-            "school_id": artifact.school_id,
-            "grade_id": artifact.grade_id,
-            "subject_id": artifact.subject_id,
-            "filename": artifact.original_filename,
-            **user_metadata 
-        }
-
-        # Step 1: Parse PDF
-        await websocket.send_text("Step 1: Parsing PDF...")
-        # Note: pdf_service is sync, run in threadpool to avoid blocking event loop
-        # But for simplicity in this demo, calling it directly (it's fast enough or blocks briefly)
-        # Better: chunks = await asyncio.to_thread(pdf_service.parse_pdf, file_path)
-        chunks = pdf_service.parse_pdf(file_path) 
-        await websocket.send_text(f"Parsed {len(chunks)} chunks from PDF.")
-        
-        # Step 2: RAG Pipeline (Async)
-        await websocket.send_text("Step 2: Starting Classification and Embedding Pipeline...")
-        
-        # Define callback to send messages to WS
-        async def ws_callback(msg: str):
-            await websocket.send_text(msg)
-            
-        await rag_service.process_chunks_async(chunks, rag_metadata, progress_callback=ws_callback)
-        
-        # Step 3: Update Status to Trained
-        artifact.file_status = "Trained"
-        db.commit()
-        
-        await websocket.send_text("DONE")
-        
-    except WebSocketDisconnect:
-        print(f"Client disconnected for file {file_id}")
-    except Exception as e:
-        await websocket.send_text(f"Error: {str(e)}")
-        print(f"Error in WS training: {e}")
-    finally:
-        try:
-            await websocket.close()
-        except:
-            pass
 
 def get_current_school_admin(current_user: models.User = Depends(auth.get_current_active_user)):
     if current_user.role not in [models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN]:
@@ -233,11 +126,11 @@ def get_all_training_materials(
         models.Grade.name.label("grade_name"),
         models.Subject.name.label("subject_name")
     ).join(
-        models.School, models.FileArtifact.school_id == models.School.id
+        models.School, models.FileArtifact.school_id == models.School.id, isouter=True
     ).join(
-        models.Grade, models.FileArtifact.grade_id == models.Grade.id
+        models.Grade, models.FileArtifact.grade_id == models.Grade.id, isouter=True
     ).join(
-        models.Subject, models.FileArtifact.subject_id == models.Subject.id
+        models.Subject, models.FileArtifact.subject_id == models.Subject.id, isouter=True
     ).order_by(models.FileArtifact.uploaded_at.desc()).all()
     
     output = []
@@ -294,11 +187,11 @@ def get_training_material_details(
         models.Grade.name.label("grade_name"),
         models.Subject.name.label("subject_name")
     ).join(
-        models.School, models.FileArtifact.school_id == models.School.id
+        models.School, models.FileArtifact.school_id == models.School.id, isouter=True
     ).join(
-        models.Grade, models.FileArtifact.grade_id == models.Grade.id
+        models.Grade, models.FileArtifact.grade_id == models.Grade.id, isouter=True
     ).join(
-        models.Subject, models.FileArtifact.subject_id == models.Subject.id
+        models.Subject, models.FileArtifact.subject_id == models.Subject.id, isouter=True
     ).filter(models.FileArtifact.id == file_id).first()
     
     if not result:
@@ -313,10 +206,7 @@ def get_training_material_details(
     return schemas.FileArtifactOut(**artifact_dict)
 
 from services import pdf_service, rag_service
-import os
-
-from services import pdf_service, rag_service
-import os
+# os is already imported
 
 @router.post("/training-material/{file_id}/train", response_model=schemas.FileArtifactOut)
 def train_file(
@@ -360,7 +250,7 @@ async def websocket_train_file(websocket: WebSocket, file_id: int, db: Session =
         
         # Resolve Path
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # pointing to backend/
-        file_path = os.path.join(base_dir, artifact.relative_path)
+        file_path = os.path.join(base_dir, STORAGE_ROOT, artifact.relative_path)
         
         if not os.path.exists(file_path):
              await websocket.send_text(f"Error: File not found on disk at {file_path}")
@@ -421,3 +311,70 @@ async def websocket_train_file(websocket: WebSocket, file_id: int, db: Session =
             await websocket.close()
         except:
             pass
+
+@router.delete("/training-material/{file_id}")
+def delete_training_material(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if current_user.role not in [models.UserRole.SUPER_ADMIN, models.UserRole.SCHOOL_ADMIN]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
+    if not artifact:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # School Admin ownership check
+    if current_user.role == models.UserRole.SCHOOL_ADMIN and artifact.school_id != current_user.school_id:
+        raise HTTPException(status_code=403, detail="Cannot delete file from another school")
+
+    # 1. Delete Physical File
+    # Construct absolute path using STORAGE_ROOT to match upload logic
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
+        file_path = os.path.join(base_dir, STORAGE_ROOT, artifact.relative_path)
+        
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"Deleted file: {file_path}")
+        else:
+            print(f"File not found on disk, skipping delete: {file_path}")
+            
+    except Exception as e:
+        print(f"Error deleting physical file: {e}")
+        # We continue to delete the DB record even if file delete fails (or maybe not? standard is usually yes to clean up DB)
+
+    # 2. Delete DB Record
+    db.delete(artifact)
+    db.commit()
+
+    return {"message": "File deleted successfully"}
+
+@router.get("/training-material/{file_id}/download")
+def download_training_material(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if current_user.role not in [models.UserRole.SUPER_ADMIN, models.UserRole.SCHOOL_ADMIN]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
+    if not artifact:
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    if current_user.role == models.UserRole.SCHOOL_ADMIN and artifact.school_id != current_user.school_id:
+        raise HTTPException(status_code=403, detail="Cannot download file from another school")
+        
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    file_path = os.path.join(base_dir, STORAGE_ROOT, artifact.relative_path)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+        
+    return FileResponse(
+        path=file_path, 
+        filename=artifact.original_filename,
+        media_type=artifact.mime_type or "application/pdf"
+    )

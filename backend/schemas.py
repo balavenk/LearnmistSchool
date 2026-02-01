@@ -117,6 +117,7 @@ class User(UserBase):
 
 class SubjectBase(BaseModel):
     name: str
+    code: Optional[str] = None
 
 class SubjectCreate(SubjectBase):
     pass
