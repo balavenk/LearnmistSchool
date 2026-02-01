@@ -1,0 +1,277 @@
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from sqlalchemy.orm import Session
+from typing import List
+import os
+import shutil
+from datetime import datetime
+import mimetypes
+
+import database, models, schemas, auth
+
+router = APIRouter(
+    prefix="/upload",
+    tags=["upload"],
+    responses={404: {"description": "Not found"}},
+)
+
+# Constants
+STORAGE_ROOT = "storage"
+
+def get_current_school_admin(current_user: models.User = Depends(auth.get_current_active_user)):
+    if current_user.role not in [models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return current_user
+
+@router.post("/training-material", response_model=schemas.FileArtifactOut)
+async def upload_training_material(
+    file: UploadFile = File(...),
+    school_id: int = Form(...),
+    grade_id: int = Form(...),
+    subject_id: int = Form(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_school_admin)
+):
+    # Basic Validation
+    if current_user.role == models.UserRole.SCHOOL_ADMIN and current_user.school_id != school_id:
+        raise HTTPException(status_code=403, detail="Cannot upload for another school")
+
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    # Directory Structure: storage/{school_id}/{grade_id}/{subject_id}/
+    relative_dir = os.path.join(str(school_id), str(grade_id), str(subject_id))
+    abs_dir = os.path.join(STORAGE_ROOT, relative_dir)
+    os.makedirs(abs_dir, exist_ok=True)
+
+    # Generate Stored Filename
+    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    original_filename = file.filename
+    clean_filename = "".join(x for x in original_filename if x.isalnum() or x in "._- ")
+    stored_filename = f"{timestamp}_{clean_filename}"
+    
+    file_path = os.path.join(abs_dir, stored_filename)
+    relative_path = os.path.join(relative_dir, stored_filename)
+
+    # Save File
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        file_size = os.path.getsize(file_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
+
+    # Create DB Record
+    new_artifact = models.FileArtifact(
+        school_id=school_id,
+        grade_id=grade_id,
+        subject_id=subject_id,
+        original_filename=original_filename,
+        stored_filename=stored_filename,
+        relative_path=relative_path,
+        mime_type=file.content_type or mimetypes.guess_type(file.filename)[0],
+        file_extension=os.path.splitext(original_filename)[1].lower().replace(".", ""),
+        file_size=file_size,
+        uploaded_by_id=current_user.id,
+        uploaded_at=datetime.utcnow()
+    )
+    
+    db.add(new_artifact)
+    db.commit()
+    db.refresh(new_artifact)
+    
+    return new_artifact
+
+@router.get("/training-material/{grade_id}", response_model=List[schemas.FileArtifactOut])
+def list_training_materials(
+    grade_id: int, 
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_school_admin)
+):
+    # Filter by grade and school
+    # Filter by grade and school, join with Subject
+    results = db.query(models.FileArtifact, models.Subject.name).join(
+        models.Subject, models.FileArtifact.subject_id == models.Subject.id
+    ).filter(
+        models.FileArtifact.grade_id == grade_id,
+        models.FileArtifact.school_id == current_user.school_id
+    ).order_by(models.FileArtifact.uploaded_at.desc()).all()
+    
+    # Map results to schema
+    output = []
+    for artifact, subject_name in results:
+        # Create a dictionary from the artifact ORM object
+        artifact_dict = {c.name: getattr(artifact, c.name) for c in artifact.__table__.columns}
+        # Add the subject_name
+        artifact_dict['subject_name'] = subject_name
+        output.append(schemas.FileArtifactOut(**artifact_dict))
+        
+    return output
+
+@router.get("/all-training-materials", response_model=List[schemas.FileArtifactOut])
+def get_all_training_materials(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if current_user.role != models.UserRole.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    # Join with School, Grade, Subject
+    results = db.query(
+        models.FileArtifact, 
+        models.School.name.label("school_name"),
+        models.Grade.name.label("grade_name"),
+        models.Subject.name.label("subject_name")
+    ).join(
+        models.School, models.FileArtifact.school_id == models.School.id
+    ).join(
+        models.Grade, models.FileArtifact.grade_id == models.Grade.id
+    ).join(
+        models.Subject, models.FileArtifact.subject_id == models.Subject.id
+    ).order_by(models.FileArtifact.uploaded_at.desc()).all()
+    
+    output = []
+    for artifact, school_name, grade_name, subject_name in results:
+        artifact_dict = {c.name: getattr(artifact, c.name) for c in artifact.__table__.columns}
+        artifact_dict['school_name'] = school_name
+        artifact_dict['grade_name'] = grade_name
+        artifact_dict['subject_name'] = subject_name
+        output.append(schemas.FileArtifactOut(**artifact_dict))
+        
+    return output
+
+@router.put("/training-material/{file_id}/status", response_model=schemas.FileArtifactOut)
+def update_file_status(
+    file_id: int,
+    status_update: schemas.FileArtifactUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if current_user.role not in [models.UserRole.SUPER_ADMIN, models.UserRole.SCHOOL_ADMIN]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
+    if not artifact:
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    # Optional: Check ownership if school admin ? 
+    # For now, Super Admin can update any, School Admin can update theirs.
+    if current_user.role == models.UserRole.SCHOOL_ADMIN and artifact.school_id != current_user.school_id:
+        raise HTTPException(status_code=403, detail="Cannot update file from another school")
+
+    artifact.file_status = status_update.file_status
+    db.commit()
+    db.refresh(artifact)
+    
+    # We return the basic artifact, if we needed the joined fields we'd need to query again or construct it.
+    # For the response model FileArtifactOut, it expects base fields. 
+    # The joined fields (school_name etc) are Optional, so it's fine to return the ORM object directly
+    # and they will be null in the response, which is acceptable for a specific update operation.
+    return artifact
+
+@router.get("/training-material/id/{file_id}", response_model=schemas.FileArtifactOut)
+def get_training_material_details(
+    file_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if current_user.role != models.UserRole.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    result = db.query(
+        models.FileArtifact, 
+        models.School.name.label("school_name"),
+        models.Grade.name.label("grade_name"),
+        models.Subject.name.label("subject_name")
+    ).join(
+        models.School, models.FileArtifact.school_id == models.School.id
+    ).join(
+        models.Grade, models.FileArtifact.grade_id == models.Grade.id
+    ).join(
+        models.Subject, models.FileArtifact.subject_id == models.Subject.id
+    ).filter(models.FileArtifact.id == file_id).first()
+    
+    if not result:
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    artifact, school_name, grade_name, subject_name = result
+    artifact_dict = {c.name: getattr(artifact, c.name) for c in artifact.__table__.columns}
+    artifact_dict['school_name'] = school_name
+    artifact_dict['grade_name'] = grade_name
+    artifact_dict['subject_name'] = subject_name
+    
+    return schemas.FileArtifactOut(**artifact_dict)
+
+from services import pdf_service, rag_service
+import os
+
+@router.post("/training-material/{file_id}/train", response_model=schemas.FileArtifactOut)
+def train_file(
+    file_id: int,
+    status_update: schemas.FileArtifactUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if current_user.role != models.UserRole.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
+    if not artifact:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # 1. Update DB Status
+    artifact.file_status = status_update.file_status
+    if status_update.file_metadata:
+        artifact.file_metadata = status_update.file_metadata
+    
+    db.commit()
+    db.refresh(artifact)
+    
+    # 2. Trigger RAG Pipeline (Background Task preferred in production, doing sync for demo)
+    try:
+        # Construct absolute file path
+        # Assuming relative_path is stored relative to backend/ (e.g. storage/...)
+        # We need to resolve it to absolute path
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # pointing to backend/
+        file_path = os.path.join(base_dir, artifact.relative_path)
+        
+        if not os.path.exists(file_path):
+             print(f"File not found on disk: {file_path}")
+             # We don't fail the request, but log error. Status might need to revert or show error if this was critical.
+        else:
+            print(f"Starting RAG training for {artifact.original_filename}...")
+            
+            # Metadata for Vector Store
+            # Parse user provided metadata
+            user_metadata = {}
+            if artifact.file_metadata:
+                 try:
+                     import json
+                     user_metadata = json.loads(artifact.file_metadata)
+                 except:
+                     pass
+
+            rag_metadata = {
+                "file_id": artifact.id,
+                "school_id": artifact.school_id,
+                "grade_id": artifact.grade_id,
+                "subject_id": artifact.subject_id,
+                "filename": artifact.original_filename,
+                **user_metadata # Merge user keys like difficulty, topic etc.
+            }
+            
+            # Parse
+            chunks = pdf_service.parse_pdf(file_path)
+            print(f"Parsed {len(chunks)} chunks.")
+            
+            # Embed & Upsert
+            rag_service.process_chunks(chunks, rag_metadata)
+            print("RAG processing complete.")
+
+    except Exception as e:
+        print(f"RAG Pipeline Failed: {e}")
+        # Optionally update status to 'Failed'
+        # artifact.file_status = 'Failed'
+        # db.commit()
+
+    return artifact

@@ -74,6 +74,27 @@ class StudentSubjectStats(BaseModel):
     completed_assignments: int
     pending_assignments: int
 
+class FileArtifactBase(BaseModel):
+    id: int
+    original_filename: str
+    uploaded_at: datetime
+    file_size: Optional[int] = None
+    file_extension: Optional[str] = None
+    mime_type: Optional[str] = None
+    file_status: Optional[str] = "Uploaded"
+    subject_id: int
+    subject_name: Optional[str] = None
+    school_name: Optional[str] = None
+    grade_name: Optional[str] = None
+
+class FileArtifactUpdate(BaseModel):
+    file_status: str
+    file_metadata: Optional[str] = None # JSON string
+
+class FileArtifactOut(FileArtifactBase):
+    file_metadata: Optional[str] = None
+    class Config:
+        from_attributes = True
 
 class UserBase(BaseModel):
     username: str

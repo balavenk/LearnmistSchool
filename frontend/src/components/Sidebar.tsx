@@ -56,6 +56,11 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                                     Settings
                                 </NavLink>
                             </li>
+                            <li>
+                                <NavLink to="/train-llm" className={linkClass}>
+                                    Train Via LLM
+                                </NavLink>
+                            </li>
                         </>
                     )}
 

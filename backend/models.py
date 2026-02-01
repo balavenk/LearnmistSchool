@@ -214,21 +214,39 @@ class FileArtifact(Base):
     __tablename__ = "file_artifacts"
 
     id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String(255))
-    file_path = Column(String(500))  # Local path or S3 URL
-    file_type = Column(String(50))   # e.g., 'pdf', 'docx'
     
-    # Metadata for LLM Training
-    # Example: {"subject": "Math", "grade": "10", "topic": "Algebra", "quality_score": 0.9}
-    tags = Column(Text, nullable=True) # Using Text for simple JSON storage initially (SQLite compat), or JSON if PG specific
+    # File Details
+    original_filename = Column(String(255))
+    stored_filename = Column(String(255))
+    relative_path = Column(String(500))  # storage/school_id/grade_id/subject_id/filename
+    mime_type = Column(String(100))
+    file_extension = Column(String(20))
+    file_size = Column(Integer, nullable=True)
+    file_status = Column(String(50), default="Uploaded") # New column
+    
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    
+    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Metadata / Context
+    tags = Column(Text, nullable=True)
+    file_metadata = Column(Text, nullable=True) # JSON Stored as Text
 
+    # Foreign Keys
     uploaded_by_id = Column(Integer, ForeignKey("users.id"))
+    school_id = Column(Integer, ForeignKey("schools.id"))
+    grade_id = Column(Integer, ForeignKey("grades.id"))
+    subject_id = Column(Integer, ForeignKey("subjects.id"))
     
-    # Optional: Link to context
+    # Optional Context (Legacy/Future)
     assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=True)
     submission_id = Column(Integer, ForeignKey("submissions.id"), nullable=True)
 
+    # Relationships
     uploaded_by = relationship("User")
+    school = relationship("School")
+    grade = relationship("Grade")
+    subject = relationship("Subject")
 
 class QuestionType(str, enum.Enum):
     MULTIPLE_CHOICE = "MULTIPLE_CHOICE"

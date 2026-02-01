@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import database, models, schemas, auth
-from routers import super_admin, school_admin, teacher, student
+from routers import super_admin, school_admin, teacher, student, upload, auth_routes
 from datetime import timedelta
 
 # models.Base.metadata.create_all(bind=database.engine)
@@ -35,6 +35,8 @@ app.include_router(super_admin.router)
 app.include_router(school_admin.router)
 app.include_router(teacher.router)
 app.include_router(student.router)
+app.include_router(upload.router)
+app.include_router(auth_routes.router)
 
 
 @app.post("/token", response_model=schemas.Token, tags=["auth"])
