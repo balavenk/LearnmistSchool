@@ -342,3 +342,23 @@ class SuperAdminStats(BaseModel):
 class PasswordResetRequest(BaseModel):
     password: str
 
+# --- Teacher Assignment Schemas ---
+
+class TeacherAssignmentBase(BaseModel):
+    subject_id: int
+    grade_id: int
+    class_id: Optional[int] = None
+
+class TeacherAssignmentCreate(TeacherAssignmentBase):
+    pass
+
+class TeacherAssignment(TeacherAssignmentBase):
+    id: int
+    teacher_id: int
+    subject: Optional[Subject] = None
+    grade: Optional[Grade] = None
+    class_: Optional[Class] = None # Maps to property in model
+
+    class Config:
+        from_attributes = True
+

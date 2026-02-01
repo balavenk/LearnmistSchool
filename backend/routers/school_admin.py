@@ -170,17 +170,70 @@ def read_students(grade_id: int = None, class_id: int = None, db: Session = Depe
         
     return query.all()
 
-@router.get("/dashboard/stats", response_model=schemas.SchoolAdminStats)
-def read_dashboard_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
-    total_students = db.query(models.Student).filter(models.Student.school_id == current_user.school_id).count()
-    total_teachers = db.query(models.User).filter(
-        models.User.school_id == current_user.school_id, 
-        models.User.role == models.UserRole.TEACHER
-    ).count()
-    total_classes = db.query(models.Class).filter(models.Class.school_id == current_user.school_id).count()
-    
     return schemas.SchoolAdminStats(
         total_students=total_students,
         total_teachers=total_teachers,
         total_classes=total_classes
     )
+
+# --- Teacher Assignments ---
+
+@router.get("/teachers/{teacher_id}/assignments", response_model=List[schemas.TeacherAssignment])
+def read_teacher_assignments(teacher_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    # Verify teacher in school
+    teacher = db.query(models.User).filter(
+        models.User.id == teacher_id,
+        models.User.school_id == current_user.school_id,
+        models.User.role == models.UserRole.TEACHER
+    ).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+        
+    return db.query(models.TeacherAssignment).filter(models.TeacherAssignment.teacher_id == teacher_id).all()
+
+@router.post("/teachers/{teacher_id}/assignments", response_model=schemas.TeacherAssignment)
+def create_teacher_assignment(teacher_id: int, assignment: schemas.TeacherAssignmentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    # Verify teacher
+    teacher = db.query(models.User).filter(
+        models.User.id == teacher_id,
+        models.User.school_id == current_user.school_id,
+        models.User.role == models.UserRole.TEACHER
+    ).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+
+    # Verify duplicates? (Optional but good)
+    existing = db.query(models.TeacherAssignment).filter(
+        models.TeacherAssignment.teacher_id == teacher_id,
+        models.TeacherAssignment.subject_id == assignment.subject_id,
+        models.TeacherAssignment.grade_id == assignment.grade_id,
+        models.TeacherAssignment.class_id == assignment.class_id
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Assignment already exists")
+
+    new_assignment = models.TeacherAssignment(
+        teacher_id=teacher_id,
+        subject_id=assignment.subject_id,
+        grade_id=assignment.grade_id,
+        class_id=assignment.class_id
+    )
+    db.add(new_assignment)
+    db.commit()
+    db.refresh(new_assignment)
+    return new_assignment
+
+@router.delete("/assignments/{assignment_id}")
+def delete_teacher_assignment(assignment_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    assignment = db.query(models.TeacherAssignment).join(models.User).filter(
+        models.TeacherAssignment.id == assignment_id,
+        models.User.school_id == current_user.school_id # Ensure teacher belongs to admin's school
+    ).first()
+    
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+        
+    db.delete(assignment)
+    db.commit()
+    return {"message": "Assignment deleted"}

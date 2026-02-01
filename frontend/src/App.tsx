@@ -24,6 +24,7 @@ import GradesList from './pages/school-admin/GradesList';
 import QuestionBank from './pages/school-admin/QuestionBank';
 import QuestionBankDetails from './pages/school-admin/QuestionBankDetails';
 import Classes from './pages/school-admin/Classes';
+import TeacherClasses from './pages/school-admin/TeacherClasses';
 
 // Teacher Pages
 import TeacherAssignments from './pages/teacher/Assignments';
@@ -63,6 +64,7 @@ const App: React.FC = () => {
           {/* SCHOOL ADMIN */}
           <Route path="school-admin" element={<SchoolAdminDashboard />} />
           <Route path="school-admin/teachers" element={<TeachersList />} />
+          <Route path="school-admin/teachers/:id/classes" element={<TeacherClasses />} />
           <Route path="school-admin/students" element={<StudentsList />} />
           <Route path="school-admin/subjects" element={<SubjectsList />} />
           <Route path="school-admin/grades" element={<GradesList />} />

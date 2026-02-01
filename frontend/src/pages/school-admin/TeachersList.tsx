@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 
 interface Teacher {
@@ -11,6 +12,7 @@ interface Teacher {
 }
 
 const TeachersList: React.FC = () => {
+    const navigate = useNavigate();
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -131,6 +133,10 @@ const TeachersList: React.FC = () => {
                                 <td className="px-6 py-4 text-right space-x-2">
                                     <button onClick={() => toggleStatus(teacher.id)} className={`text-xs font-medium ${teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}>
                                         {teacher.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <span className="text-slate-300">|</span>
+                                    <button onClick={() => navigate(`/school-admin/teachers/${teacher.id}/classes`)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800">
+                                        Change class
                                     </button>
                                 </td>
                             </tr>

@@ -142,10 +142,30 @@ const Students: React.FC = () => {
     useEffect(() => {
         fetchData();
     }, []);
-    // Note: You need to keep handleCreateStudent and closeModal in the file when applying. 
-    // I am assuming the tool will keep surrounding code if I target specific lines or if I replace logic blocks.
-    // Ideally I should provide the FULL component content to be safe given the significant internal changes.
-    // But replaced block below targets the render and logic variables.
+    // Missing handlers
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setNewName('');
+        setSelectedGradeId('');
+        setSelectedClassId('');
+    };
+
+    const handleCreateStudent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await api.post('/teacher/students/', {
+                name: newName,
+                grade_id: Number(selectedGradeId),
+                class_id: selectedClassId ? Number(selectedClassId) : null
+            });
+            await fetchData();
+            closeModal();
+            // alert("Student added successfully"); 
+        } catch (error) {
+            console.error("Failed to create student", error);
+            alert("Failed to create student");
+        }
+    };
 
     return (
         <div className="space-y-6">
