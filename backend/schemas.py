@@ -8,6 +8,7 @@ class Token(BaseModel):
     token_type: str
     role: Optional[str] = None
     username: Optional[str] = None
+    id: Optional[int] = None
 
 class TokenData(BaseModel):
     username: Optional[str] = None

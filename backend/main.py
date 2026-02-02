@@ -75,7 +75,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         "access_token": access_token, 
         "token_type": "bearer",
         "role": user.role,
-        "username": user.username
+        "username": user.username,
+        "id": user.id
     }
 
 @app.get("/", tags=["general"])

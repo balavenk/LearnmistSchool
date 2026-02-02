@@ -35,6 +35,7 @@ const Login: React.FC = () => {
                 localStorage.setItem('token', access_token);
                 localStorage.setItem('role', role);
                 localStorage.setItem('username', returnedUsername || username);
+                if (response.data.id) localStorage.setItem('userId', response.data.id);
 
                 // Redirect based on role
                 if (role.toUpperCase() === 'SUPER_ADMIN') navigate('/super-admin');

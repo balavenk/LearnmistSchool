@@ -294,7 +294,28 @@ async def generate_quiz_questions(
         if progress_callback:
              await progress_callback("Received response from OpenAI.", {"step": "llm_response", "raw_content_preview": content[:200] + "..."})
              
-        data = json.loads(content)
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError:
+            # Attempt to clean markdown
+            cleaned_content = content.strip()
+            if cleaned_content.startswith("```json"):
+                cleaned_content = cleaned_content[7:]
+            if cleaned_content.startswith("```"):
+                cleaned_content = cleaned_content[3:]
+            if cleaned_content.endswith("```"):
+                cleaned_content = cleaned_content[:-3]
+            cleaned_content = cleaned_content.strip()
+            
+            try:
+                data = json.loads(cleaned_content)
+            except json.JSONDecodeError as e:
+                print(f"JSON Parse Error: {e}")
+                print(f"Raw Content: {content}")
+                if progress_callback:
+                     await progress_callback(f"Failed to parse AI response. Raw: {content[:100]}...", {"step": "error", "details": "JSON Parse Error"})
+                return []
+
         questions = data.get("questions", [])
         
         if progress_callback:

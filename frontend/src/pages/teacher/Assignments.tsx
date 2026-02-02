@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../api/axios';
 
 // Types
@@ -124,7 +125,7 @@ const TeacherAssignments: React.FC = () => {
                     due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
                     subject_id: Number(aiSubjectId),
                     class_id: Number(aiClassId),
-                    teacher_id: 1 // TODO: Get from auth context
+                    teacher_id: Number(localStorage.getItem('userId')) || 1
                 }
             }));
         };
@@ -170,6 +171,17 @@ const TeacherAssignments: React.FC = () => {
     };
 
     // ... (rest of methods)
+
+    const handleDelete = async (id: number) => {
+        if (!confirm("Are you sure you want to delete this assignment?")) return;
+        try {
+            await api.delete(`/teacher/assignments/${id}`);
+            fetchData();
+        } catch (error) {
+            console.error("Failed to delete", error);
+            alert("Failed to delete assignment.");
+        }
+    };
 
     const handlePublish = async (id: number) => {
         if (!confirm("Are you sure you want to publish this quiz? Students will be able to see it immediately.")) return;
@@ -282,20 +294,28 @@ const TeacherAssignments: React.FC = () => {
                         </div>
 
                         <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                            {assignment.status === 'DRAFT' && (
+                            <div className="flex gap-2">
+                                {assignment.status === 'DRAFT' && (
+                                    <button
+                                        onClick={() => handlePublish(assignment.id)}
+                                        className="text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm font-medium transition-colors shadow-sm"
+                                    >
+                                        Publish
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => handlePublish(assignment.id)}
-                                    className="text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded text-sm font-medium transition-colors shadow-sm"
+                                    onClick={() => handleDelete(assignment.id)}
+                                    className="text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm font-medium transition-colors shadow-sm"
                                 >
-                                    Publish Now
+                                    Delete
                                 </button>
-                            )}
-                            <a
-                                href={`/teacher/assignments/${assignment.id}/questions`}
+                            </div>
+                            <Link
+                                to={`/teacher/assignments/${assignment.id}/questions`}
                                 className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center ml-auto"
                             >
                                 Manage Questions →
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 ))}

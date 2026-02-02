@@ -198,6 +198,23 @@ def publish_assignment(assignment_id: int, db: Session = Depends(database.get_db
     db.refresh(assignment)
     return assignment
 
+@router.delete("/assignments/{assignment_id}")
+def delete_assignment(assignment_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+    assignment = db.query(models.Assignment).filter(
+        models.Assignment.id == assignment_id,
+        models.Assignment.teacher_id == current_user.id
+    ).first()
+    
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    # Delete associated questions (cascade should handle this if configured, but let's be safe or rely on DB)
+    # If standard ForeignKey with cascade is set, db.delete(assignment) is enough.
+    # Assuming standard setup:
+    db.delete(assignment)
+    db.commit()
+    return {"message": "Assignment deleted successfully"}
+
 @router.get("/classes/", response_model=List[schemas.Class])
 def read_classes(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
     # Return classes where teacher is explicitly assigned, OR classes in grades where teacher is assigned (if we assume grade assignment equals all classes)
