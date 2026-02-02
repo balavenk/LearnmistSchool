@@ -1,68 +1,135 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import api from '../../api/axios';
 
 interface Grade {
     id: number;
     name: string;
-    section: string;
-    studentsCount: number;
-    status: 'Active' | 'Inactive';
+    student_count?: number; // Backend might not return this yet, but keeping interface
 }
 
-const INITIAL_GRADES: Grade[] = Array.from({ length: 12 }, (_, i) => ({
-    id: i + 1,
-    name: `Grade ${i + 1}`,
-    section: 'A',
-    studentsCount: Math.floor(Math.random() * 30) + 15,
-    status: 'Active'
-}));
+interface ClassSection {
+    id: number;
+    name: string;
+    section: string;
+    grade_id: number;
+}
 
 const GradesList: React.FC = () => {
-    const [grades, setGrades] = useState<Grade[]>(INITIAL_GRADES);
+    const [grades, setGrades] = useState<Grade[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Form State
-    const [newName, setNewName] = useState('');
-    const [newSection, setNewSection] = useState('');
+    // Add Grade Modal
+    const [isAddGradeModalOpen, setIsAddGradeModalOpen] = useState(false);
+    const [newGradeName, setNewGradeName] = useState('');
+
+    // Manage Sections Modal
+    const [isSectionsModalOpen, setIsSectionsModalOpen] = useState(false);
+    const [selectedGrade, setSelectedGrade] = useState<Grade | null>(null);
+    const [sections, setSections] = useState<ClassSection[]>([]);
+    const [newSectionName, setNewSectionName] = useState(''); // e.g. "A"
 
     const ITEMS_PER_PAGE = 8;
 
+    useEffect(() => {
+        fetchGrades();
+    }, []);
+
+    const fetchGrades = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/school-admin/grades/');
+            setGrades(res.data);
+        } catch (error) {
+            console.error("Failed to fetch grades", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchSections = async (gradeId: number) => {
+        try {
+            const res = await api.get(`/school-admin/classes/?grade_id=${gradeId}`);
+            setSections(res.data);
+        } catch (error) {
+            console.error("Failed to fetch sections", error);
+        }
+    };
+
+    const handleCreateGrade = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await api.post('/school-admin/grades/', { name: newGradeName });
+            fetchGrades();
+            setIsAddGradeModalOpen(false);
+            setNewGradeName('');
+        } catch (error) {
+            console.error("Failed to create grade", error);
+            alert("Failed to create grade");
+        }
+    };
+
+    const openSectionsModal = (grade: Grade) => {
+        setSelectedGrade(grade);
+        fetchSections(grade.id);
+        setIsSectionsModalOpen(true);
+        setNewSectionName('');
+    };
+
+    const handleAddSection = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedGrade) return;
+        try {
+            // Using existing create_class endpoint. Name is required. 
+            // Usually Class Name = "10-A" or similar. 
+            // We'll construct a name or ask for it? Request says "Add or remove sections".
+            // Let's assume Class Name = "{GradeName}-{Section}"
+            const section = newSectionName.trim();
+            const className = `${selectedGrade.name}-${section}`;
+
+            await api.post('/school-admin/classes/', {
+                name: className,
+                section: section,
+                grade_id: selectedGrade.id
+            });
+            fetchSections(selectedGrade.id);
+            setNewSectionName('');
+        } catch (error) {
+            console.error("Failed to add section", error);
+            alert("Failed to add section");
+        }
+    };
+
+    const handleDeleteSection = async (classId: number) => {
+        if (!confirm("Are you sure you want to delete this section?")) return;
+        try {
+            await api.delete(`/school-admin/classes/${classId}`);
+            if (selectedGrade) fetchSections(selectedGrade.id);
+        } catch (error) {
+            console.error("Failed to delete section", error);
+            alert("Failed to delete section. It may have students or assignments assigned.");
+        }
+    };
+
     const filtered = useMemo(() => {
         return grades.filter(g =>
-            g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            g.section.toLowerCase().includes(searchTerm.toLowerCase())
+            g.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [grades, searchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
     const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    const handleCreate = (e: React.FormEvent) => {
-        e.preventDefault();
-        setGrades([{
-            id: Date.now(),
-            name: newName,
-            section: newSection,
-            studentsCount: 0,
-            status: 'Active'
-        }, ...grades]);
-        setIsModalOpen(false);
-        setNewName(''); setNewSection('');
-    };
-
-    const toggleStatus = (id: number) => {
-        setGrades(grades.map(g => g.id === id ? { ...g, status: g.status === 'Active' ? 'Inactive' : 'Active' } : g));
-    };
-
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Grades / Classes</h1>
+                    <h1 className="text-2xl font-bold text-slate-900">Grades</h1>
                     <p className="text-slate-500 text-sm">Manage grade levels and sections.</p>
                 </div>
-                <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
+                <button onClick={() => setIsAddGradeModalOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
                     + Add Grade
                 </button>
             </div>
@@ -82,31 +149,32 @@ const GradesList: React.FC = () => {
                     <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                         <tr>
                             <th className="px-6 py-4">Grade Name</th>
-                            <th className="px-6 py-4">Section</th>
-                            <th className="px-6 py-4">Students</th>
-                            <th className="px-6 py-4">Status</th>
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {paginated.map(grade => (
+                        {loading ? (
+                            <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
+                        ) : paginated.map(grade => (
                             <tr key={grade.id} className="hover:bg-slate-50">
                                 <td className="px-6 py-4 font-medium text-slate-900">{grade.name}</td>
-                                <td className="px-6 py-4 text-slate-500">{grade.section}</td>
-                                <td className="px-6 py-4 text-slate-600">{grade.studentsCount}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${grade.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {grade.status}
-                                    </span>
-                                </td>
                                 <td className="px-6 py-4 text-right">
-                                    <button onClick={() => toggleStatus(grade.id)} className={`text-xs font-medium ${grade.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}>
-                                        {grade.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                    <button
+                                        onClick={() => openSectionsModal(grade)}
+                                        className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 border border-indigo-200 rounded-full hover:bg-indigo-50 mr-2"
+                                    >
+                                        Manage Sections
+                                    </button>
+                                    <button
+                                        onClick={() => window.location.href = `/school-admin/grades/${grade.id}/subjects`}
+                                        className="text-emerald-600 hover:text-emerald-800 font-medium text-xs px-3 py-1 border border-emerald-200 rounded-full hover:bg-emerald-50"
+                                    >
+                                        Subjects
                                     </button>
                                 </td>
                             </tr>
                         ))}
-                        {paginated.length === 0 && <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No grades found.</td></tr>}
+                        {!loading && paginated.length === 0 && <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400">No grades found.</td></tr>}
                     </tbody>
                 </table>
                 {totalPages > 1 && (
@@ -120,18 +188,77 @@ const GradesList: React.FC = () => {
                 )}
             </div>
 
-            {isModalOpen && (
+            {/* Add Grade Modal */}
+            {isAddGradeModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6 animate-in fade-in zoom-in duration-200">
                         <h2 className="text-xl font-bold mb-4">Add Grade</h2>
-                        <form onSubmit={handleCreate} className="space-y-4">
-                            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Grade Name (e.g. Grade 1)" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
-                            <input value={newSection} onChange={e => setNewSection(e.target.value)} placeholder="Section (e.g. A)" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
-                            <div className="flex gap-2 pt-4">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg">Cancel</button>
-                                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">Add</button>
+                        <form onSubmit={handleCreateGrade} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">Grade Name</label>
+                                <input
+                                    value={newGradeName}
+                                    onChange={e => setNewGradeName(e.target.value)}
+                                    placeholder="e.g. Grade 1"
+                                    required
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
+                                />
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <button type="button" onClick={() => setIsAddGradeModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">Cancel</button>
+                                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Add Grade</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Manage Sections Modal */}
+            {isSectionsModalOpen && selectedGrade && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Manage Sections: {selectedGrade.name}</h2>
+                            <button onClick={() => setIsSectionsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+                        </div>
+
+                        <div className="space-y-6">
+                            {/* Add Section Form */}
+                            <form onSubmit={handleAddSection} className="flex gap-2">
+                                <input
+                                    value={newSectionName}
+                                    onChange={e => setNewSectionName(e.target.value)}
+                                    placeholder="New Section (e.g. A, B)"
+                                    required
+                                    className="flex-1 px-4 py-2 border rounded-lg outline-none focus:border-indigo-500 text-sm"
+                                />
+                                <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 whitespace-nowrap">
+                                    + Add Section
+                                </button>
+                            </form>
+
+                            {/* Sections List */}
+                            <div className="max-h-60 overflow-y-auto border rounded-lg divide-y divide-slate-100">
+                                {sections.length === 0 ? (
+                                    <div className="p-4 text-center text-slate-400 text-sm">No sections yet.</div>
+                                ) : (
+                                    sections.map(section => (
+                                        <div key={section.id} className="flex justify-between items-center p-3 hover:bg-slate-50">
+                                            <div>
+                                                <div className="font-medium text-slate-800">Section {section.section}</div>
+                                                <div className="text-xs text-slate-500">Class: {section.name}</div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteSection(section.id)}
+                                                className="text-red-600 hover:text-red-800 text-xs font-medium px-2 py-1 rounded hover:bg-red-50"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

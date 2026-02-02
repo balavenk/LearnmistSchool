@@ -1,10 +1,19 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 from sqlalchemy.orm import Session
 import database, models, schemas, auth
-from routers import super_admin, school_admin, teacher, student, upload, auth_routes
+from routers import super_admin, school_admin, teacher, student, upload, auth_routes, ws_generation
 from datetime import timedelta
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # models.Base.metadata.create_all(bind=database.engine)
 
@@ -37,10 +46,12 @@ app.include_router(teacher.router)
 app.include_router(student.router)
 app.include_router(upload.router)
 app.include_router(auth_routes.router)
+app.include_router(ws_generation.router)
 
 
 @app.post("/token", response_model=schemas.Token, tags=["auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+    print(f"LOGIN ATTEMPT: {form_data.username}")
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
     # user = next((u for u in mock_data.USERS if u.username == form_data.username), None)
 

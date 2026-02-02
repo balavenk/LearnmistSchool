@@ -6,7 +6,6 @@ import Schools from './pages/super-admin/Schools';
 import SchoolAdminDashboard from './pages/SchoolAdminDashboard';
 import TeacherDashboard from './pages/teacher/Dashboard';
 import StudentDashboard from './pages/student/Dashboard';
-// import Settings from './pages/super-admin/Settings';
 import Settings from './pages/super-admin/Settings';
 import Countries from './pages/super-admin/Countries';
 import Curriculums from './pages/super-admin/Curriculums';
@@ -25,6 +24,7 @@ import QuestionBank from './pages/school-admin/QuestionBank';
 import QuestionBankDetails from './pages/school-admin/QuestionBankDetails';
 import Classes from './pages/school-admin/Classes';
 import TeacherClasses from './pages/school-admin/TeacherClasses';
+import GradeSubjects from './pages/school-admin/GradeSubjects';
 
 // Teacher Pages
 import TeacherAssignments from './pages/teacher/Assignments';
@@ -52,7 +52,6 @@ const App: React.FC = () => {
           <Route path="super-admin" element={<SuperAdminDashboard />} />
           <Route path="schools" element={<Schools />} />
           <Route path="user-management" element={<UserManagement />} />
-          <Route path="user-management" element={<UserManagement />} />
           <Route path="settings" element={<Settings />} />
           <Route path="train-llm" element={<TrainViaLLM />} />
           <Route path="train-llm/:fileId" element={<TrainFileDetails />} />
@@ -68,13 +67,14 @@ const App: React.FC = () => {
           <Route path="school-admin/students" element={<StudentsList />} />
           <Route path="school-admin/subjects" element={<SubjectsList />} />
           <Route path="school-admin/grades" element={<GradesList />} />
+          <Route path="school-admin/grades/:gradeId/subjects" element={<GradeSubjects />} />
           <Route path="school-admin/question-bank" element={<QuestionBank />} />
           <Route path="school-admin/question-bank/:gradeId" element={<QuestionBankDetails />} />
           <Route path="school-admin/classes" element={<Classes />} />
 
           {/* TEACHER */}
           <Route path="teacher" element={<TeacherDashboard />} />
-          <Route path="teacher/assignments" element={<TeacherAssignments />} />
+          {/* Teacher Pages */}
           <Route path="teacher/assignments" element={<TeacherAssignments />} />
           <Route path="teacher/assignments/:assignmentId/questions" element={<QuizDetails />} />
           <Route path="teacher/students" element={<TeacherStudents />} />

@@ -138,8 +138,14 @@ class GradeCreate(GradeBase):
 class Grade(GradeBase):
     id: int
     school_id: int
+    subjects: List['Subject'] = []
+    
     class Config:
         from_attributes = True
+
+class GradeSubjectUpdate(BaseModel):
+    subject_ids: List[int]
+
 
 class ClassBase(BaseModel):
     name: str
@@ -165,6 +171,12 @@ class StudentBase(BaseModel):
 class StudentCreate(StudentBase):
     grade_id: int
     class_id: Optional[int] = None
+
+class StudentUpdate(BaseModel):
+    name: Optional[str] = None
+    grade_id: Optional[int] = None
+    class_id: Optional[int] = None
+    active: Optional[bool] = None
 
 class Student(StudentBase):
     id: int

@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "C:\Users\balav\.gemini\antigravity\LearnmistSchool\backend\services\rag_service.py", line 237, in generate_quiz_questions
+    search_results = client_qdrant.search(
+AttributeError: 'QdrantClient' object has no attribute 'search'

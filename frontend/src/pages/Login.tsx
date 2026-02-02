@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../api/axios';
 
 const Login: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -12,12 +13,21 @@ const Login: React.FC = () => {
         setIsLoading(true);
 
         try {
+            console.log("Attempting login with", { username, url: '/token' });
+
             // Use URLSearchParams for application/x-www-form-urlencoded
             const params = new URLSearchParams();
             params.append('username', username);
             params.append('password', password);
 
-            const response = await import('../api/axios').then(m => m.default.post('/token', params));
+            const response = await api.post('/token', params, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                timeout: 5000 // 5 second timeout
+            });
+
+            console.log("Login response", response);
 
             const { access_token, role, username: returnedUsername } = response.data;
 
@@ -38,7 +48,24 @@ const Login: React.FC = () => {
 
         } catch (error: any) {
             console.error("Login failed", error);
-            alert("Login failed: " + (error.response?.data?.detail || "Invalid credentials"));
+
+            let errorMessage = "Login failed";
+            if (error.response) {
+                // Server responded with a status code
+                errorMessage += ` (Status: ${error.response.status})`;
+                if (error.response.data) {
+                    // Try to format the data nicel
+                    errorMessage += "\n\nDetails:\n" + JSON.stringify(error.response.data, null, 2);
+                }
+            } else if (error.request) {
+                // Request made but no response
+                errorMessage += ": No response from server. Check if backend is running.";
+            } else {
+                // Request setup error
+                errorMessage += ": " + error.message;
+            }
+
+            alert(errorMessage);
         } finally {
             setIsLoading(false);
         }

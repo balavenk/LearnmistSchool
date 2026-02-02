@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Optional
 import database, models, schemas, auth
 
 router = APIRouter(
@@ -77,9 +77,25 @@ def create_class(class_data: schemas.ClassCreate, db: Session = Depends(database
     db.refresh(new_class)
     return new_class
 
+@router.delete("/classes/{class_id}")
+def delete_class(class_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    class_obj = db.query(models.Class).filter(
+        models.Class.id == class_id,
+        models.Class.school_id == current_user.school_id
+    ).first()
+    if not class_obj:
+        raise HTTPException(status_code=404, detail="Class not found")
+        
+    db.delete(class_obj)
+    db.commit()
+    return {"message": "Class deleted successfully"}
+
 @router.get("/classes/", response_model=List[schemas.Class])
-def read_classes(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
-    return db.query(models.Class).filter(models.Class.school_id == current_user.school_id).all()
+def read_classes(grade_id: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    query = db.query(models.Class).filter(models.Class.school_id == current_user.school_id)
+    if grade_id:
+        query = query.filter(models.Class.grade_id == grade_id)
+    return query.all()
 
 @router.post("/subjects/", response_model=schemas.Subject)
 def create_subject(subject: schemas.SubjectCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
@@ -170,11 +186,40 @@ def read_students(grade_id: int = None, class_id: int = None, db: Session = Depe
         
     return query.all()
 
-    return schemas.SchoolAdminStats(
-        total_students=total_students,
-        total_teachers=total_teachers,
-        total_classes=total_classes
-    )
+@router.put("/students/{student_id}", response_model=schemas.Student)
+def update_student(student_id: int, student_data: schemas.StudentUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    student = db.query(models.Student).filter(
+        models.Student.id == student_id,
+        models.Student.school_id == current_user.school_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Validation
+    if student_data.grade_id is not None:
+        grade = db.query(models.Grade).filter(models.Grade.id == student_data.grade_id, models.Grade.school_id == current_user.school_id).first()
+        if not grade:
+            raise HTTPException(status_code=404, detail="Grade not found")
+            
+    if student_data.class_id is not None:
+        # If class_id is 0 or -1 (if specific logic needed), but here assuming ID or Null.
+        # If user wants to delete class, they might send null. Pydantic handles null if Optional? 
+        # But if specifically sent as field. Pydantic exclude_unset handles omitted, but if sent as None it's included.
+        class_obj = db.query(models.Class).filter(models.Class.id == student_data.class_id, models.Class.school_id == current_user.school_id).first()
+        if not class_obj:
+            raise HTTPException(status_code=404, detail="Class not found")
+            
+    # Update fields
+    # Using exclude_unset to only update provided fields. 
+    # To clear class_id, client must send class_id: null.
+    
+    update_data = student_data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(student, key, value)
+    
+    db.commit()
+    db.refresh(student)
+    return student
 
 # --- Teacher Assignments ---
 
@@ -237,3 +282,39 @@ def delete_teacher_assignment(assignment_id: int, db: Session = Depends(database
     db.delete(assignment)
     db.commit()
     return {"message": "Assignment deleted"}
+
+# --- Grade-Subject Management ---
+
+@router.get("/grades/{grade_id}/subjects", response_model=List[schemas.Subject])
+def read_grade_subjects(grade_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    grade = db.query(models.Grade).filter(
+        models.Grade.id == grade_id, 
+        models.Grade.school_id == current_user.school_id
+    ).first()
+    if not grade:
+        raise HTTPException(status_code=404, detail="Grade not found")
+        
+    return grade.subjects
+
+@router.post("/grades/{grade_id}/subjects", response_model=List[schemas.Subject])
+def update_grade_subjects(grade_id: int, subject_data: schemas.GradeSubjectUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    grade = db.query(models.Grade).filter(
+        models.Grade.id == grade_id, 
+        models.Grade.school_id == current_user.school_id
+    ).first()
+    if not grade:
+        raise HTTPException(status_code=404, detail="Grade not found")
+    
+    # Verify all subjects belong to the school
+    subjects = db.query(models.Subject).filter(
+        models.Subject.id.in_(subject_data.subject_ids),
+        models.Subject.school_id == current_user.school_id
+    ).all()
+    
+    if len(subjects) != len(subject_data.subject_ids):
+        raise HTTPException(status_code=400, detail="One or more subjects not found or do not belong to this school")
+        
+    grade.subjects = subjects
+    db.commit()
+    return grade.subjects
+

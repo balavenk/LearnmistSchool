@@ -3,6 +3,14 @@ from sqlalchemy.orm import relationship
 from database import Base
 import enum
 from datetime import datetime
+from sqlalchemy import Table
+
+grade_subjects = Table(
+    "grade_subjects",
+    Base.metadata,
+    Column("grade_id", Integer, ForeignKey("grades.id"), primary_key=True),
+    Column("subject_id", Integer, ForeignKey("subjects.id"), primary_key=True),
+)
 
 class UserRole(str, enum.Enum):
     SUPER_ADMIN = "SUPER_ADMIN"
@@ -101,6 +109,7 @@ class Subject(Base):
 
     school = relationship("School", back_populates="subjects")
     assignments = relationship("TeacherAssignment", back_populates="subject")
+    grades = relationship("Grade", secondary=grade_subjects, back_populates="subjects")
 
 class Grade(Base):
     __tablename__ = "grades"
@@ -113,6 +122,7 @@ class Grade(Base):
     classes = relationship("Class", back_populates="grade")
     students = relationship("Student", back_populates="grade")
     assignments = relationship("TeacherAssignment", back_populates="grade")
+    subjects = relationship("Subject", secondary=grade_subjects, back_populates="grades")
 
 class Class(Base):
     __tablename__ = "classes"

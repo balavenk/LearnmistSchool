@@ -101,28 +101,72 @@ const TeacherAssignments: React.FC = () => {
         }
     };
 
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationLogs, setGenerationLogs] = useState<string[]>([]);
+
     const handleAIGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
-        try {
-            const response = await api.post('/teacher/assignments/ai-generate', null, {
+        setIsGenerating(true);
+        setGenerationLogs(["Initializing connection..."]);
+
+        const clientId = Date.now().toString();
+        const ws = new WebSocket(`ws://127.0.0.1:8000/ws/generate-quiz/${clientId}`);
+
+        ws.onopen = () => {
+            setGenerationLogs(prev => [...prev, "Connected to server.", "Sending generation request..."]);
+            ws.send(JSON.stringify({
+                action: "generate",
                 params: {
                     topic: aiTopic,
-                    grade_level: aiGrade, // This is now updated when class is selected
+                    grade_level: aiGrade,
                     difficulty: aiDifficulty,
                     question_count: aiQuestionCount,
                     due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
                     subject_id: Number(aiSubjectId),
-                    class_id: Number(aiClassId)
+                    class_id: Number(aiClassId),
+                    teacher_id: 1 // TODO: Get from auth context
                 }
-            });
-            // The AI generate endpoint creates a draft in DB
-            setAssignments([response.data, ...assignments]);
-            closeAIModal();
-            alert("AI Draft generated successfully!");
-        } catch (error) {
-            console.error("Failed to generate AI assignment", error);
-            alert("Failed to generate AI assignment.");
-        }
+            }));
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === "info") {
+                setGenerationLogs(prev => [...prev, `[INFO] ${data.message}`]);
+            } else if (data.type === "progress") {
+                const step = data.details.step;
+                let msg = `[${step.toUpperCase()}] ${data.status}`;
+                if (data.details.prompt_preview) {
+                    msg += `\nPAYLOAD:\n${data.details.prompt_preview}`;
+                }
+                if (data.details.raw_content_preview) {
+                    msg += `\nRESPONSE:\n${data.details.raw_content_preview}`;
+                }
+                setGenerationLogs(prev => [...prev, msg]);
+            } else if (data.type === "completed") {
+                setGenerationLogs(prev => [...prev, `[SUCCESS] ${data.message}`]);
+                setTimeout(() => {
+                    fetchData();
+                    closeAIModal();
+                    setIsGenerating(false);
+                    alert("AI Draft generated successfully!");
+                }, 2000);
+                ws.close();
+            } else if (data.type === "error") {
+                setGenerationLogs(prev => [...prev, `[ERROR] ${data.message}`]);
+                setIsGenerating(false); // keep modal open to see error
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+            setGenerationLogs(prev => [...prev, "[ERROR] WebSocket connection failed."]);
+            setIsGenerating(false);
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket closed");
+        };
     };
 
     // ... (rest of methods)
@@ -158,8 +202,11 @@ const TeacherAssignments: React.FC = () => {
         setAiDueDate('');
         setAiSubjectId('');
         setAiClassId('');
+        setIsGenerating(false);
+        setGenerationLogs([]);
     };
 
+    // ... helper functions ...
     const getClassName = (id?: number | null) => {
         if (!id) return "N/A";
         const c = classes.find(c => c.id === id);
@@ -174,6 +221,7 @@ const TeacherAssignments: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            {/* ... (Header and Lists same as before) ... */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900">Assignments</h1>
@@ -321,7 +369,7 @@ const TeacherAssignments: React.FC = () => {
             {/* AI Modal */}
             {isAIModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6 relative overflow-hidden">
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6 relative overflow-hidden transition-all duration-300" style={{ maxWidth: isGenerating ? '700px' : '512px' }}>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-purple-100 rounded-full blur-3xl -z-10 -mr-16 -mt-16"></div>
                         <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-100 rounded-full blur-3xl -z-10 -ml-16 -mb-16"></div>
 
@@ -330,128 +378,139 @@ const TeacherAssignments: React.FC = () => {
                                 <span className="text-2xl">✨</span>
                                 <h2 className="text-xl font-bold text-slate-900">Generate Quiz with AI</h2>
                             </div>
-                            <button onClick={closeAIModal} className="text-slate-400 hover:text-slate-600">✕</button>
+                            <button onClick={closeAIModal} disabled={isGenerating} className="text-slate-400 hover:text-slate-600 disabled:opacity-50">✕</button>
                         </div>
 
-                        <form onSubmit={handleAIGenerate} className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Topic / Content</label>
-                                <textarea
-                                    required
-                                    rows={3}
-                                    value={aiTopic}
-                                    onChange={(e) => setAiTopic(e.target.value)}
-                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none"
-                                    placeholder="e.g. Quadratic Equations, The American Civil War, Photosynthesis..."
-                                />
-                                <p className="text-xs text-slate-400 mt-1">Describe what the quiz should be about.</p>
+                        {isGenerating ? (
+                            <div className="bg-slate-900 rounded-lg p-4 font-mono text-sm text-green-400 h-96 overflow-y-auto shadow-inner flex flex-col font-light">
+                                <div className="mb-2 text-slate-400 border-b border-slate-700 pb-2">Live Generation Log</div>
+                                {generationLogs.map((log, i) => (
+                                    <div key={i} className="mb-1 whitespace-pre-wrap">{log}</div>
+                                ))}
+                                {/* Dummy div to scroll to bottom? */}
+                                <div className="mt-auto pt-2 text-center text-slate-500 animate-pulse">Processing...</div>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-4">
+                        ) : (
+                            <form onSubmit={handleAIGenerate} className="space-y-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
-                                    <select
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Topic / Content</label>
+                                    <textarea
                                         required
-                                        value={aiSubjectId}
-                                        onChange={(e) => setAiSubjectId(Number(e.target.value))}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                                    >
-                                        <option value="">Select Subject</option>
-                                        {subjects.map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
-                                    <select
-                                        required
-                                        value={aiClassId}
-                                        onChange={(e) => {
-                                            const id = Number(e.target.value);
-                                            setAiClassId(id);
-                                            // Auto-update grade level based on class if needed for prompt
-                                            const cls = classes.find(c => c.id === id);
-                                            if (cls) setAiGrade(cls.grade?.name || 'Grade 10');
-                                        }}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                                    >
-                                        <option value="">Select Class</option>
-                                        {classes.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
-                                    {aiClassId && (
-                                        <div className="mt-1 text-xs text-slate-500 flex gap-2">
-                                            <span>Section: {classes.find(c => c.id === aiClassId)?.section}</span>
-                                            <span>•</span>
-                                            <span>Grade: {classes.find(c => c.id === aiClassId)?.grade?.name || 'N/A'}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Difficulty</label>
-                                    <select
-                                        value={aiDifficulty}
-                                        onChange={(e) => setAiDifficulty(e.target.value)}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                                    >
-                                        {['Easy', 'Medium', 'Hard'].map(d => (
-                                            <option key={d} value={d}>{d}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Number of Questions</label>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        max={50}
-                                        value={aiQuestionCount}
-                                        onChange={(e) => setAiQuestionCount(parseInt(e.target.value))}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        rows={3}
+                                        value={aiTopic}
+                                        onChange={(e) => setAiTopic(e.target.value)}
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none"
+                                        placeholder="e.g. Quadratic Equations, The American Civil War, Photosynthesis..."
                                     />
+                                    <p className="text-xs text-slate-400 mt-1">Describe what the quiz should be about.</p>
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Question Type</label>
-                                    <select
-                                        value={aiQuestionType}
-                                        onChange={(e) => setAiQuestionType(e.target.value)}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
+                                        <select
+                                            required
+                                            value={aiSubjectId}
+                                            onChange={(e) => setAiSubjectId(Number(e.target.value))}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        >
+                                            <option value="">Select Subject</option>
+                                            {subjects.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                                        <select
+                                            required
+                                            value={aiClassId}
+                                            onChange={(e) => {
+                                                const id = Number(e.target.value);
+                                                setAiClassId(id);
+                                                // Auto-update grade level based on class if needed for prompt
+                                                const cls = classes.find(c => c.id === id);
+                                                if (cls) setAiGrade(cls.grade?.name || 'Grade 10');
+                                            }}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        >
+                                            <option value="">Select Class</option>
+                                            {classes.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                        {aiClassId && (
+                                            <div className="mt-1 text-xs text-slate-500 flex gap-2">
+                                                <span>Section: {classes.find(c => c.id === aiClassId)?.section}</span>
+                                                <span>•</span>
+                                                <span>Grade: {classes.find(c => c.id === aiClassId)?.grade?.name || 'N/A'}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Difficulty</label>
+                                        <select
+                                            value={aiDifficulty}
+                                            onChange={(e) => setAiDifficulty(e.target.value)}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        >
+                                            {['Easy', 'Medium', 'Hard'].map(d => (
+                                                <option key={d} value={d}>{d}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Number of Questions</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={50}
+                                            value={aiQuestionCount}
+                                            onChange={(e) => setAiQuestionCount(parseInt(e.target.value))}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Question Type</label>
+                                        <select
+                                            value={aiQuestionType}
+                                            onChange={(e) => setAiQuestionType(e.target.value)}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        >
+                                            {['Multiple Choice', 'True/False', 'Short Answer', 'Mixed'].map(t => (
+                                                <option key={t} value={t}>{t}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={aiDueDate}
+                                            onChange={(e) => setAiDueDate(e.target.value)}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-4 border-t border-slate-100 mt-6">
+                                    <button type="button" onClick={closeAIModal} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium">Cancel</button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg font-medium shadow-md flex justify-center items-center gap-2"
                                     >
-                                        {['Multiple Choice', 'True/False', 'Short Answer', 'Mixed'].map(t => (
-                                            <option key={t} value={t}>{t}</option>
-                                        ))}
-                                    </select>
+                                        <span>✨</span> Generate Quiz
+                                    </button>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
-                                    <input
-                                        type="date"
-                                        required
-                                        value={aiDueDate}
-                                        onChange={(e) => setAiDueDate(e.target.value)}
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 pt-4 border-t border-slate-100 mt-6">
-                                <button type="button" onClick={closeAIModal} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium">Cancel</button>
-                                <button
-                                    type="submit"
-                                    className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg font-medium shadow-md flex justify-center items-center gap-2"
-                                >
-                                    <span>✨</span> Generate Quiz
-                                </button>
-                            </div>
-                        </form>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}

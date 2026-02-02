@@ -167,3 +167,145 @@ async def process_chunks_async(
             raise e
             
     if progress_callback: await progress_callback("All batches processed successfully.")
+
+async def generate_quiz_questions(
+    topic: str,
+    subject_name: str,
+    grade_level: str,
+    difficulty: str,
+    count: int,
+    progress_callback: Callable[[str, Dict], Awaitable[None]] = None
+) -> List[Dict]:
+    """
+    Generates quiz questions using RAG.
+    """
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+
+    if not openai_api_key:
+        print("Missing OPENAI_API_KEY")
+        # Try loading explicitly
+        from dotenv import load_dotenv
+        load_dotenv()
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        
+        if not openai_api_key:
+             return []
+        # Re-init client
+        client_openai = AsyncOpenAI(api_key=openai_api_key)
+    else:
+        client_openai = AsyncOpenAI(api_key=openai_api_key)
+
+    client_qdrant = get_qdrant_client()
+    collection_name = "learnmist-school"
+
+    try:
+        # 1. Embed the query (topic)
+        if progress_callback:
+            await progress_callback("Creating embeddings for topic...", {"step": "embedding", "topic": topic})
+            
+        emb_response = await client_openai.embeddings.create(
+            input=topic,
+            model="text-embedding-3-large"
+        )
+        query_vector = emb_response.data[0].embedding
+
+        # 2. Search Qdrant
+        if progress_callback:
+            await progress_callback("Searching knowledge base...", {"step": "search", "subject": subject_name})
+
+        # 'search' missing in current version, using query_points
+        search_response = client_qdrant.query_points(
+            collection_name=collection_name,
+            query=query_vector,
+            limit=5,
+            query_filter=models.Filter(
+                should=[
+                    models.FieldCondition(
+                        key="subject",
+                        match=models.MatchValue(value=subject_name)
+                    ),
+                    models.FieldCondition(
+                        key="subject_name", # Try alternate key just in case
+                        match=models.MatchValue(value=subject_name)
+                    )
+                ]
+            )
+        )
+        search_results = search_response.points
+        
+        context_text = ""
+        for hit in search_results:
+            context_text += f"{hit.payload.get('text', '')}\n\n"
+
+        if not context_text:
+            msg = "No specific textbook context found. Using general knowledge."
+            print(msg)
+            context_text = msg
+            if progress_callback:
+                 await progress_callback("No direct matches found.", {"step": "search_result", "info": msg})
+        else:
+             if progress_callback:
+                 await progress_callback(f"Found {len(search_results)} relevant chunks.", {"step": "search_result", "chunks_found": len(search_results)})
+
+        # 3. Generate Questions via LLM
+        prompt = f"""
+        You are a teacher creating a quiz.
+        
+        Topic: {topic}
+        Subject: {subject_name}
+        Grade Level: {grade_level}
+        Difficulty: {difficulty}
+        Number of Questions: {count}
+        
+        Context from textbooks:
+        {context_text[:10000]} # Limit context size
+        
+        Generate {count} questions in strict JSON format.
+        The output must be a JSON object with a key "questions" containing a list of questions.
+        
+        Each question object must look like this:
+        {{
+            "text": "Question text",
+            "question_type": "MULTIPLE_CHOICE", # or TRUE_FALSE, SHORT_ANSWER
+            "points": 5,
+            "options": [
+                {{ "text": "Option 1", "is_correct": false }},
+                {{ "text": "Option 2", "is_correct": true }}
+            ]
+        }}
+        
+        For TRUE_FALSE, provide two options: True and False.
+        For SHORT_ANSWER, provide one option with is_correct=true containing the intended answer.
+        """
+        
+        if progress_callback:
+            await progress_callback("Generating questions with OpenAI...", {"step": "llm_request", "prompt_preview": prompt[:200] + "..."})
+
+        completion = await client_openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful educational assistant. Output valid JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={ "type": "json_object" }
+        )
+        content = completion.choices[0].message.content
+        
+        if progress_callback:
+             await progress_callback("Received response from OpenAI.", {"step": "llm_response", "raw_content_preview": content[:200] + "..."})
+             
+        data = json.loads(content)
+        questions = data.get("questions", [])
+        
+        if progress_callback:
+             await progress_callback(f"Successfully generated {len(questions)} questions.", {"step": "complete", "questions_count": len(questions)})
+             
+        return questions
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        if progress_callback:
+             await progress_callback(f"Error: {str(e)}", {"step": "error", "details": str(e)})
+        print(f"Quiz generation failed: {e}")
+        return []

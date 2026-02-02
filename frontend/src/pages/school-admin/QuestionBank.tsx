@@ -1,34 +1,42 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
 
-// Reusing the Grade interface and logic from GradesList for consistency
-// In a real app, this would be fetched from a shared context or API
 interface Grade {
     id: number;
     name: string;
-    section: string;
-    studentsCount: number;
+    // Backend doesn't return student count or section in the basic grade list yet
+    studentsCount?: number;
 }
 
-const INITIAL_GRADES: Grade[] = Array.from({ length: 12 }, (_, i) => ({
-    id: i + 1,
-    name: `Grade ${i + 1}`,
-    section: 'A',
-    studentsCount: Math.floor(Math.random() * 30) + 15,
-}));
-
 const QuestionBank: React.FC = () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [grades, setGrades] = useState<Grade[]>(INITIAL_GRADES);
+    const [grades, setGrades] = useState<Grade[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
 
     const ITEMS_PER_PAGE = 8;
 
+    useEffect(() => {
+        fetchGrades();
+    }, []);
+
+    const fetchGrades = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/school-admin/grades/');
+            // The API returns a list of Grade objects { id, name, school_id }
+            setGrades(res.data);
+        } catch (error) {
+            console.error("Failed to fetch grades", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const filtered = useMemo(() => {
         return grades.filter(g =>
-            g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            g.section.toLowerCase().includes(searchTerm.toLowerCase())
+            g.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [grades, searchTerm]);
 
@@ -65,17 +73,17 @@ const QuestionBank: React.FC = () => {
                     <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                         <tr>
                             <th className="px-6 py-4">Grade Name</th>
-                            <th className="px-6 py-4">Section</th>
-                            <th className="px-6 py-4">Students</th>
+                            {/* <th className="px-6 py-4">Students</th> */}
                             <th className="px-6 py-4 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {paginated.map(grade => (
+                        {loading ? (
+                            <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
+                        ) : paginated.map(grade => (
                             <tr key={grade.id} className="hover:bg-slate-50">
                                 <td className="px-6 py-4 font-medium text-slate-900">{grade.name}</td>
-                                <td className="px-6 py-4 text-slate-500">{grade.section}</td>
-                                <td className="px-6 py-4 text-slate-600">{grade.studentsCount}</td>
+                                {/* <td className="px-6 py-4 text-slate-600">{grade.studentsCount || '-'}</td> */}
                                 <td className="px-6 py-4 text-right">
                                     <button
                                         onClick={() => handleSelect(grade.id)}
@@ -86,7 +94,7 @@ const QuestionBank: React.FC = () => {
                                 </td>
                             </tr>
                         ))}
-                        {paginated.length === 0 && <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No grades found.</td></tr>}
+                        {!loading && paginated.length === 0 && <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400">No grades found.</td></tr>}
                     </tbody>
                 </table>
                 {totalPages > 1 && (
