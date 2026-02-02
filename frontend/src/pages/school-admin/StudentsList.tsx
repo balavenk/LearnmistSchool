@@ -8,6 +8,7 @@ interface Student {
     grade_id?: number;
     class_id?: number | null;
     active: boolean;
+    username?: string;
 }
 
 const StudentsList: React.FC = () => {
@@ -114,6 +115,32 @@ const StudentsList: React.FC = () => {
         return c ? `${c.name} (${c.section})` : id;
     };
 
+    // Add Student State
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [newStudentName, setNewStudentName] = useState('');
+    const [newStudentGradeId, setNewStudentGradeId] = useState<number | ''>('');
+    const [newStudentClassId, setNewStudentClassId] = useState<number | ''>('');
+
+    const handleAddStudent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await api.post('/school-admin/students/', {
+                name: newStudentName,
+                grade_id: Number(newStudentGradeId),
+                class_id: newStudentClassId ? Number(newStudentClassId) : null
+            });
+            fetchStudents();
+            setIsAddModalOpen(false);
+            setNewStudentName('');
+            setNewStudentGradeId('');
+            setNewStudentClassId('');
+            alert("Student created successfully!");
+        } catch (error) {
+            console.error("Failed to create student", error);
+            alert("Failed to create student.");
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -121,6 +148,12 @@ const StudentsList: React.FC = () => {
                     <h1 className="text-2xl font-bold text-slate-900">Students</h1>
                     <p className="text-slate-500 text-sm">Manage student enrollment.</p>
                 </div>
+                <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-sm flex items-center gap-2"
+                >
+                    <span>+</span> Add Student
+                </button>
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
@@ -138,6 +171,7 @@ const StudentsList: React.FC = () => {
                     <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                         <tr>
                             <th className="px-6 py-4">Name</th>
+                            <th className="px-6 py-4">Username</th>
                             <th className="px-6 py-4">Active</th>
                             <th className="px-6 py-4">Grade</th>
                             <th className="px-6 py-4">Class</th>
@@ -146,10 +180,11 @@ const StudentsList: React.FC = () => {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {loading ? (
-                            <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
+                            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
                         ) : paginated.map(student => (
                             <tr key={student.id} className="hover:bg-slate-50">
                                 <td className="px-6 py-4 font-medium text-slate-900">{student.name}</td>
+                                <td className="px-6 py-4 text-slate-600 font-mono text-xs">{student.username || '-'}</td>
                                 <td className="px-6 py-4">
                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${student.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                         {student.active ? 'Active' : 'Inactive'}
@@ -171,7 +206,7 @@ const StudentsList: React.FC = () => {
                                 </td>
                             </tr>
                         ))}
-                        {!loading && paginated.length === 0 && <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No students found.</td></tr>}
+                        {!loading && paginated.length === 0 && <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No students found.</td></tr>}
                     </tbody>
                 </table>
                 {totalPages > 1 && (
@@ -184,6 +219,73 @@ const StudentsList: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Add Student Modal */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Add New Student</h2>
+                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+                        </div>
+
+                        <form onSubmit={handleAddStudent} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newStudentName}
+                                    onChange={(e) => setNewStudentName(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
+                                    placeholder="e.g. John Doe"
+                                />
+                                <p className="text-xs text-slate-400 mt-1">Username will be auto-generated (e.g. johnd)</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
+                                <select
+                                    required
+                                    value={newStudentGradeId}
+                                    onChange={(e) => {
+                                        const val = e.target.value ? Number(e.target.value) : '';
+                                        setNewStudentGradeId(val);
+                                        setNewStudentClassId('');
+                                    }}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
+                                >
+                                    <option value="">Select Grade</option>
+                                    {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Class (Optional)</label>
+                                <select
+                                    value={newStudentClassId}
+                                    onChange={(e) => {
+                                        const val = e.target.value ? Number(e.target.value) : '';
+                                        setNewStudentClassId(val);
+                                    }}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500 disabled:bg-slate-100"
+                                    disabled={!newStudentGradeId}
+                                >
+                                    <option value="">Select Class</option>
+                                    {classes.filter(c => c.grade_id == newStudentGradeId).map(c => (
+                                        <option key={c.id} value={c.id}>{c.name} ({c.section})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex gap-3 pt-4 border-t border-slate-100 mt-4">
+                                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 font-medium">Cancel</button>
+                                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md">Create Student</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Change Class Modal */}
             {isModalOpen && selectedStudent && (
@@ -199,6 +301,7 @@ const StudentsList: React.FC = () => {
                                 <p><strong>Current Assignment:</strong></p>
                                 <p>Grade: {getGradeName(selectedStudent.grade_id)}</p>
                                 <p>Class: {getClassName(selectedStudent.class_id)}</p>
+                                <p>Username: <span className="font-mono">{selectedStudent.username || 'N/A'}</span></p>
                             </div>
 
                             <div>

@@ -219,7 +219,71 @@ def update_student(student_id: int, student_data: schemas.StudentUpdate, db: Ses
     
     db.commit()
     db.refresh(student)
+    db.refresh(student)
     return student
+
+@router.post("/students/", response_model=schemas.Student)
+def create_student(student_data: schemas.StudentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    # 1. Validation
+    grade = db.query(models.Grade).filter(models.Grade.id == student_data.grade_id, models.Grade.school_id == current_user.school_id).first()
+    if not grade:
+        raise HTTPException(status_code=404, detail="Grade not found")
+        
+    if student_data.class_id:
+        cls = db.query(models.Class).filter(models.Class.id == student_data.class_id, models.Class.school_id == current_user.school_id).first()
+        if not cls:
+            raise HTTPException(status_code=404, detail="Class not found")
+
+    # 2. Username Generation
+    # Logic: First Name + First Char of Last Name. Lowercase to be standard.
+    parts = student_data.name.strip().split()
+    if len(parts) >= 2:
+        # e.g. "John Doe" -> "johnd"
+        base_username = f"{parts[0]}{parts[-1][0]}".lower()
+    else:
+        # e.g. "Cher" -> "cher"
+        base_username = parts[0].lower()
+    
+    # Ensure simplified alphanumeric? (Optional but good practice, doing minimal to satisfy req)
+    base_username = "".join(c for c in base_username if c.isalnum())
+    
+    username = base_username
+    counter = 1
+    
+    # Check uniqueness
+    while db.query(models.User).filter(models.User.username == username).first():
+        username = f"{base_username}{counter}"
+        counter += 1
+        
+    # 3. Create User
+    # Default password 'password123'
+    hashed_password = auth.get_password_hash("password123")
+    
+    new_user = models.User(
+        username=username,
+        hashed_password=hashed_password, 
+        role=models.UserRole.STUDENT,
+        school_id=current_user.school_id,
+        active=True
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # 4. Create Student
+    new_student = models.Student(
+        name=student_data.name,
+        school_id=current_user.school_id,
+        grade_id=student_data.grade_id,
+        class_id=student_data.class_id,
+        user_id=new_user.id,
+        active=True
+    )
+    db.add(new_student)
+    db.commit()
+    db.refresh(new_student)
+    
+    return new_student
 
 # --- Teacher Assignments ---
 
