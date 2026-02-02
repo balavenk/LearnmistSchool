@@ -87,6 +87,7 @@ class FileArtifactBase(BaseModel):
     subject_name: Optional[str] = None
     school_name: Optional[str] = None
     grade_name: Optional[str] = None
+    description: Optional[str] = None
 
 class FileArtifactUpdate(BaseModel):
     file_status: str

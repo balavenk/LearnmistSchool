@@ -31,6 +31,7 @@ async def upload_training_material(
     school_id: int = Form(...),
     grade_id: int = Form(...),
     subject_id: int = Form(...),
+    description: str = Form(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_school_admin)
 ):
@@ -76,7 +77,8 @@ async def upload_training_material(
         file_extension=os.path.splitext(original_filename)[1].lower().replace(".", ""),
         file_size=file_size,
         uploaded_by_id=current_user.id,
-        uploaded_at=datetime.utcnow()
+        uploaded_at=datetime.utcnow(),
+        description=description
     )
     
     db.add(new_artifact)

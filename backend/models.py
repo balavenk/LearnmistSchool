@@ -233,9 +233,8 @@ class FileArtifact(Base):
     mime_type = Column(String(100))
     file_extension = Column(String(20))
     file_size = Column(Integer, nullable=True)
-    file_status = Column(String(50), default="Uploaded") # New column
-    
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    file_status = Column(String(50), default="Uploaded")
+    description = Column(String(500), nullable=True)
     
     uploaded_at = Column(DateTime, default=datetime.utcnow)
     

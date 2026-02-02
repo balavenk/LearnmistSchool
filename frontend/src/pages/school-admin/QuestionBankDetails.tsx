@@ -11,6 +11,7 @@ interface PdfFile {
     mime_type: string;
     file_status: string;
     subject_name: string;
+    description?: string;
 }
 
 const QuestionBankDetails: React.FC = () => {
@@ -97,6 +98,7 @@ const QuestionBankDetails: React.FC = () => {
                         <tr>
                             <th className="px-6 py-4">Subject</th>
                             <th className="px-6 py-4">File Name</th>
+                            <th className="px-6 py-4">Description</th>
                             <th className="px-6 py-4">Size</th>
                             <th className="px-6 py-4">Status</th>
                             <th className="px-6 py-4">Upload Date</th>
@@ -118,6 +120,7 @@ const QuestionBankDetails: React.FC = () => {
                                         </svg>
                                         {pdf.original_filename}
                                     </td>
+                                    <td className="px-6 py-4 text-slate-500 max-w-xs truncate" title={pdf.description}>{pdf.description || '-'}</td>
                                     <td className="px-6 py-4 text-slate-500">{(pdf.file_size / 1024).toFixed(1)} KB</td>
                                     <td className="px-6 py-4">
                                         <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">

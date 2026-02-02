@@ -18,6 +18,7 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
     const [file, setFile] = useState<File | null>(null);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
+    const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -64,6 +65,7 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
         formData.append('file', file);
         formData.append('grade_id', gradeId.toString());
         formData.append('subject_id', selectedSubjectId.toString());
+        if (description) formData.append('description', description);
         // school_id is required by backend form but typically backend can infer or we pass it. 
         // Our backend router expects school_id as Form param.
         // We need to get school_id. 
@@ -137,6 +139,18 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
                                 <option key={sub.id} value={sub.id}>{sub.name}</option>
                             ))}
                         </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Description <span className="text-slate-400 font-normal">(Optional)</span>
+                        </label>
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-20"
+                            placeholder="Enter a brief description of the content..."
+                        />
                     </div>
 
                     <div>
