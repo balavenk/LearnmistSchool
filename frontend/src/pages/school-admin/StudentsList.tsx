@@ -22,8 +22,11 @@ const StudentsList: React.FC = () => {
 
     // Edit Modal State
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-    const [newGradeId, setNewGradeId] = useState<number | string>('');
-    const [newClassId, setNewClassId] = useState<number | string>('');
+    const [editName, setEditName] = useState('');
+    const [editEmail, setEditEmail] = useState('');
+    const [editGradeId, setEditGradeId] = useState<number | string>('');
+    const [editClassId, setEditClassId] = useState<number | string>('');
+    const [editActive, setEditActive] = useState(true);
 
     const ITEMS_PER_PAGE = 10;
 
@@ -59,17 +62,24 @@ const StudentsList: React.FC = () => {
 
     const openEditModal = (student: Student) => {
         setSelectedStudent(student);
-        setNewGradeId(student.grade_id || '');
-        setNewClassId(student.class_id || '');
+        setEditName(student.name);
+        setEditEmail(student.email || '');
+        setEditGradeId(student.grade_id || '');
+        setEditClassId(student.class_id || '');
+        setEditActive(student.active);
         setIsModalOpen(true);
     };
 
-    const handleSaveClass = async () => {
+    const handleUpdateStudent = async (e: React.FormEvent) => {
+        e.preventDefault();
         if (!selectedStudent) return;
         try {
             await api.put(`/school-admin/students/${selectedStudent.id}`, {
-                grade_id: newGradeId ? Number(newGradeId) : null,
-                class_id: newClassId ? Number(newClassId) : null
+                name: editName,
+                email: editEmail || null,
+                grade_id: editGradeId ? Number(editGradeId) : null,
+                class_id: editClassId ? Number(editClassId) : null,
+                active: editActive
             });
             fetchStudents();
             setIsModalOpen(false);
@@ -77,24 +87,6 @@ const StudentsList: React.FC = () => {
         } catch (error) {
             console.error("Failed to update student", error);
             alert("Failed to update student.");
-        }
-    };
-
-    const handleDeleteClass = async () => {
-        // Keeps grade, removes class (sets to null)
-        if (!selectedStudent) return;
-        if (!confirm("Are you sure you want to remove this student from their class?")) return;
-
-        try {
-            await api.put(`/school-admin/students/${selectedStudent.id}`, {
-                grade_id: selectedStudent.grade_id, // Keep grade? Or does deleting class mean unassigning completely? 
-                // Request says "delete the current class". Usually implies unsetting class_id.
-                class_id: null
-            });
-            fetchStudents();
-            setIsModalOpen(false);
-        } catch (error) {
-            console.error("Failed to remove class", error);
         }
     };
 
@@ -118,6 +110,7 @@ const StudentsList: React.FC = () => {
     // Add Student State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [newStudentName, setNewStudentName] = useState('');
+    const [newStudentEmail, setNewStudentEmail] = useState('');
     const [newStudentGradeId, setNewStudentGradeId] = useState<number | ''>('');
     const [newStudentClassId, setNewStudentClassId] = useState<number | ''>('');
 
@@ -126,12 +119,14 @@ const StudentsList: React.FC = () => {
         try {
             await api.post('/school-admin/students/', {
                 name: newStudentName,
+                email: newStudentEmail || null,
                 grade_id: Number(newStudentGradeId),
                 class_id: newStudentClassId ? Number(newStudentClassId) : null
             });
             fetchStudents();
             setIsAddModalOpen(false);
             setNewStudentName('');
+            setNewStudentEmail('');
             setNewStudentGradeId('');
             setNewStudentClassId('');
             alert("Student created successfully!");
@@ -199,9 +194,9 @@ const StudentsList: React.FC = () => {
                                 <td className="px-6 py-4 text-right">
                                     <button
                                         onClick={() => openEditModal(student)}
-                                        className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
+                                        className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                                     >
-                                        Change class
+                                        Edit
                                     </button>
                                 </td>
                             </tr>
@@ -241,6 +236,17 @@ const StudentsList: React.FC = () => {
                                     placeholder="e.g. John Doe"
                                 />
                                 <p className="text-xs text-slate-400 mt-1">Username will be auto-generated (e.g. johnd)</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Email <span className="text-slate-400 font-normal">(Optional)</span></label>
+                                <input
+                                    type="email"
+                                    value={newStudentEmail}
+                                    onChange={(e) => setNewStudentEmail(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
+                                    placeholder="student@example.com"
+                                />
                             </div>
 
                             <div>
@@ -287,28 +293,52 @@ const StudentsList: React.FC = () => {
                 </div>
             )}
 
-            {/* Change Class Modal */}
+            {/* Edit Student Modal */}
             {isModalOpen && selectedStudent && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Manage Class for {selectedStudent.name}</h2>
+                            <h2 className="text-xl font-bold">Edit Student</h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
                         </div>
 
-                        <div className="space-y-4">
-                            <div className="text-sm text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                <p><strong>Current Assignment:</strong></p>
-                                <p>Grade: {getGradeName(selectedStudent.grade_id)}</p>
-                                <p>Class: {getClassName(selectedStudent.class_id)}</p>
-                                <p>Username: <span className="font-mono">{selectedStudent.username || 'N/A'}</span></p>
+                        <form onSubmit={handleUpdateStudent} className="space-y-4">
+                            <div className="text-xs text-slate-500 mb-2 font-mono bg-slate-50 p-2 rounded">
+                                Username: {selectedStudent.username}
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-slate-500 mb-1">Grade</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                                <input
+                                    type="email"
+                                    value={editEmail}
+                                    onChange={(e) => setEditEmail(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
+                                    placeholder="student@example.com"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
                                 <select
-                                    value={newGradeId}
-                                    onChange={(e) => { setNewGradeId(e.target.value); setNewClassId(''); }}
+                                    required
+                                    value={editGradeId}
+                                    onChange={(e) => {
+                                        const val = e.target.value ? Number(e.target.value) : '';
+                                        setEditGradeId(val);
+                                        setEditClassId(''); // Reset class if grade changes
+                                    }}
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
                                 >
                                     <option value="">Select Grade</option>
@@ -317,32 +347,39 @@ const StudentsList: React.FC = () => {
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-slate-500 mb-1">Class</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
                                 <select
-                                    value={newClassId}
-                                    onChange={(e) => setNewClassId(e.target.value)}
+                                    value={editClassId}
+                                    onChange={(e) => {
+                                        const val = e.target.value ? Number(e.target.value) : '';
+                                        setEditClassId(val);
+                                    }}
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500 disabled:bg-slate-100"
-                                    disabled={!newGradeId}
+                                    disabled={!editGradeId}
                                 >
-                                    <option value="">Select Class</option>
-                                    {classes.filter(c => c.grade_id == newGradeId).map(c => (
+                                    <option value="">Unassigned</option>
+                                    {classes.filter(c => c.grade_id == editGradeId).map(c => (
                                         <option key={c.id} value={c.id}>{c.name} ({c.section})</option>
                                     ))}
                                 </select>
                             </div>
 
-                            <div className="flex gap-2 pt-4 border-t border-slate-100 mt-4">
+                            <div className="flex items-center gap-2">
+                                <label className="block text-sm font-medium text-slate-700">Status:</label>
                                 <button
-                                    onClick={handleDeleteClass}
-                                    className="px-4 py-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium transition-colors"
+                                    type="button"
+                                    onClick={() => setEditActive(!editActive)}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium ${editActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
                                 >
-                                    Delete Current Class
+                                    {editActive ? 'Active' : 'Inactive'}
                                 </button>
-                                <div className="flex-1"></div>
-                                <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded-lg hover:bg-slate-50 text-sm font-medium">Cancel</button>
-                                <button onClick={handleSaveClass} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium">Save Changes</button>
                             </div>
-                        </div>
+
+                            <div className="flex gap-3 pt-4 border-t border-slate-100 mt-4">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 font-medium">Cancel</button>
+                                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md">Save Changes</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

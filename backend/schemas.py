@@ -172,12 +172,14 @@ class StudentBase(BaseModel):
 class StudentCreate(StudentBase):
     grade_id: int
     class_id: Optional[int] = None
+    email: Optional[str] = None
 
 class StudentUpdate(BaseModel):
     name: Optional[str] = None
     grade_id: Optional[int] = None
     class_id: Optional[int] = None
     active: Optional[bool] = None
+    email: Optional[str] = None
 
 class Student(StudentBase):
     id: int
@@ -188,6 +190,7 @@ class Student(StudentBase):
     username: Optional[str] = None
     user_id: Optional[int] = None
     last_login: Optional[datetime] = None
+    email: Optional[str] = None
     
     class Config:
         from_attributes = True

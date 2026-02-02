@@ -184,7 +184,12 @@ def read_students(grade_id: int = None, class_id: int = None, db: Session = Depe
     if class_id:
         query = query.filter(models.Student.class_id == class_id)
         
-    return query.all()
+    students = query.all()
+    # Populate email from linked user for the schema
+    for s in students:
+        if s.user:
+            s.email = s.user.email
+    return students
 
 @router.put("/students/{student_id}", response_model=schemas.Student)
 def update_student(student_id: int, student_data: schemas.StudentUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
@@ -214,6 +219,14 @@ def update_student(student_id: int, student_data: schemas.StudentUpdate, db: Ses
     # To clear class_id, client must send class_id: null.
     
     update_data = student_data.model_dump(exclude_unset=True)
+    
+    # Handle email update (on User object)
+    if "email" in update_data:
+        email = update_data.pop("email")
+        if student.user:
+            student.user.email = email
+            # Also, if we want to update username? Not requested yet.
+            
     for key, value in update_data.items():
         setattr(student, key, value)
     
@@ -261,6 +274,7 @@ def create_student(student_data: schemas.StudentCreate, db: Session = Depends(da
     
     new_user = models.User(
         username=username,
+        email=student_data.email, # Saved in User table
         hashed_password=hashed_password, 
         role=models.UserRole.STUDENT,
         school_id=current_user.school_id,
