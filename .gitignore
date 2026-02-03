@@ -1,11 +1,60 @@
-node_modules/
-venv/
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Python
 __pycache__/
 *.pyc
-.env
-.DS_Store
-storage/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+backend/venv/
+backend/env/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+build/
+frontend/build/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
 *.db
+*.sqlite3
+backend/*.db
 qdrant_db/
 
+# Docker
+docker_logs.txt
+docker_routes.txt
+docker_routes_head.txt
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project Specific
+storage/
+backend/storage/
 app.tar.gz

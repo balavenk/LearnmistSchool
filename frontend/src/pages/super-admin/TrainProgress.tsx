@@ -13,7 +13,7 @@ const TrainProgress: React.FC = () => {
         // Connect to same host as API but ws protocol
         // Assuming API is proxied via vite or absolute URL
         // In local dev main.py runs on localhost:8000
-        const wsUrl = `ws://localhost:8000/upload/ws/train/${fileId}`;
+        const wsUrl = `ws://localhost:8000/ws/training/${fileId}`;
 
         const socket = new WebSocket(wsUrl);
         ws.current = socket;

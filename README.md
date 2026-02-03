@@ -1,95 +1,69 @@
-# Learnmist School Management System
+# LearnmistSchool - Docker Deployment Guide
 
-This is a full-stack application for managing a school system, featuring portals for Super Admins, School Admins, Teachers, and Students.
+This repository contains the full source code for LearnmistSchool (Backend + Frontend).
 
-## Architecture
+## 🚀 Quick Start (Recommended)
 
-- **Frontend**: React (Vite) + Tailwind CSS
-- **Backend**: Python (FastAPI) + SQLAlchemy (PostgreSQL + pgvector)
-- **Database**: PostgreSQL (Running in Docker)
+The easiest way to run the application is using **Docker Compose**. This method automatically handles building the image, managing ports, and importantly, **persisting your database**.
 
-## Prerequisites
-
-- Node.js (v18+)
-- Python (v3.9+)
-- Docker & Docker Compose
-
-## Setup & Installation
-
-### 1. Database Setup (Docker)
-
-Start the PostgreSQL database with pgvector support:
-
-```powershell
-docker compose up db -d
+### 1. Start the Application
+Run this command in your terminal:
+```bash
+docker compose up --build
 ```
-*Note: The database runs on port 5435 to avoid conflicts with local PostgreSQL installations.*
+*   `--build`: Rebuilds the image (use this if you changed code).
+*   **Database**: Your data is automatically saved to `./backend/learnmistschool.db`.
 
-### 2. Backend Setup
+### 2. Access the App
+*   **Application**: [http://localhost:8000](http://localhost:8000)
+*   **API Documentation**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-```powershell
-cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# Windows (PowerShell):
-.\venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
-# Install dependencies (including psycopg2 and pgvector)
-pip install -r requirements.txt
-
-# Seed the Database (Creates initial users and school data)
-python seed.py
+### 3. Stop the App
+Press `Ctrl+C` in your terminal.
+To remove the containers (safe to do, data is saved):
+```bash
+docker compose down
 ```
 
-**Environment Variables**:
-The project comes with a `.env` file configured for the Docker database.
-`DATABASE_URL=postgresql+psycopg2://user:password@127.0.0.1:5435/learnmistschool`
+---
 
-### 3. Frontend Setup
+## 🛠 Manual Method (Docker CLI)
 
-```powershell
-cd frontend
+If you prefer running manual Docker commands or are deploying to a specific server without Compose:
 
-# Install dependencies
-npm install
+### 1. Build the Image
+```bash
+docker build -t learnmistschool .
 ```
 
-**Environment Variables**:
-The project comes with a `.env` file pointing to the local backend.
-`VITE_API_URL=http://localhost:8000`
-
-## Running the Application
-
-You need to run the backend and frontend in separate terminal windows.
-
-### Terminal 1: Backend
-
-```powershell
-cd backend
-.\venv\Scripts\activate
-uvicorn main:app --reload
+### 2. Run the Container
+**Critical**: You MUST use the `-v` flag to save your database.
+```bash
+docker run -p 8000:8000 --name learnmistschool_app -v "c:\Users\solan\OneDrive\Desktop\FinalLMS\LearnmistSchool\backend\learnmistschool.db:/app/learnmistschool.db" learnmistschool
 ```
-*Server runs at: http://localhost:8000*
-*API Docs: http://localhost:8000/docs*
 
-### Terminal 2: Frontend
-
-```powershell
-cd frontend
-npm run dev
+### 3. Update/Restart
+If you need to restart or update the container, you must remove the old one first:
+```bash
+docker rm -f learnmistschool_app
+# Then run the 'docker run' command above again
 ```
-*App runs at: http://localhost:5173*
 
-## Login Credentials
+---
 
-The seed script creates the following default users (Password: `password123`):
+## ⚠️ Troubleshooting & Notes
 
-- **Super Admin**: `superadmin`
-- **School Admin**: `schooladmin`
-- **Teacher**: `teacher1`
-- **Student**: `student1`
+### Database Persistence
+*   **Issue**: "I logged in yesterday but my account is gone."
+*   **Fix**: You likely forgot the volume mount (`-v`) or didn't use `docker compose`. Ensure you are mapping the local `.db` file to `/app/learnmistschool.db` inside the container.
+
+### Port Conflicts
+*   **Issue**: `Bind for 0.0.0.0:8000 failed: port is already allocated`
+*   **Fix**: Stop other containers using port 8000, or run on a different port (e.g., 8080):
+    ```bash
+    docker run -p 8080:8000 ...
+    ```
+
+### Production Deployment (GCP/AWS)
+*   **Option A (VM)**: SSH into your VM, change directory to this folder, and run the **Quick Start** commands.
+*   **Option B (Cloud Run)**: Deploy the image and ensure you mount a **persistent volume** (GCS Bucket or Cloud Storage) to `/app`. **Do not** use Cloud Run without a volume or you will lose data on every scale-down.

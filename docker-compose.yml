@@ -1,37 +1,9 @@
-version: '3.8'
-
 services:
-  db:
-    image: pgvector/pgvector:pg16
-    restart: always
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: learnmistschool
-    ports:
-      - "5435:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
-
-  # Backend service defined for production/docker run, but currently we run locally.
-  # We keep it for reference or future use.
-  backend:
-    build: ./backend
-    restart: always
+  app:
+    build: .
+    image: learnmistschool
+    container_name: learnmistschool_app
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://user:password@db/learnmistschool
-    depends_on:
-      - db
-
-  frontend:
-    build: ./frontend
-    restart: always
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-
-volumes:
-  db_data:
+    volumes:
+      - ./backend/learnmistschool.db:/app/learnmistschool.db

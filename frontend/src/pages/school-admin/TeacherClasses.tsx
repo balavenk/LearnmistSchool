@@ -13,6 +13,8 @@ interface Option {
     id: number;
     name: string;
     section?: string; // For classes
+    code?: string; // For subjects
+    grade_id?: number; // For filtering classes
 }
 
 const TeacherClasses: React.FC = () => {

@@ -15,7 +15,7 @@ import os
 
 load_dotenv()
 
-# models.Base.metadata.create_all(bind=database.engine)
+models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(
     title="LearnmistSchool API",
@@ -24,6 +24,13 @@ app = FastAPI(
     docs_url="/docs", # Default, but explicit is good
     redoc_url="/redoc"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    print("--- REGISTERED ROUTES ---")
+    for route in app.routes:
+        print(f"{route.path} ({getattr(route, 'methods', 'WS')})")
+    print("-------------------------")
 
 # CORS Configuration
 origins = [
@@ -79,6 +86,33 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         "id": user.id
     }
 
-@app.get("/", tags=["general"])
-def read_root():
-    return {"message": "LearnmistSchool API is running. Visit /docs for Swagger UI."}
+
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
+
+# Mount static files (assets, css, js) - These are usually in /static/assets
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.exception_handler(404)
+async def custom_404_handler(request, __):
+    """
+    Serve the React app for any path not matched by the API (SPA routing).
+    Only serve index.html if the request accepts HTML.
+    """
+    path = request.url.path
+    if path.startswith("/api") or path.startswith("/ws"):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+        
+    # Check if a file exists in static (e.g. favicon.ico)
+    # Note: request.url.path includes leading /
+    file_path = f"static{path}"
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+        
+    # Fallback to index.html for SPA
+    if os.path.exists("static/index.html"):
+        return FileResponse("static/index.html")
+        
+    return {"message": "LearnmistSchool API is running. Frontend not found (dev mode)."}
+
