@@ -271,9 +271,18 @@ class Question(Base):
     points = Column(Integer, default=1)
     question_type = Column(Enum(QuestionType), default=QuestionType.MULTIPLE_CHOICE)
     assignment_id = Column(Integer, ForeignKey("assignments.id"))
+    
+    # Context columns
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=True) # Making nullable for easier migration, but logic will populate
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
 
     assignment = relationship("Assignment", back_populates="questions")
     options = relationship("QuestionOption", back_populates="question", cascade="all, delete-orphan")
+    
+    school = relationship("School")
+    subject = relationship("Subject")
+    class_ = relationship("Class")
 
 class QuestionOption(Base):
     __tablename__ = "question_options"

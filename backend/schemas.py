@@ -269,6 +269,10 @@ class Question(QuestionBase):
     assignment_id: int
     options: List[QuestionOption] = []
     
+    school_id: Optional[int] = None
+    subject_id: Optional[int] = None
+    class_id: Optional[int] = None
+    
     class Config:
         from_attributes = True
 

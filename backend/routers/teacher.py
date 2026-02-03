@@ -165,7 +165,10 @@ async def generate_ai_assignment(topic: str, grade_level: str, difficulty: str, 
             text=q_data.get("text", "Question Text"),
             points=q_data.get("points", 5),
             question_type=q_type,
-            assignment_id=new_assignment.id
+            assignment_id=new_assignment.id,
+            school_id=current_user.school_id,
+            subject_id=subject_id,
+            class_id=class_id
         )
         db.add(new_q)
         db.commit()

@@ -31,9 +31,12 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                 class_id = int(params.get("class_id"))
                 teacher_id = int(params.get("teacher_id")) # Or from session/token if we did auth
                 
-                # 1. Get Subject Name
+                # 1. Get Subject Name and Teacher Info (for School ID)
                 subject = db.query(models.Subject).filter(models.Subject.id == subject_id).first()
                 subject_name = subject.name if subject else "General Knowledge"
+                
+                teacher = db.query(models.User).filter(models.User.id == teacher_id).first()
+                school_id = teacher.school_id if teacher else None
                 
                 # Progress Callback Wrapper
                 async def progress_callback(status: str, details: dict):
@@ -87,7 +90,10 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                             text=q_data.get("text", "Question Text"),
                             points=q_data.get("points", 5),
                             question_type=q_type,
-                            assignment_id=new_assignment.id
+                            assignment_id=new_assignment.id,
+                            school_id=school_id,
+                            subject_id=subject_id,
+                            class_id=class_id
                         )
                         db.add(new_q)
                         db.commit()
