@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 import database, models, schemas, auth
 from services import rag_service
@@ -187,6 +187,57 @@ async def generate_ai_assignment(topic: str, grade_level: str, difficulty: str, 
     db.commit()
     return new_assignment
 
+@router.post("/assignments/from-bank", response_model=schemas.AssignmentOut)
+def create_assignment_from_bank(
+    data: schemas.AssignmentFromBankCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    # 1. Create Assignment
+    new_assignment = models.Assignment(
+        title=data.title,
+        description=data.description,
+        due_date=data.due_date,
+        status=models.AssignmentStatus.DRAFT,
+        teacher_id=current_user.id,
+        class_id=data.class_id,
+        subject_id=data.subject_id
+    )
+    db.add(new_assignment)
+    db.commit()
+    db.refresh(new_assignment)
+    
+    # 2. Clone Questions
+    original_questions = db.query(models.Question).filter(models.Question.id.in_(data.question_ids)).all()
+    
+    for q in original_questions:
+        new_q = models.Question(
+            text=q.text,
+            points=q.points,
+            question_type=q.question_type,
+            difficulty_level=q.difficulty_level,
+            assignment_id=new_assignment.id,
+            school_id=current_user.school_id,
+            subject_id=data.subject_id, # Inherit from new assignment/selection
+            class_id=data.class_id,     # Inherit from new assignment/selection
+            parent_question_id=q.id     # Link to parent
+        )
+        db.add(new_q)
+        db.commit() # Commit to get ID
+        db.refresh(new_q)
+        
+        # Clone Options
+        for opt in q.options:
+            new_opt = models.QuestionOption(
+                text=opt.text,
+                is_correct=opt.is_correct,
+                question_id=new_q.id
+            )
+            db.add(new_opt)
+            
+    db.commit()
+    return new_assignment
+
 @router.put("/assignments/{assignment_id}/publish")
 def publish_assignment(assignment_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
     assignment = db.query(models.Assignment).filter(
@@ -201,6 +252,39 @@ def publish_assignment(assignment_id: int, db: Session = Depends(database.get_db
     db.commit()
     db.refresh(assignment)
     return assignment
+
+@router.get("/questions/", response_model=List[schemas.QuestionOut])
+def read_questions(
+    subject_id: Optional[int] = None, 
+    class_id: Optional[int] = None, 
+    difficulty: Optional[str] = None, 
+    search: Optional[str] = None,
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_teacher)
+):
+    query = db.query(models.Question).join(models.Assignment, models.Question.assignment_id == models.Assignment.id)
+    
+    # Filter by Teacher (security)
+    query = query.filter(models.Assignment.teacher_id == current_user.id)
+    
+    # Exclude derived questions (only show originals)
+    query = query.filter(models.Question.parent_question_id == None)
+    
+    # Context Filters (populated in models now)
+    if class_id:
+        query = query.filter(models.Question.class_id == class_id)
+    if subject_id:
+        query = query.filter(models.Question.subject_id == subject_id)
+        
+    # Optional Filters
+    if difficulty:
+         query = query.filter(models.Question.difficulty_level == difficulty)
+         
+    if search:
+        search_fmt = f"%{search}%"
+        query = query.filter(models.Question.text.ilike(search_fmt))
+        
+    return query.all()
 
 @router.delete("/assignments/{assignment_id}")
 def delete_assignment(assignment_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):

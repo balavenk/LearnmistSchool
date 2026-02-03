@@ -32,6 +32,7 @@ import QuizDetails from './pages/teacher/QuizDetails';
 import TeacherStudents from './pages/teacher/Students';
 import TeacherGrading from './pages/teacher/Grading';
 import StudentGrading from './pages/teacher/StudentGrading';
+import TeacherQuestionBank from './pages/teacher/QuestionBank';
 
 // Student Pages
 import StudentAssignments from './pages/student/Assignments';
@@ -77,6 +78,7 @@ const App: React.FC = () => {
           {/* Teacher Pages */}
           <Route path="teacher/assignments" element={<TeacherAssignments />} />
           <Route path="teacher/assignments/:assignmentId/questions" element={<QuizDetails />} />
+          <Route path="teacher/question-bank" element={<TeacherQuestionBank />} />
           <Route path="teacher/students" element={<TeacherStudents />} />
           <Route path="grading" element={<TeacherGrading />} />
           <Route path="grading/:studentId" element={<StudentGrading />} />

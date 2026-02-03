@@ -259,6 +259,7 @@ class QuestionUpdate(BaseModel):
 class QuestionOut(QuestionBase):
     id: int
     assignment_id: int
+    difficulty_level: Optional[str] = None
     options: List[QuestionOptionOut] = []
     
     class Config:
@@ -269,12 +270,22 @@ class Question(QuestionBase):
     assignment_id: int
     options: List[QuestionOption] = []
     
+    difficulty_level: Optional[str] = None
     school_id: Optional[int] = None
     subject_id: Optional[int] = None
     class_id: Optional[int] = None
+    parent_question_id: Optional[int] = None
     
     class Config:
         from_attributes = True
+
+class AssignmentFromBankCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    class_id: int
+    subject_id: int
+    question_ids: List[int]
 
 
 

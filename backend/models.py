@@ -272,6 +272,7 @@ class Question(Base):
     question_type = Column(Enum(QuestionType), default=QuestionType.MULTIPLE_CHOICE)
     difficulty_level = Column(String(50), nullable=True)
     assignment_id = Column(Integer, ForeignKey("assignments.id"))
+    parent_question_id = Column(Integer, ForeignKey("questions.id"), nullable=True)
     
     # Context columns
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=True) # Making nullable for easier migration, but logic will populate

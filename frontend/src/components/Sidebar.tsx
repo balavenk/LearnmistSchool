@@ -134,6 +134,11 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                                     Grading
                                 </NavLink>
                             </li>
+                            <li>
+                                <NavLink to="/teacher/question-bank" className={linkClass}>
+                                    Question Bank
+                                </NavLink>
+                            </li>
                         </>
                     )}
 
