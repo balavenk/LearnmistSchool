@@ -93,7 +93,8 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                             assignment_id=new_assignment.id,
                             school_id=school_id,
                             subject_id=subject_id,
-                            class_id=class_id
+                            class_id=class_id,
+                            difficulty_level=difficulty
                         )
                         db.add(new_q)
                         db.commit()

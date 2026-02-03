@@ -270,6 +270,7 @@ class Question(Base):
     text = Column(Text)
     points = Column(Integer, default=1)
     question_type = Column(Enum(QuestionType), default=QuestionType.MULTIPLE_CHOICE)
+    difficulty_level = Column(String(50), nullable=True)
     assignment_id = Column(Integer, ForeignKey("assignments.id"))
     
     # Context columns
