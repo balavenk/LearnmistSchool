@@ -34,7 +34,7 @@ const TeacherAssignments: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
-    const [filter, setFilter] = useState('All');
+    const [filter, setFilter] = useState('Draft');
 
     // Form State (Manual)
     const [newTitle, setNewTitle] = useState('');
@@ -255,9 +255,8 @@ const TeacherAssignments: React.FC = () => {
                 </div>
             </div>
 
-            {/* Filter Tabs */}
             <div className="flex space-x-4 border-b border-slate-200">
-                {['All', 'Published', 'Draft'].map((status) => (
+                {['Draft', 'Published', 'All'].map((status) => (
                     <button
                         key={status}
                         onClick={() => setFilter(status)}
