@@ -5,7 +5,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Schools from './pages/super-admin/Schools';
 import SchoolAdminDashboard from './pages/SchoolAdminDashboard';
 import TeacherDashboard from './pages/teacher/Dashboard';
-import StudentDashboard from './pages/student/Dashboard';
+// import StudentDashboard from './pages/student/Dashboard';
 import Settings from './pages/super-admin/Settings';
 import Countries from './pages/super-admin/Countries';
 import Curriculums from './pages/super-admin/Curriculums';

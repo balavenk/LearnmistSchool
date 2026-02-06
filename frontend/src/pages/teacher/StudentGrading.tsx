@@ -52,7 +52,6 @@ const StudentGrading: React.FC = () => {
     // Grading Detail State
     const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | null>(null);
     const [submissionDetail, setSubmissionDetail] = useState<SubmissionDetail | null>(null);
-    const [loadingDetail, setLoadingDetail] = useState(false);
 
     // Working Grade State
     const [finalGrade, setFinalGrade] = useState('');
@@ -90,7 +89,6 @@ const StudentGrading: React.FC = () => {
 
     const fetchSubmissionDetail = async (subId: number) => {
         try {
-            setLoadingDetail(true);
             setSelectedSubmissionId(subId);
             const res = await api.get(`/teacher/submissions/${subId}/details`);
             const detail = res.data;
@@ -117,8 +115,6 @@ const StudentGrading: React.FC = () => {
 
         } catch (error) {
             console.error("Failed to fetch details", error);
-        } finally {
-            setLoadingDetail(false);
         }
     };
 

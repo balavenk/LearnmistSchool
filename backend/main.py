@@ -14,8 +14,14 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
+import seed
 
-# models.Base.metadata.create_all(bind=database.engine)
+models.Base.metadata.create_all(bind=database.engine)
+try:
+    seed.seed()
+    print("Database seeded successfully.")
+except Exception as e:
+    print(f"Seeding failed: {e}")
 
 app = FastAPI(
     title="LearnmistSchool API",
@@ -48,6 +54,54 @@ app.include_router(upload.router)
 app.include_router(auth_routes.router)
 app.include_router(ws_generation.router)
 
+# Serve Frontend Static Files
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# Determine frontend build path
+relative_dist = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+docker_dist = "/app/frontend/dist" # Path inside Docker container
+
+frontend_dist = None
+if os.path.exists(relative_dist):
+    frontend_dist = relative_dist
+elif os.path.exists(docker_dist):
+    frontend_dist = docker_dist
+
+print(f"DEBUG: frontend_dist resolved to: {frontend_dist}")
+
+if frontend_dist:
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+
+# Root Handler (Always registered to avoid 404)
+@app.get("/")
+async def serve_root():
+    print("DEBUG: Handling root request")
+    
+    # Force check for index.html
+    if frontend_dist:
+        index_path = os.path.join(frontend_dist, "index.html")
+        if os.path.exists(index_path):
+            print(f"DEBUG: Serving index.html from {index_path}")
+            return FileResponse(index_path)
+        print(f"ERROR: index.html not found at {index_path}")
+        return {"error": "index.html missing in dist", "path": index_path}
+    
+    # Fallback message that is NOT the confused user message
+    return {"error": "Frontend build directory not found. Please check deployment.", "checked_paths": [relative_dist, docker_dist]}
+
+# Catch-all (Always registered)
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path: str):
+    # Allow API routes to pass through
+    if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("redoc") or full_path.startswith("openapi.json"):
+            raise HTTPException(status_code=404, detail="Not Found")
+    
+    if frontend_dist:
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
+    return {"error": "Frontend build not found", "path": full_path}
+
+
 
 @app.post("/token", response_model=schemas.Token, tags=["auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
@@ -79,6 +133,5 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         "id": user.id
     }
 
-@app.get("/", tags=["general"])
-def read_root():
-    return {"message": "LearnmistSchool API is running. Visit /docs for Swagger UI."}
+# Root handler moved to top
+

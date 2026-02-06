@@ -22,10 +22,10 @@ const TeachersList: React.FC = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [newUsername, setNewUsername] = useState('');
     const [newEmail, setNewEmail] = useState('');
-    const [newSubject, setNewSubject] = useState(''); // Kept for UI but not sent to API yet
+    // const [newSubject, setNewSubject] = useState(''); // Kept for UI but not sent to API yet
 
     // Assign Grade Modal State (Placeholder implementation)
-    const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
+    // const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
 
     const ITEMS_PER_PAGE = 5;
 
@@ -73,7 +73,7 @@ const TeachersList: React.FC = () => {
             });
             fetchTeachers();
             setIsCreateModalOpen(false);
-            setNewUsername(''); setNewEmail(''); setNewSubject('');
+            setNewUsername(''); setNewEmail(''); // setNewSubject('');
             alert("Teacher created successfully (Default password: password123)");
         } catch (error) {
             console.error("Failed to create teacher", error);
@@ -83,7 +83,7 @@ const TeachersList: React.FC = () => {
 
     // Toggle Status Handler
     const toggleStatus = (id: number) => {
-        console.log("Toggle status not implemented in backend");
+        console.log("Toggle status not implemented in backend", id);
     };
 
     return (

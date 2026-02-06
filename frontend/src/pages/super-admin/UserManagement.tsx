@@ -128,7 +128,7 @@ const UserManagement: React.FC = () => {
     const [selectedUserForReset, setSelectedUserForReset] = useState<number | null>(null);
     const [newPassword, setNewPassword] = useState('');
 
-    const handleDeactivate = async (userId: number, currentStatus: boolean, isStudent: boolean) => {
+    const handleDeactivate = async (userId: number, currentStatus: boolean) => {
         if (!userId) {
             alert("No user linked to this record.");
             return;
@@ -143,9 +143,7 @@ const UserManagement: React.FC = () => {
             await api.post(endpoint);
 
             // Update local state
-            const updateList = (list: any[]) => list.map(u =>
-                (u.id === userId || (u.user_id === userId)) ? { ...u, active: !currentStatus } : u // Student might have user_id, or we might need to match carefully
-            );
+            // Update local state
 
             // Note: Student objects have 'id' (student id) and optionally 'user_id' (login id).
             // User objects have 'id' (user id).
@@ -328,7 +326,7 @@ const UserManagement: React.FC = () => {
                                                         return (
                                                             <>
                                                                 <button
-                                                                    onClick={() => handleDeactivate(loginId, item.active !== false, activeTab === 'STUDENT')}
+                                                                    onClick={() => handleDeactivate(loginId, item.active !== false)}
                                                                     className={`${item.active !== false ? 'text-amber-600 hover:text-amber-900' : 'text-green-600 hover:text-green-900'}`}
                                                                 >
                                                                     {item.active !== false ? 'Deactivate' : 'Activate'}

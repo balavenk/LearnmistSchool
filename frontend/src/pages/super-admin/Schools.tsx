@@ -145,7 +145,7 @@ const Schools: React.FC = () => {
     // Handlers
     const toggleSchoolStatus = (id: number) => {
         // Implement API call to toggle status if endpoint exists
-        console.log("Toggle status not implemented in backend yet");
+        console.log("Toggle status not implemented in backend yet", id);
     };
 
     // Modal Handlers

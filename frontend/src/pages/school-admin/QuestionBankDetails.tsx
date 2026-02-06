@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import UploadMaterialModal from '../../components/UploadMaterialModal';
+// import UploadMaterialModal from '../../components/UploadMaterialModal';
 import api from '../../api/axios';
 
 interface PdfFile {
@@ -18,10 +18,10 @@ const QuestionBankDetails: React.FC = () => {
     const { gradeId } = useParams<{ gradeId: string }>();
     const navigate = useNavigate();
     const [pdfs, setPdfs] = useState<PdfFile[]>([]);
-    const [showUploadModal, setShowUploadModal] = useState(false);
+    // const [showUploadModal, setShowUploadModal] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    const gradeName = `Grade ${gradeId}`; // Logic to fetch name is pending, using ID for now
+    // const gradeName = `Grade ${gradeId}`; // Logic to fetch name is pending, using ID for now
 
     const fetchMaterials = async () => {
         try {
@@ -45,7 +45,8 @@ const QuestionBankDetails: React.FC = () => {
     };
 
     const handleAddPdf = () => {
-        setShowUploadModal(true);
+        // setShowUploadModal(true);
+        alert("Upload feature pending backend integration.");
     };
 
     const handleDelete = async (id: number) => {
@@ -146,12 +147,12 @@ const QuestionBankDetails: React.FC = () => {
                 </table>
             </div>
 
-            <UploadMaterialModal
+            {/* <UploadMaterialModal
                 isOpen={showUploadModal}
                 onClose={() => setShowUploadModal(false)}
                 onSuccess={fetchMaterials}
                 gradeId={Number(gradeId)}
-            />
+            /> */}
         </div>
     );
 };

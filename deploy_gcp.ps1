@@ -65,9 +65,21 @@ if (-not $vmStatus) {
 # 3. Deploy Files
 Write-Host "Compressing and uploading application files..."
 # detailed exclusion for tar on windows might be tricky, let's try standard exclusion
-# If tar is failing, we fallback to simple tar but rely on .dockerignore for the build
-# If tar is failing, we fallback to simple tar but rely on .dockerignore for the build
-tar --exclude="node_modules" --exclude="venv" --exclude=".git" --exclude="__pycache__" --exclude="*.pyc" -czf app.tar.gz backend frontend docker-compose.yml
+# Remove old archive to ensure fresh build
+if (Test-Path "app.tar.gz") { Remove-Item "app.tar.gz" }
+
+# Include Dockerfile in the archive
+tar --exclude="node_modules" --exclude="venv" --exclude=".git" --exclude="__pycache__" --exclude="*.pyc" -czf app.tar.gz backend frontend docker-compose.yml Dockerfile
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Tar packaging failed! Check if files are locked."
+    exit 1
+}
+
+if (-not (Test-Path "app.tar.gz")) {
+    Write-Error "app.tar.gz was not created."
+    exit 1
+}
 
 # Check SSH readiness (loop a few times if new VM)
 Write-Host "Uploading files (this may take a moment)..."
@@ -78,14 +90,21 @@ Invoke-Expression "$gcloudCmd compute scp app.tar.gz ${vmName}:app.tar.gz --zone
 Write-Host "Ensuring HTTP firewall rule exists..."
 try {
     Invoke-Expression "$gcloudCmd compute firewall-rules create allow-http --allow tcp:80 --target-tags http-server --quiet"
+    Invoke-Expression "$gcloudCmd compute firewall-rules create allow-api --allow tcp:8000 --target-tags http-server --quiet"
 } catch {
-    Write-Host "Firewall rule 'allow-http' likely already exists or could not be created. Continuing..." -ForegroundColor Yellow
+    Write-Host "Firewall rules likely already exist. Continuing..." -ForegroundColor Yellow
 }
 
 # 5. Remote Execution
 Write-Host "Executing remote deployment..." -ForegroundColor Cyan
 
 $remoteCommands = '
+    # Stop existing containers using current dir context if possible, or force kill all (safest for full reset)
+    # We try down first
+    if [ -d "app" ]; then cd app && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$(pwd) -w=$(pwd) docker/compose:1.29.2 down || true && cd ..; fi &&
+    
+    # Wipe directory to ensure no stale files (like old docker-compose.yml)
+    rm -rf app &&
     mkdir -p app && 
     tar -xzf app.tar.gz -C app && 
     cd app &&

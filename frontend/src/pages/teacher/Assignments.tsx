@@ -111,7 +111,13 @@ const TeacherAssignments: React.FC = () => {
         setGenerationLogs(["Initializing connection..."]);
 
         const clientId = Date.now().toString();
-        const ws = new WebSocket(`ws://127.0.0.1:8000/ws/generate-quiz/${clientId}`);
+
+        // Dynamic WS URL (Production vs Local)
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = import.meta.env.PROD ? window.location.host : '127.0.0.1:8000';
+        const wsUrl = `${protocol}//${host}/ws/generate-quiz/${clientId}`;
+
+        const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
             setGenerationLogs(prev => [...prev, "Connected to server.", "Sending generation request..."]);

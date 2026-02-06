@@ -13,6 +13,8 @@ interface Option {
     id: number;
     name: string;
     section?: string; // For classes
+    code?: string; // For subjects
+    grade_id?: number; // For classes
 }
 
 const TeacherClasses: React.FC = () => {
@@ -101,7 +103,7 @@ const TeacherClasses: React.FC = () => {
     };
 
     // Filter classes by grade
-    const availableClasses = classes.filter(c => c.grade_id === Number(selectedGrade)); // Schema might vary slightly, treating c as any for safety if needed
+    // const availableClasses = classes.filter(c => c.grade_id === Number(selectedGrade));
     // Actually schema for Class has grade_id
 
     return (
@@ -189,7 +191,7 @@ const TeacherClasses: React.FC = () => {
                                     <option value="">All Classes (or Specific)</option>
                                     {/* Need to filter classes by grade. Assuming 'classes' has grade_id or we fetch by grade */}
                                     {/* In fetchOptions we got all classes. Assuming client side filter works if schema has grade_id */}
-                                    {classes.filter((c: any) => c.grade_id == selectedGrade).map(c => (
+                                    {classes.filter(c => c.grade_id == Number(selectedGrade)).map(c => (
                                         <option key={c.id} value={c.id}>{c.name} ({c.section})</option>
                                     ))}
                                 </select>
