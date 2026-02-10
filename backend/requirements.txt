@@ -11,3 +11,4 @@ python-dotenv
 pymupdf
 openai
 qdrant-client
+mysql-connector-python

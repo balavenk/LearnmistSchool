@@ -200,7 +200,6 @@ class Assignment(Base):
     teacher = relationship("User", back_populates="created_assignments")
     assigned_class = relationship("Class", back_populates="assignments")
     submissions = relationship("Submission", back_populates="assignment")
-    submissions = relationship("Submission", back_populates="assignment")
     subject = relationship("Subject")
     questions = relationship("Question", back_populates="assignment", cascade="all, delete-orphan")
 

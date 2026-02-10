@@ -10,10 +10,6 @@ from sqlalchemy.orm import Session
 import database, models, schemas, auth
 from routers import super_admin, school_admin, teacher, student, upload, auth_routes, ws_generation
 from datetime import timedelta
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
 import seed
 
 models.Base.metadata.create_all(bind=database.engine)
