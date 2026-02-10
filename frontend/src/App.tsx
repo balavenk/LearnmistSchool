@@ -39,6 +39,12 @@ import StudentAssignments from './pages/student/Assignments';
 import Schedule from './pages/student/Schedule';
 import StudentGrades from './pages/student/Grades';
 
+// Individual Pages
+import IndividualDashboard from './pages/individual/Dashboard';
+import IndividualQuizzes from './pages/individual/MyQuizzes';
+import IndividualSettings from './pages/individual/Settings';
+import Register from './pages/Register';
+
 
 const App: React.FC = () => {
   return (
@@ -92,7 +98,17 @@ const App: React.FC = () => {
           <Route path="student/assignments" element={<StudentAssignments />} />
           <Route path="my-grades" element={<StudentGrades />} />
           <Route path="schedule" element={<Schedule />} />
+
+          {/* INDIVIDUAL */}
+          <Route path="individual" element={<IndividualDashboard />} />
+          <Route path="individual/quizzes" element={<IndividualQuizzes />} />
+          <Route path="individual/settings" element={<IndividualSettings />} />
+          {/* Reuse QuizDetails/Taking logic? Need separate or conditional logic components. For verify: basic dashboard. */}
+          {/* <Route path="individual/quizzes/:quizId" element={<EditQuiz />} /> */}
+          {/* <Route path="individual/quizzes/:quizId/take" element={<TakeQuiz />} /> */}
         </Route>
+
+        <Route path="/register" element={<Register />} />
 
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
