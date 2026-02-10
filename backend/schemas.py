@@ -171,9 +171,10 @@ class StudentBase(BaseModel):
     name: str
 
 class StudentCreate(StudentBase):
-    grade_id: int
+    grade_id: Optional[int] = None
     class_id: Optional[int] = None
     email: Optional[str] = None
+    school_id: Optional[int] = None # For manual creation if needed
 
 class StudentUpdate(BaseModel):
     name: Optional[str] = None
@@ -181,12 +182,13 @@ class StudentUpdate(BaseModel):
     class_id: Optional[int] = None
     active: Optional[bool] = None
     email: Optional[str] = None
+    school_id: Optional[int] = None
 
 class Student(StudentBase):
     id: int
     active: bool
-    school_id: int
-    grade_id: int
+    school_id: Optional[int] = None
+    grade_id: Optional[int] = None
     class_id: Optional[int] = None
     username: Optional[str] = None
     user_id: Optional[int] = None
@@ -201,9 +203,15 @@ class AssignmentBase(BaseModel):
     description: Optional[str] = None
     due_date: Optional[datetime] = None
     status: Optional[AssignmentStatus] = AssignmentStatus.DRAFT
+    
+    # New Fields
+    exam_type: Optional[str] = None
+    question_count: Optional[int] = None
+    difficulty_level: Optional[str] = None
+    question_type: Optional[str] = None
 
 class AssignmentCreate(AssignmentBase):
-    assigned_to_class_id: int # Explicitly assign to a class for now
+    assigned_to_class_id: Optional[int] = None # Explicitly assign to a class for now
     subject_id: Optional[int] = None
 
 class Assignment(AssignmentBase):

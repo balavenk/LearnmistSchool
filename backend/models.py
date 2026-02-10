@@ -17,10 +17,13 @@ class UserRole(str, enum.Enum):
     SCHOOL_ADMIN = "SCHOOL_ADMIN"
     TEACHER = "TEACHER"
     STUDENT = "STUDENT"
+    INDIVIDUAL = "INDIVIDUAL"
 
 class AssignmentStatus(str, enum.Enum):
     DRAFT = "DRAFT"
     PUBLISHED = "PUBLISHED"
+# ... (keeping existing lines to match context if needed, but replace_file_content works on target content)
+
 
 class SubmissionStatus(str, enum.Enum):
     PENDING = "PENDING"
@@ -150,8 +153,8 @@ class Student(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100))
     active = Column(Boolean, default=True)
-    school_id = Column(Integer, ForeignKey("schools.id"))
-    grade_id = Column(Integer, ForeignKey("grades.id"))
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=True) # Nullable for Individual
+    grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True)   # Nullable for Individual
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True) # Link to specific class/section
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Link to login user
 
@@ -196,6 +199,12 @@ class Assignment(Base):
     teacher_id = Column(Integer, ForeignKey("users.id"))
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True) # Null means assigned to who? Maybe all classes of teacher? Let's say specific class for now.
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True) # Optional link to subject
+
+    # New Fields for Individual/Quiz Generation
+    exam_type = Column(String(50), nullable=True)
+    question_count = Column(Integer, nullable=True)
+    difficulty_level = Column(String(20), nullable=True)
+    question_type = Column(String(50), nullable=True)
 
     teacher = relationship("User", back_populates="created_assignments")
     assigned_class = relationship("Class", back_populates="assignments")

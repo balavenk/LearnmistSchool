@@ -157,6 +157,27 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
                             </li>
                         </>
                     )}
+
+                    {/* INDIVIDUAL USER LINKS */}
+                    {(role === 'INDIVIDUAL' || role === 'INDIVIDUAL_USER') && (
+                        <>
+                            <li>
+                                <NavLink to="/individual/quizzes?create=true" className={linkClass}>
+                                    Create New Quiz
+                                </NavLink>
+                            </li>
+                            <li>
+                                <NavLink to="/individual/quizzes" end className={linkClass}>
+                                    Take Quiz
+                                </NavLink>
+                            </li>
+                            <li>
+                                <NavLink to="/individual/settings" className={linkClass}>
+                                    Settings
+                                </NavLink>
+                            </li>
+                        </>
+                    )}
                 </ul>
             </nav>
 

@@ -42,6 +42,7 @@ const Login: React.FC = () => {
                 else if (role.toUpperCase() === 'SCHOOL_ADMIN') navigate('/school-admin');
                 else if (role.toUpperCase() === 'TEACHER') navigate('/teacher');
                 else if (role.toUpperCase() === 'STUDENT') navigate('/student');
+                else if (role.toUpperCase() === 'INDIVIDUAL') navigate('/individual');
                 else navigate('/');
             } else {
                 alert("Login failed: No access token received");
@@ -144,7 +145,7 @@ const Login: React.FC = () => {
                     </form>
 
                     <p className="mt-8 text-center text-sm text-slate-600">
-                        Don't have an account? <a href="#" className="font-medium text-indigo-600 hover:text-indigo-800">Sign up for free</a>
+                        Don't have an account? <a href="/register" className="font-medium text-indigo-600 hover:text-indigo-800">Sign up for free</a>
                     </p>
                 </div>
             </div>

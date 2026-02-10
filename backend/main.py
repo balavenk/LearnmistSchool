@@ -53,6 +53,8 @@ app.include_router(student.router)
 app.include_router(upload.router)
 app.include_router(auth_routes.router)
 app.include_router(ws_generation.router)
+from routers import individual
+app.include_router(individual.router)
 
 # Serve Frontend Static Files
 from fastapi.staticfiles import StaticFiles
@@ -106,9 +108,12 @@ async def serve_react_app(full_path: str):
 @app.post("/token", response_model=schemas.Token, tags=["auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     print(f"LOGIN ATTEMPT: {form_data.username}")
-    user = db.query(models.User).filter(models.User.username == form_data.username).first()
-    # user = next((u for u in mock_data.USERS if u.username == form_data.username), None)
-
+    print(f"LOGIN ATTEMPT: {form_data.username}")
+    # Allow login by username OR email
+    user = db.query(models.User).filter(
+        (models.User.username == form_data.username) | (models.User.email == form_data.username)
+    ).first()
+    
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -133,5 +138,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         "id": user.id
     }
 
-# Root handler moved to top
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
