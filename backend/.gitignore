@@ -1,0 +1,40 @@
+@"
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# Python Cache
+__pycache__/
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+*.pyc
+# Environment Variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+learnmistschool.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Alembic
+alembic.ini
+"@ | Out-File -FilePath .gitignore -Encoding UTF8
