@@ -1,4 +1,4 @@
-@"
+
 # Virtual Environment
 venv/
 .venv/
@@ -12,6 +12,7 @@ __pycache__
 *$py.class
 *.so
 *.pyc
+
 # Environment Variables
 .env
 .env.local
@@ -34,7 +35,3 @@ learnmistschool.db
 # OS
 .DS_Store
 Thumbs.db
-
-# Alembic
-alembic.ini
-"@ | Out-File -FilePath .gitignore -Encoding UTF8

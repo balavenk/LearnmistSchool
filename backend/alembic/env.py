@@ -10,7 +10,7 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# Add backend directory to sys.path so we can import models
+# Add backend directory to sys.path so we can from app import models
 sys.path.append(os.getcwd())
 
 load_dotenv()
@@ -29,7 +29,7 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-import models
+from app import models
 target_metadata = models.Base.metadata
 # target_metadata = None
 
