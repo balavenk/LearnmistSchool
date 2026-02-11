@@ -15,6 +15,29 @@ def get_current_school_admin(current_user: models.User = Depends(auth.get_curren
     return current_user
 
 
+@router.get("/dashboard/stats")
+def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    """Get dashboard statistics for school admin"""
+    total_students = db.query(models.Student).filter(
+        models.Student.school_id == current_user.school_id
+    ).count()
+    
+    total_teachers = db.query(models.User).filter(
+        models.User.school_id == current_user.school_id,
+        models.User.role == models.UserRole.TEACHER
+    ).count()
+    
+    total_classes = db.query(models.Class).filter(
+        models.Class.school_id == current_user.school_id
+    ).count()
+    
+    return {
+        "total_students": total_students,
+        "total_teachers": total_teachers,
+        "total_classes": total_classes
+    }
+
+
 @router.post("/teachers/", response_model=schemas.User)
 def create_teacher(user: schemas.UserCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
     if not current_user.school_id:

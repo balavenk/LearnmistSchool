@@ -95,8 +95,9 @@ async def serve_root():
 # Catch-all (Always registered)
 @app.get("/{full_path:path}")
 async def serve_react_app(full_path: str):
-    # Allow API routes to pass through
-    if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("redoc") or full_path.startswith("openapi.json"):
+    # Allow API routes to pass through - don't catch these paths
+    api_prefixes = ["api", "docs", "redoc", "openapi.json", "super-admin", "school-admin", "teacher", "student", "upload", "auth", "ws"]
+    if any(full_path.startswith(prefix) for prefix in api_prefixes):
             raise HTTPException(status_code=404, detail="Not Found")
     
     if frontend_dist:
