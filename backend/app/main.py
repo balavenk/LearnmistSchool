@@ -95,11 +95,16 @@ async def serve_root():
 # Catch-all (Always registered)
 @app.get("/{full_path:path}")
 async def serve_react_app(full_path: str):
-    # Allow API routes to pass through - don't catch these paths
+    # Skip API routes completely - don't raise 404, just don't handle them
+    # This allows FastAPI to process API endpoints and WebSocket connections properly
     api_prefixes = ["api", "docs", "redoc", "openapi.json", "super-admin", "school-admin", "teacher", "student", "upload", "auth", "ws"]
     if any(full_path.startswith(prefix) for prefix in api_prefixes):
-            raise HTTPException(status_code=404, detail="Not Found")
+        # Return nothing - let FastAPI's routing handle it naturally
+        # If no route matches, FastAPI will return its default 404
+        from fastapi import Response
+        return Response(status_code=404, content="Not Found")
     
+    # Serve frontend for all other routes
     if frontend_dist:
         return FileResponse(os.path.join(frontend_dist, "index.html"))
     return {"error": "Frontend build not found", "path": full_path}
@@ -108,7 +113,6 @@ async def serve_react_app(full_path: str):
 
 @app.post("/token", response_model=schemas.Token, tags=["auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
-    print(f"LOGIN ATTEMPT: {form_data.username}")
     print(f"LOGIN ATTEMPT: {form_data.username}")
     # Allow login by username OR email
     user = db.query(models.User).filter(
@@ -125,6 +129,11 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     access_token = auth.create_access_token(
         data={"sub": user.username, "role": user.role, "school_id": user.school_id}, expires_delta=access_token_expires
     )
+    school_name = None
+    if user.school_id:
+        school = db.query(models.School).filter(models.School.id == user.school_id).first()
+        if school:
+            school_name = school.name
     
     # Update last login
     from datetime import datetime
@@ -136,7 +145,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         "token_type": "bearer",
         "role": user.role,
         "username": user.username,
-        "id": user.id
+        "id": user.id,
+        "school_name": school_name
     }
 
 if __name__ == "__main__":

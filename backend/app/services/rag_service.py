@@ -209,43 +209,51 @@ async def generate_quiz_questions(
         )
         query_vector = emb_response.data[0].embedding
 
-        # 2. Search Qdrant
-        if progress_callback:
-            await progress_callback("Searching knowledge base...", {"step": "search", "subject": subject_name})
-
-        # 'search' missing in current version, using query_points
-        search_response = client_qdrant.query_points(
-            collection_name=collection_name,
-            query=query_vector,
-            limit=5,
-            query_filter=models.Filter(
-                should=[
-                    models.FieldCondition(
-                        key="subject",
-                        match=models.MatchValue(value=subject_name)
-                    ),
-                    models.FieldCondition(
-                        key="subject_name", # Try alternate key just in case
-                        match=models.MatchValue(value=subject_name)
-                    )
-                ]
-            )
-        )
-        search_results = search_response.points
-        
+        # 2. Search Qdrant (check if collection exists first)
         context_text = ""
-        for hit in search_results:
-            context_text += f"{hit.payload.get('text', '')}\n\n"
-
-        if not context_text:
-            msg = "No specific textbook context found. Using general knowledge."
+        
+        if not client_qdrant.collection_exists(collection_name):
+            msg = "No training materials uploaded yet. Collection not found. Using general knowledge."
             print(msg)
             context_text = msg
             if progress_callback:
-                 await progress_callback("No direct matches found.", {"step": "search_result", "info": msg})
+                await progress_callback("No training materials found in database.", {"step": "search_result", "info": msg})
         else:
-             if progress_callback:
-                 await progress_callback(f"Found {len(search_results)} relevant chunks.", {"step": "search_result", "chunks_found": len(search_results)})
+            if progress_callback:
+                await progress_callback("Searching knowledge base...", {"step": "search", "subject": subject_name})
+
+            # 'search' missing in current version, using query_points
+            search_response = client_qdrant.query_points(
+                collection_name=collection_name,
+                query=query_vector,
+                limit=5,
+                query_filter=models.Filter(
+                    should=[
+                        models.FieldCondition(
+                            key="subject",
+                            match=models.MatchValue(value=subject_name)
+                        ),
+                        models.FieldCondition(
+                            key="subject_name", # Try alternate key just in case
+                            match=models.MatchValue(value=subject_name)
+                        )
+                    ]
+                )
+            )
+            search_results = search_response.points
+            
+            for hit in search_results:
+                context_text += f"{hit.payload.get('text', '')}\n\n"
+
+            if not context_text:
+                msg = "No specific textbook context found. Using general knowledge."
+                print(msg)
+                context_text = msg
+                if progress_callback:
+                     await progress_callback("No direct matches found.", {"step": "search_result", "info": msg})
+            else:
+                 if progress_callback:
+                     await progress_callback(f"Found {len(search_results)} relevant chunks.", {"step": "search_result", "chunks_found": len(search_results)})
 
         # 3. Generate Questions via LLM
         prompt = f"""

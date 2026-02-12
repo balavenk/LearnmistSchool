@@ -152,6 +152,7 @@ class Student(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100))
+    email = Column(String(255), nullable=True)  # Optional email field
     active = Column(Boolean, default=True)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=True) # Nullable for Individual
     grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True)   # Nullable for Individual

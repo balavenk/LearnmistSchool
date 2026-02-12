@@ -9,6 +9,14 @@ interface Student {
     class_id: number | null;
 }
 
+interface PaginatedStudents {
+    items: Student[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+}
+
 interface Grade {
     id: number;
     name: string;
@@ -36,14 +44,18 @@ const Students: React.FC = () => {
     });
 
     const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const [pageSize, setPageSize] = useState<number | null>(null); // Will be loaded from backend
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Form State
     const [newName, setNewName] = useState('');
+    const [newEmail, setNewEmail] = useState('');
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
 
-    const ITEMS_PER_PAGE = 10;
+    // Remove ITEMS_PER_PAGE as it's now coming from backend
 
     // Helpers
     const getGradeName = (id: number) => grades.find(g => g.id === id)?.name || 'Unknown';
@@ -53,11 +65,11 @@ const Students: React.FC = () => {
         return cls ? `${cls.name} (${cls.section})` : 'Unknown';
     };
 
-    // Filter & Sort Logic
+    // Filter & Sort Logic (now on frontend only for display, backend handles pagination)
     const processedStudents = useMemo(() => {
         let result = [...students];
 
-        // 1. Filter
+        // Frontend filtering
         if (filters.name) {
             result = result.filter(s => s.name.toLowerCase().includes(filters.name.toLowerCase()));
         }
@@ -68,7 +80,7 @@ const Students: React.FC = () => {
             result = result.filter(s => s.class_id === Number(filters.class_id));
         }
 
-        // 2. Sort
+        // Frontend sorting
         if (sortConfig) {
             result.sort((a, b) => {
                 let aValue: any = '';
@@ -100,12 +112,6 @@ const Students: React.FC = () => {
         return result;
     }, [students, filters, sortConfig, grades, classes]);
 
-    const paginatedStudents = processedStudents.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
-    const totalPages = Math.ceil(processedStudents.length / ITEMS_PER_PAGE);
-
     const handleSort = (key: string) => {
         setSortConfig(current => {
             if (current?.key === key) {
@@ -115,21 +121,53 @@ const Students: React.FC = () => {
         });
     };
 
-    // Derived state for class dropdown (filter by selected grade)
+    // Derived state for class dropdown in add student form (filter by selected grade)
     const availableClasses = useMemo(() => {
         if (!selectedGradeId) return [];
         return classes.filter(c => c.grade_id === Number(selectedGradeId));
     }, [selectedGradeId, classes]);
 
-    const fetchData = async () => {
+    // Derived state for class filter dropdown (filter by grade filter)
+    const filteredClassesForFilter = useMemo(() => {
+        if (!filters.grade_id) return classes;
+        return classes.filter(c => c.grade_id === Number(filters.grade_id));
+    }, [filters.grade_id, classes]);
+
+    // Clear class filter when grade filter changes
+    useEffect(() => {
+        if (filters.grade_id && filters.class_id) {
+            const selectedClass = classes.find(c => c.id === Number(filters.class_id));
+            if (selectedClass && selectedClass.grade_id !== Number(filters.grade_id)) {
+                setFilters(prev => ({ ...prev, class_id: '' }));
+            }
+        }
+    }, [filters.grade_id, filters.class_id, classes]);
+
+    const fetchData = async (page: number = 1) => {
         try {
             setLoading(true);
+            
+            // Fetch settings first if not loaded yet
+            let currentPageSize = pageSize;
+            if (currentPageSize === null) {
+                const settingsRes = await api.get('/teacher/settings');
+                currentPageSize = settingsRes.data.pagination.default_page_size;
+                setPageSize(currentPageSize);
+            }
+            
+            // Now fetch data with correct page size
             const [studentsRes, gradesRes, classesRes] = await Promise.all([
-                api.get('/teacher/students/'),
+                api.get<PaginatedStudents>(`/teacher/students/?page=${page}&page_size=${currentPageSize}`),
                 api.get('/teacher/grades/'),
                 api.get('/teacher/classes/')
             ]);
-            setStudents(studentsRes.data);
+            
+            // Update students from paginated response
+            setStudents(studentsRes.data.items);
+            setTotalPages(studentsRes.data.total_pages);
+            setTotalCount(studentsRes.data.total);
+            setCurrentPage(studentsRes.data.page);
+            
             setGrades(gradesRes.data);
             setClasses(classesRes.data);
         } catch (error) {
@@ -140,12 +178,13 @@ const Students: React.FC = () => {
     };
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        fetchData(currentPage);
+    }, [currentPage]);
     // Missing handlers
     const closeModal = () => {
         setIsModalOpen(false);
         setNewName('');
+        setNewEmail('');
         setSelectedGradeId('');
         setSelectedClassId('');
     };
@@ -155,10 +194,11 @@ const Students: React.FC = () => {
         try {
             await api.post('/teacher/students/', {
                 name: newName,
+                email: newEmail || null,
                 grade_id: Number(selectedGradeId),
                 class_id: selectedClassId ? Number(selectedClassId) : null
             });
-            await fetchData();
+            await fetchData(1); // Refresh and go to first page
             closeModal();
             // alert("Student added successfully"); 
         } catch (error) {
@@ -166,6 +206,22 @@ const Students: React.FC = () => {
             alert("Failed to create student");
         }
     };
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
+
+    const clearAllFilters = () => {
+        setFilters({
+            name: '',
+            grade_id: '',
+            class_id: ''
+        });
+    };
+
+    const hasActiveFilters = filters.name || filters.grade_id || filters.class_id;
 
     return (
         <div className="space-y-6">
@@ -231,16 +287,29 @@ const Students: React.FC = () => {
                                     className="w-full text-xs font-normal border border-slate-200 rounded px-2 py-1 focus:ring-1 focus:ring-indigo-500 outline-none"
                                 >
                                     <option value="">All Classes</option>
-                                    {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({c.section})</option>)}
+                                    {filteredClassesForFilter.map(c => <option key={c.id} value={c.id}>{c.name} ({c.section})</option>)}
                                 </select>
                             </th>
-                            <th className="px-6 py-2"></th>
+                            <th className="px-6 py-2 text-right">
+                                {hasActiveFilters && (
+                                    <button
+                                        onClick={clearAllFilters}
+                                        className="text-xs font-normal text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1 rounded transition-colors flex items-center gap-1 ml-auto"
+                                        title="Clear all filters"
+                                    >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                        Clear
+                                    </button>
+                                )}
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {loading ? (
                             <tr><td colSpan={4} className="text-center py-8">Loading...</td></tr>
-                        ) : paginatedStudents.map((student) => (
+                        ) : processedStudents.map((student) => (
                             <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="px-6 py-4 font-medium text-slate-900">{student.name}</td>
                                 <td className="px-6 py-4 text-slate-600">{getGradeName(student.grade_id)}</td>
@@ -251,7 +320,7 @@ const Students: React.FC = () => {
                                 </td>
                             </tr>
                         ))}
-                        {paginatedStudents.length === 0 && !loading && (
+                        {processedStudents.length === 0 && !loading && (
                             <tr>
                                 <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
                                     No students found matching filters.
@@ -262,25 +331,50 @@ const Students: React.FC = () => {
                 </table>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
+                {totalPages > 1 && pageSize && (
                     <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
-                        <button
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Previous
-                        </button>
-                        <span className="text-sm text-slate-600">
-                            Page {currentPage} of {totalPages}
-                        </span>
-                        <button
-                            disabled={currentPage === totalPages}
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Next
-                        </button>
+                        <div className="text-sm text-slate-600">
+                            Showing {students.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} students
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handlePageChange(1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="First Page"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <button
+                                disabled={currentPage === 1}
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-sm text-slate-600">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button
+                                disabled={currentPage === totalPages}
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Next
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(totalPages)}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Last Page"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -303,6 +397,16 @@ const Students: React.FC = () => {
                                     required
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                     placeholder="John Doe"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Email <span className="text-slate-400 text-xs">(Optional)</span></label>
+                                <input
+                                    type="email"
+                                    value={newEmail}
+                                    onChange={(e) => setNewEmail(e.target.value)}
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    placeholder="student@example.com"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">

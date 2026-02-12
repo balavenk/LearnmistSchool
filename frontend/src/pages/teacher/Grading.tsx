@@ -30,17 +30,22 @@ const TeacherGrading: React.FC = () => {
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [loading, setLoading] = useState(true);
     const [fetchingStudents, setFetchingStudents] = useState(false);
+    const [maxPageSize, setMaxPageSize] = useState(100);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const [classesRes, subjectsRes] = await Promise.all([
+                const [classesRes, subjectsRes, settingsRes] = await Promise.all([
                     api.get('/teacher/classes/'),
-                    api.get('/teacher/subjects/')
+                    api.get('/teacher/subjects/'),
+                    api.get('/teacher/settings')
                 ]);
                 setClasses(classesRes.data);
                 setSubjects(subjectsRes.data);
+                if (settingsRes.data.pagination?.max_page_size) {
+                    setMaxPageSize(settingsRes.data.pagination.max_page_size);
+                }
             } catch (error) {
                 console.error("Failed to fetch teacher data", error);
             } finally {
@@ -63,9 +68,13 @@ const TeacherGrading: React.FC = () => {
         try {
             setFetchingStudents(true);
             const response = await api.get('/teacher/students/', {
-                params: { class_id: selectedClassId }
+                params: { 
+                    class_id: selectedClassId,
+                    page: 1,
+                    page_size: maxPageSize  // Get all students for the class using max page size from config
+                }
             });
-            setStudents(response.data);
+            setStudents(response.data.items || []);
         } catch (error) {
             console.error("Failed to fetch students", error);
             alert("Failed to fetch students.");

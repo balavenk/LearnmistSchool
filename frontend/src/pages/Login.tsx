@@ -29,13 +29,15 @@ const Login: React.FC = () => {
 
             console.log("Login response", response);
 
-            const { access_token, role, username: returnedUsername } = response.data;
+            const { access_token, role, username: returnedUsername, school_name } = response.data;
 
             if (access_token) {
                 localStorage.setItem('token', access_token);
                 localStorage.setItem('role', role);
                 localStorage.setItem('username', returnedUsername || username);
+                if (school_name) localStorage.setItem('schoolName', school_name);
                 if (response.data.id) localStorage.setItem('userId', response.data.id);
+                
 
                 // Redirect based on role
                 if (role.toUpperCase() === 'SUPER_ADMIN') navigate('/super-admin');

@@ -30,11 +30,13 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
     total_classes = db.query(models.Class).filter(
         models.Class.school_id == current_user.school_id
     ).count()
+    school = db.query(models.School).filter(models.School.id == current_user.school_id).first()
     
     return {
         "total_students": total_students,
         "total_teachers": total_teachers,
-        "total_classes": total_classes
+        "total_classes": total_classes,
+        "school_name": school.name if school else None
     }
 
 

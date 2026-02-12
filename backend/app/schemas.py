@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field
+from typing import Optional, List, Generic, TypeVar
 from datetime import datetime
 from .models import UserRole, AssignmentStatus, SubmissionStatus
 
@@ -9,6 +9,7 @@ class Token(BaseModel):
     role: Optional[str] = None
     username: Optional[str] = None
     id: Optional[int] = None
+    school_name: Optional[str] = None
 
 class TokenData(BaseModel):
     username: Optional[str] = None
@@ -97,6 +98,16 @@ class FileArtifactOut(FileArtifactBase):
     file_metadata: Optional[str] = None
     class Config:
         from_attributes = True
+
+# Generic pagination response
+T = TypeVar('T')
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 class UserBase(BaseModel):
     username: str

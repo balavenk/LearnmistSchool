@@ -4,6 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 from .. import database, models, schemas, auth
 from ..services import rag_service
+from ..config import settings
 
 router = APIRouter(
     prefix="/teacher",
@@ -15,6 +16,17 @@ def get_current_teacher(current_user: models.User = Depends(auth.get_current_act
     if current_user.role not in [models.UserRole.TEACHER, models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN]:
          raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
+
+
+@router.get("/settings")
+def get_teacher_settings():
+    """Get teacher module settings including pagination defaults"""
+    return {
+        "pagination": {
+            "default_page_size": settings.DEFAULT_PAGE_SIZE,
+            "max_page_size": settings.MAX_PAGE_SIZE
+        }
+    }
 
 
 @router.post("/students/", response_model=schemas.Student)
@@ -40,6 +52,7 @@ def create_student(student: schemas.StudentCreate, db: Session = Depends(databas
 
     new_student = models.Student(
         name=student.name,
+        email=student.email,
         grade_id=student.grade_id,
         class_id=student.class_id,
         school_id=current_user.school_id,
@@ -50,8 +63,27 @@ def create_student(student: schemas.StudentCreate, db: Session = Depends(databas
     db.refresh(new_student)
     return new_student
 
-@router.get("/students/", response_model=List[schemas.Student])
-def read_students(class_id: int = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+@router.get("/students/", response_model=schemas.PaginatedResponse[schemas.Student])
+def read_students(
+    class_id: int = None,
+    page: int = 1,
+    page_size: int = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    # Use default page size from config if not provided
+    if page_size is None:
+        page_size = settings.DEFAULT_PAGE_SIZE
+    
+    # Validate pagination parameters
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > settings.MAX_PAGE_SIZE:
+        page_size = settings.DEFAULT_PAGE_SIZE
+    
+    # Calculate offset
+    offset = (page - 1) * page_size
+    
     # Get visible class IDs first
     visible_classes = db.query(models.Class.id).join(
         models.TeacherAssignment, 
@@ -61,7 +93,7 @@ def read_students(class_id: int = None, db: Session = Depends(database.get_db), 
         models.TeacherAssignment.teacher_id == current_user.id
     ).distinct().all()
     
-    visible_class_ids = [c[0] for c in visible_classes] # Unpack tuples
+    visible_class_ids = [c[0] for c in visible_classes]
 
     query = db.query(models.Student).filter(
         models.Student.school_id == current_user.school_id,
@@ -70,13 +102,29 @@ def read_students(class_id: int = None, db: Session = Depends(database.get_db), 
     
     if class_id:
         if class_id not in visible_class_ids:
-             # If asking for a specific class that isn't visible, return empty or error? Empty is safer.
-             return []
+             return schemas.PaginatedResponse(
+                items=[],
+                total=0,
+                page=page,
+                page_size=page_size,
+                total_pages=0
+            )
         query = query.filter(models.Student.class_id == class_id)
-        
-        query = query.filter(models.Student.class_id == class_id)
-        
-    return query.all()
+    
+    # Get total count
+    total_count = query.count()
+    total_pages = (total_count + page_size - 1) // page_size
+    
+    # Get paginated results
+    students = query.offset(offset).limit(page_size).all()
+    
+    return schemas.PaginatedResponse(
+        items=students,
+        total=total_count,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages
+    )
 
 @router.get("/students/{student_id}", response_model=schemas.Student)
 def read_student(student_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
@@ -323,7 +371,13 @@ def read_subjects(db: Session = Depends(database.get_db), current_user: models.U
 
 @router.get("/grades/", response_model=List[schemas.Grade])
 def read_grades(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
-    return db.query(models.Grade).filter(models.Grade.school_id == current_user.school_id).all()
+    # Only return grades that the teacher is assigned to via TeacherAssignment
+    return db.query(models.Grade).join(
+        models.TeacherAssignment,
+        models.TeacherAssignment.grade_id == models.Grade.id
+    ).filter(
+        models.TeacherAssignment.teacher_id == current_user.id
+    ).distinct().all()
 
 # --- Question Endpoints ---
 

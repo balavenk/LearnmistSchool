@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, User } from 'lucide-react';
 import api from '../../api/axios';
 
 interface Assignment {
@@ -170,13 +171,21 @@ const StudentGrading: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <button onClick={() => navigate(-1)} className="text-slate-400 hover:text-slate-600">← Back</button>
+                <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors">
+                    <ArrowLeft className="w-5 h-5" />
+                    <span>Back</span>
+                </button>
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Grade Assignments</h1>
-                    {studentName && <p className="text-indigo-600 font-medium mt-1">Student: {studentName}</p>}
+                    <h1 className="text-xl font-bold text-slate-900">Grade Assignments</h1>
+                    {studentName && (
+                        <div className="mt-3 flex items-center gap-2">
+                            <div className="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-200">
+                                <User className="w-4 h-4" />
+                                <span className="text-lg font-semibold">{studentName}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            </div>
 
             {/* Tabs */}
             <div className="flex space-x-4 border-b border-slate-200">

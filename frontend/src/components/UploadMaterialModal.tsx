@@ -100,6 +100,18 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
                     'Content-Type': 'multipart/form-data',
                 },
             });
+            
+            // Reset form fields after successful upload
+            setFile(null);
+            setSelectedSubjectId('');
+            setDescription('');
+            
+            // Reset file input element
+            const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+            if (fileInput) {
+                fileInput.value = '';
+            }
+            
             onSuccess();
             onClose();
         } catch (err: any) {

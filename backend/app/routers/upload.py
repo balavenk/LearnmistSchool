@@ -87,20 +87,39 @@ async def upload_training_material(
     
     return new_artifact
 
-@router.get("/training-material/{grade_id}", response_model=List[schemas.FileArtifactOut])
+@router.get("/training-material/{grade_id}", response_model=schemas.PaginatedResponse[schemas.FileArtifactOut])
 def list_training_materials(
-    grade_id: int, 
+    grade_id: int,
+    page: int = 1,
+    page_size: int = 10,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_school_admin)
 ):
-    # Filter by grade and school
-    # Filter by grade and school, join with Subject
+    # Validate pagination parameters
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > 100:
+        page_size = 10
+    
+    # Calculate offset
+    offset = (page - 1) * page_size
+    
+    # Get total count (optimized - only count, no data fetch)
+    total_count = db.query(models.FileArtifact).filter(
+        models.FileArtifact.grade_id == grade_id,
+        models.FileArtifact.school_id == current_user.school_id
+    ).count()
+    
+    # Calculate total pages
+    total_pages = (total_count + page_size - 1) // page_size
+    
+    # Fetch paginated results with join
     results = db.query(models.FileArtifact, models.Subject.name).join(
         models.Subject, models.FileArtifact.subject_id == models.Subject.id
     ).filter(
         models.FileArtifact.grade_id == grade_id,
         models.FileArtifact.school_id == current_user.school_id
-    ).order_by(models.FileArtifact.uploaded_at.desc()).all()
+    ).order_by(models.FileArtifact.uploaded_at.desc()).offset(offset).limit(page_size).all()
     
     # Map results to schema
     output = []
@@ -110,8 +129,14 @@ def list_training_materials(
         # Add the subject_name
         artifact_dict['subject_name'] = subject_name
         output.append(schemas.FileArtifactOut(**artifact_dict))
-        
-    return output
+    
+    return schemas.PaginatedResponse(
+        items=output,
+        total=total_count,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages
+    )
 
 @router.get("/all-training-materials", response_model=List[schemas.FileArtifactOut])
 def get_all_training_materials(
