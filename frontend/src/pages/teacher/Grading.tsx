@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import PAGINATION_CONFIG from '../../config/pagination';
 
 interface ClassOption {
     id: number;
@@ -30,7 +31,7 @@ const TeacherGrading: React.FC = () => {
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [loading, setLoading] = useState(true);
     const [fetchingStudents, setFetchingStudents] = useState(false);
-    const [maxPageSize, setMaxPageSize] = useState(100);
+    const [maxPageSize, setMaxPageSize] = useState(PAGINATION_CONFIG.MAX_PAGE_SIZE);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -85,16 +86,32 @@ const TeacherGrading: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-slate-900">Grading</h1>
-                <p className="text-slate-500 mt-1">Select a class and subject to view students and manage grades.</p>
+            {/* Enhanced Header */}
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Grading Dashboard</h1>
+                <p className="text-slate-600 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    Select a class and subject to view students and manage grades
+                </p>
             </div>
 
-            {/* Class Selection Panels */}
-            <div>
-                <h2 className="text-lg font-semibold text-slate-800 mb-3">1. Select Class</h2>
+            {/* Enhanced Class Selection */}
+            <div className="bg-white rounded-2xl p-6 shadow-md border-2 border-slate-200">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-gradient-to-br from-indigo-500 to-purple-500 p-2 rounded-lg">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-800">Step 1: Select Class</h2>
+                </div>
                 {loading ? (
-                    <div className="text-slate-500">Loading classes...</div>
+                    <div className="flex flex-col items-center justify-center py-12">
+                        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
+                        <span className="text-slate-500 font-medium">Loading classes...</span>
+                    </div>
                 ) : (
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                         {classes.map((cls) => (
@@ -105,29 +122,44 @@ const TeacherGrading: React.FC = () => {
                                     setStudents([]); // Clear previous students
                                     setSelectedSubjectId(''); // Reset subject
                                 }}
-                                className={`cursor-pointer rounded-xl border p-4 transition-all ${selectedClassId === cls.id
-                                    ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200 shadow-md'
-                                    : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm'
-                                    }`}
+                                className={`group cursor-pointer rounded-xl border-2 p-4 transition-all duration-200 relative overflow-hidden ${
+                                    selectedClassId === cls.id
+                                        ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 ring-4 ring-indigo-200 shadow-lg transform scale-105'
+                                        : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-md hover:scale-102'
+                                }`}
                             >
-                                <div className="text-2xl font-bold text-slate-800 mb-1">{cls.name}</div>
-                                <div className="text-sm text-slate-500">Section {cls.section}</div>
-                                {cls.grade && <div className="text-xs text-slate-400 mt-2">{cls.grade.name}</div>}
+                                {selectedClassId === cls.id && (
+                                    <div className="absolute top-2 right-2">
+                                        <svg className="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                )}
+                                <div className="text-3xl font-bold text-slate-800 mb-1">{cls.name}</div>
+                                <div className="text-sm font-semibold text-indigo-600">Section {cls.section}</div>
+                                {cls.grade && <div className="text-xs text-slate-500 mt-2 bg-slate-100 px-2 py-1 rounded-full inline-block">{cls.grade.name}</div>}
                             </div>
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Subject Selection */}
+            {/* Enhanced Subject Selection */}
             {selectedClassId && (
-                <div className="max-w-md animate-fade-in-up">
-                    <h2 className="text-lg font-semibold text-slate-800 mb-3">2. Select Subject</h2>
+                <div className="bg-white rounded-2xl p-6 shadow-md border-2 border-slate-200 animate-fade-in-up">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-2 rounded-lg">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-800">Step 2: Select Subject</h2>
+                    </div>
                     <div className="flex gap-4">
                         <select
                             value={selectedSubjectId}
                             onChange={(e) => setSelectedSubjectId(Number(e.target.value))}
-                            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-medium"
                         >
                             <option value="">Choose Subject...</option>
                             {subjects.map(s => (
@@ -137,55 +169,137 @@ const TeacherGrading: React.FC = () => {
                         <button
                             onClick={handleShowStudents}
                             disabled={!selectedSubjectId || fetchingStudents}
-                            className={`px-6 py-2 rounded-lg font-medium text-white shadow-md transition-colors ${!selectedSubjectId
-                                ? 'bg-slate-300 cursor-not-allowed'
-                                : 'bg-indigo-600 hover:bg-indigo-700'
-                                }`}
+                            className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all duration-200 flex items-center gap-2 ${
+                                !selectedSubjectId
+                                    ? 'bg-slate-300 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl transform hover:scale-105'
+                            }`}
                         >
-                            {fetchingStudents ? 'Loading...' : 'Show Students'}
+                            {fetchingStudents ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Loading...
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                    Show Students
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Students Grid */}
+            {/* Enhanced Students List */}
             {students.length > 0 && (
-                <div className="animate-fade-in-up">
-                    <h2 className="text-lg font-semibold text-slate-800 mb-4 flex justify-between items-center">
-                        <span>3. Student List</span>
-                        <span className="text-sm font-normal text-slate-500">{students.length} Students found</span>
-                    </h2>
-                    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                        <table className="w-full text-left">
-                            <thead className="bg-slate-50 border-b border-slate-200">
+                <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden animate-fade-in-up">
+                    <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b-2 border-slate-200 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-gradient-to-br from-green-500 to-emerald-500 p-2 rounded-lg">
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">Step 3: Student List</h2>
+                        </div>
+                        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+                            <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span className="font-bold text-indigo-600">{students.length}</span>
+                            <span className="text-slate-600 font-medium">Students</span>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200">
                                 <tr>
-                                    <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
-                                    <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
-                                    {/* Add more columns like Current Grade, specific assignment columns later */}
+                                    <th className="px-6 py-4 text-left">
+                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
+                                            Student Info
+                                        </div>
+                                    </th>
+                                    <th className="px-6 py-4 text-center">
+                                        <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                            </svg>
+                                            Actions
+                                        </div>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {students.map((student) => (
-                                    <tr key={student.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="font-medium text-slate-900">{student.name}</div>
-                                            <div className="text-xs text-slate-400">ID: {student.id}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium mr-4">View Profile</button>
-                                            <a href={`/grading/${student.id}`} className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">Grade Assignments</a>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {students.map((student) => {
+                                    const initials = student.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                                    const colors = [
+                                        'bg-gradient-to-br from-blue-500 to-cyan-500',
+                                        'bg-gradient-to-br from-purple-500 to-pink-500',
+                                        'bg-gradient-to-br from-green-500 to-emerald-500',
+                                        'bg-gradient-to-br from-orange-500 to-red-500',
+                                        'bg-gradient-to-br from-indigo-500 to-purple-500',
+                                        'bg-gradient-to-br from-pink-500 to-rose-500'
+                                    ];
+                                    const avatarColor = colors[student.id % colors.length];
+
+                                    return (
+                                        <tr key={student.id} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all group">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`w-12 h-12 rounded-xl ${avatarColor} flex items-center justify-center text-white font-bold text-sm shadow-lg group-hover:scale-110 transition-transform`}>
+                                                        {initials}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-slate-900 text-lg">{student.name}</div>
+                                                        <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
+                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                                            </svg>
+                                                            ID: {student.id}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center justify-center gap-3">
+                                                    <a 
+                                                        href={`/grading/${student.id}`}
+                                                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2 transform hover:scale-105"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                                        </svg>
+                                                        Grade Assignments
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 </div>
             )}
 
+            {/* Enhanced Empty State */}
             {!fetchingStudents && students.length === 0 && selectedClassId && selectedSubjectId && (
-                <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                    No students found for this class.
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border-2 border-dashed border-slate-300 py-16 animate-fade-in-up">
+                    <div className="text-center">
+                        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full mb-4">
+                            <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">No Students Found</h3>
+                        <p className="text-slate-500">There are no students enrolled in this class yet.</p>
+                    </div>
                 </div>
             )}
         </div>
