@@ -3,13 +3,17 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+import logging
 
 load_dotenv()
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from . import database, models, schemas, auth
 from .routers import super_admin, school_admin, teacher, student, upload, auth_routes, ws_generation, individual
 from datetime import timedelta
+
+logger = logging.getLogger(__name__)
 
 # Create tables
 models.Base.metadata.create_all(bind=database.engine)
@@ -113,10 +117,11 @@ async def serve_react_app(full_path: str):
 
 @app.post("/token", response_model=schemas.Token, tags=["auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
-    print(f"LOGIN ATTEMPT: {form_data.username}")
+    logger.info(f"Login attempt for user: {form_data.username}")
     # Allow login by username OR email
+    username_or_email = form_data.username.strip().lower()
     user = db.query(models.User).filter(
-        (models.User.username == form_data.username) | (models.User.email == form_data.username)
+        (func.lower(models.User.username) == username_or_email) | (func.lower(models.User.email) == username_or_email)
     ).first()
     
     if not user or not auth.verify_password(form_data.password, user.hashed_password):

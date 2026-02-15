@@ -12,6 +12,8 @@ __pycache__
 *$py.class
 *.so
 *.pyc
+*.pyo
+*.pyd
 
 # Environment Variables
 .env

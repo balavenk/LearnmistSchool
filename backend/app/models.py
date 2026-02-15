@@ -1,9 +1,9 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Enum, DateTime, Text
+from sqlalchemy import Column, Index, Integer, String, Boolean, ForeignKey, Enum, DateTime, Text, Table
 from sqlalchemy.orm import relationship
 from .database import Base
 import enum
 from datetime import datetime
-from sqlalchemy import Table
+from sqlalchemy.sql import func
 
 grade_subjects = Table(
     "grade_subjects",
@@ -90,9 +90,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, index=True)
-    email = Column(String(100), unique=True, nullable=True)
-    hashed_password = Column(String(255))
+    username = Column(String(50), index=True)
+    email = Column(String(100), nullable=True)
+    hashed_password = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.STUDENT)
     active = Column(Boolean, default=True)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=True)
@@ -101,6 +101,11 @@ class User(Base):
     school = relationship("School", back_populates="users")
     teacher_assignments = relationship("TeacherAssignment", back_populates="teacher")
     created_assignments = relationship("Assignment", back_populates="teacher") # Assignments created by this teacher
+     # Case-insensitive unique indexes
+    __table_args__ = (
+        Index('ix_users_username_lower', func.lower(username), unique=True),
+        Index('ix_users_email_lower', func.lower(email), unique=True),
+    )
 
 class Subject(Base):
     __tablename__ = "subjects"
