@@ -128,6 +128,7 @@ const TeacherAssignments: React.FC = () => {
                     grade_level: aiGrade,
                     difficulty: aiDifficulty,
                     question_count: aiQuestionCount,
+                    question_type: aiQuestionType,
                     due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
                     subject_id: Number(aiSubjectId),
                     class_id: Number(aiClassId),

@@ -174,6 +174,7 @@ async def generate_quiz_questions(
     grade_level: str,
     difficulty: str,
     count: int,
+    question_type: str = "Mixed",
     progress_callback: Callable[[str, Dict], Awaitable[None]] = None
 ) -> List[Dict]:
     """
@@ -255,6 +256,27 @@ async def generate_quiz_questions(
                  if progress_callback:
                      await progress_callback(f"Found {len(search_results)} relevant chunks.", {"step": "search_result", "chunks_found": len(search_results)})
 
+        normalized_question_type = (question_type or "Mixed").strip()
+        question_type_map = {
+            "Multiple Choice": "MULTIPLE_CHOICE",
+            "True/False": "TRUE_FALSE",
+            "Short Answer": "SHORT_ANSWER",
+            "Mixed": "MIXED",
+            "MULTIPLE_CHOICE": "MULTIPLE_CHOICE",
+            "TRUE_FALSE": "TRUE_FALSE",
+            "SHORT_ANSWER": "SHORT_ANSWER",
+            "MIXED": "MIXED",
+        }
+        normalized_question_type = question_type_map.get(normalized_question_type, "MIXED")
+
+        question_type_instruction = "You may generate a mix of MULTIPLE_CHOICE, TRUE_FALSE, and SHORT_ANSWER questions."
+        if normalized_question_type == "TRUE_FALSE":
+            question_type_instruction = "Generate ONLY TRUE_FALSE questions. Do not generate MULTIPLE_CHOICE or SHORT_ANSWER questions."
+        elif normalized_question_type == "MULTIPLE_CHOICE":
+            question_type_instruction = "Generate ONLY MULTIPLE_CHOICE questions. Do not generate TRUE_FALSE or SHORT_ANSWER questions."
+        elif normalized_question_type == "SHORT_ANSWER":
+            question_type_instruction = "Generate ONLY SHORT_ANSWER questions. Do not generate MULTIPLE_CHOICE or TRUE_FALSE questions."
+
         # 3. Generate Questions via LLM
         prompt = f"""
         You are a teacher creating a quiz.
@@ -264,6 +286,8 @@ async def generate_quiz_questions(
         Grade Level: {grade_level}
         Difficulty: {difficulty}
         Number of Questions: {count}
+        Requested Question Type: {normalized_question_type}
+        Type Rule: {question_type_instruction}
         
         Context from textbooks:
         {context_text[:10000]} # Limit context size
@@ -282,7 +306,7 @@ async def generate_quiz_questions(
             ]
         }}
         
-        For TRUE_FALSE, provide two options: True and False.
+        For TRUE_FALSE, provide exactly two options: True and False.
         For SHORT_ANSWER, provide one option with is_correct=true containing the intended answer.
         """
         

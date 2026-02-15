@@ -19,11 +19,48 @@ router = APIRouter(
 
 # Constants
 STORAGE_ROOT = "storage"
+BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+STORAGE_ROOT_ABS = os.path.join(BACKEND_ROOT, STORAGE_ROOT)
 
 def get_current_school_admin(current_user: models.User = Depends(auth.get_current_active_user)):
     if current_user.role not in [models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
+
+
+def get_upload_user(current_user: models.User = Depends(auth.get_current_active_user)):
+    if current_user.role not in [models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN, models.UserRole.TEACHER]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return current_user
+
+
+def ensure_teacher_upload_scope(
+    db: Session,
+    current_user: models.User,
+    grade_id: int = None,
+    subject_id: int = None,
+    artifact: models.FileArtifact = None,
+):
+    if current_user.role != models.UserRole.TEACHER:
+        return
+
+    if artifact is not None:
+        if artifact.school_id != current_user.school_id:
+            raise HTTPException(status_code=403, detail="Cannot access file from another school")
+        grade_id = artifact.grade_id
+        subject_id = artifact.subject_id
+
+    if grade_id is None or subject_id is None:
+        raise HTTPException(status_code=400, detail="grade_id and subject_id are required for teacher scope validation")
+
+    assignment = db.query(models.TeacherAssignment).filter(
+        models.TeacherAssignment.teacher_id == current_user.id,
+        models.TeacherAssignment.grade_id == grade_id,
+        models.TeacherAssignment.subject_id == subject_id,
+    ).first()
+
+    if not assignment:
+        raise HTTPException(status_code=403, detail="Not authorized for selected grade/subject")
 
 @router.post("/training-material", response_model=schemas.FileArtifactOut)
 async def upload_training_material(
@@ -33,18 +70,20 @@ async def upload_training_material(
     subject_id: int = Form(...),
     description: str = Form(None),
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_school_admin)
+    current_user: models.User = Depends(get_upload_user)
 ):
     # Basic Validation
-    if current_user.role == models.UserRole.SCHOOL_ADMIN and current_user.school_id != school_id:
+    if current_user.role != models.UserRole.SUPER_ADMIN and current_user.school_id != school_id:
         raise HTTPException(status_code=403, detail="Cannot upload for another school")
+
+    ensure_teacher_upload_scope(db, current_user, grade_id=grade_id, subject_id=subject_id)
 
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
     # Directory Structure: storage/{school_id}/{grade_id}/{subject_id}/
     relative_dir = os.path.join(str(school_id), str(grade_id), str(subject_id))
-    abs_dir = os.path.join(STORAGE_ROOT, relative_dir)
+    abs_dir = os.path.join(STORAGE_ROOT_ABS, relative_dir)
     os.makedirs(abs_dir, exist_ok=True)
 
     # Generate Stored Filename
@@ -93,13 +132,21 @@ def list_training_materials(
     page: int = 1,
     page_size: int = 10,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_school_admin)
+    current_user: models.User = Depends(get_upload_user)
 ):
     # Validate pagination parameters
     if page < 1:
         page = 1
     if page_size < 1 or page_size > 100:
         page_size = 10
+
+    if current_user.role == models.UserRole.TEACHER:
+        grade_assignments = db.query(models.TeacherAssignment).filter(
+            models.TeacherAssignment.teacher_id == current_user.id,
+            models.TeacherAssignment.grade_id == grade_id
+        ).first()
+        if not grade_assignments:
+            raise HTTPException(status_code=403, detail="Not authorized for selected grade")
     
     # Calculate offset
     offset = (page - 1) * page_size
@@ -240,14 +287,16 @@ def train_file(
     file_id: int,
     status_update: schemas.FileArtifactUpdate,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_active_user)
+    current_user: models.User = Depends(get_upload_user)
 ):
-    if current_user.role != models.UserRole.SUPER_ADMIN:
-        raise HTTPException(status_code=403, detail="Not authorized")
-        
     artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
     if not artifact:
         raise HTTPException(status_code=404, detail="File not found")
+
+    if current_user.role != models.UserRole.SUPER_ADMIN and artifact.school_id != current_user.school_id:
+        raise HTTPException(status_code=403, detail="Cannot train file from another school")
+
+    ensure_teacher_upload_scope(db, current_user, artifact=artifact)
 
     # 1. Update DB Status - Just save metadata and mark as Processing
     artifact.file_status = status_update.file_status # Expecting 'Processing' or 'Trained', but usually 'Processing' before WS starts
@@ -276,21 +325,20 @@ async def websocket_train_file(websocket: WebSocket, file_id: int, db: Session =
         await websocket.send_text(f"Starting training process for: {artifact.original_filename}")
         
         # Resolve Path
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # pointing to backend/
-        file_path = os.path.join(base_dir, STORAGE_ROOT, artifact.relative_path)
+        file_path = os.path.join(STORAGE_ROOT_ABS, artifact.relative_path)
         
         if not os.path.exists(file_path):
-             await websocket.send_text(f"Error: File not found on disk at {file_path}")
-             await websocket.close()
-             return
+            await websocket.send_text(f"Error: File not found on disk at {file_path}")
+            await websocket.close()
+            return
 
         # Prepare Metadata
         user_metadata = {}
         if artifact.file_metadata:
-                try:
-                    user_metadata = json.loads(artifact.file_metadata)
-                except:
-                    pass
+            try:
+                user_metadata = json.loads(artifact.file_metadata)
+            except:
+                pass
 
         rag_metadata = {
             "file_id": artifact.id,
@@ -345,7 +393,7 @@ def delete_training_material(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    if current_user.role not in [models.UserRole.SUPER_ADMIN, models.UserRole.SCHOOL_ADMIN]:
+    if current_user.role not in [models.UserRole.SUPER_ADMIN, models.UserRole.SCHOOL_ADMIN, models.UserRole.TEACHER]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
     artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
@@ -353,14 +401,15 @@ def delete_training_material(
         raise HTTPException(status_code=404, detail="File not found")
 
     # School Admin ownership check
-    if current_user.role == models.UserRole.SCHOOL_ADMIN and artifact.school_id != current_user.school_id:
+    if current_user.role != models.UserRole.SUPER_ADMIN and artifact.school_id != current_user.school_id:
         raise HTTPException(status_code=403, detail="Cannot delete file from another school")
+
+    ensure_teacher_upload_scope(db, current_user, artifact=artifact)
 
     # 1. Delete Physical File
     # Construct absolute path using STORAGE_ROOT to match upload logic
     try:
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
-        file_path = os.path.join(base_dir, STORAGE_ROOT, artifact.relative_path)
+        file_path = os.path.join(STORAGE_ROOT_ABS, artifact.relative_path)
         
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -384,18 +433,19 @@ def download_training_material(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    if current_user.role not in [models.UserRole.SUPER_ADMIN, models.UserRole.SCHOOL_ADMIN]:
+    if current_user.role not in [models.UserRole.SUPER_ADMIN, models.UserRole.SCHOOL_ADMIN, models.UserRole.TEACHER]:
         raise HTTPException(status_code=403, detail="Not authorized")
         
     artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
     if not artifact:
         raise HTTPException(status_code=404, detail="File not found")
         
-    if current_user.role == models.UserRole.SCHOOL_ADMIN and artifact.school_id != current_user.school_id:
+    if current_user.role != models.UserRole.SUPER_ADMIN and artifact.school_id != current_user.school_id:
         raise HTTPException(status_code=403, detail="Cannot download file from another school")
+
+    ensure_teacher_upload_scope(db, current_user, artifact=artifact)
         
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    file_path = os.path.join(base_dir, STORAGE_ROOT, artifact.relative_path)
+    file_path = os.path.join(STORAGE_ROOT_ABS, artifact.relative_path)
     
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")

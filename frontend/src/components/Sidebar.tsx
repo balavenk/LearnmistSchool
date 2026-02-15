@@ -1,4 +1,5 @@
 
+import { UploadIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
@@ -62,6 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
                 { to: '/teacher/students', label: 'Students', icon: <StudentsIcon /> },
                 { to: '/grading', label: 'Grading', icon: <GradingIcon /> },
                 { to: '/teacher/question-bank', label: 'Question Bank', icon: <QuestionIcon /> },
+                { to: '/teacher/upload', label: 'Upload PDF', icon: <UploadIcon /> },
             ],
             STUDENT: [
                 { to: '/my-grades', label: 'My Grades', icon: <GradeIcon /> },

@@ -27,6 +27,7 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                 grade_level = params.get("grade_level")
                 difficulty = params.get("difficulty")
                 question_count = int(params.get("question_count", 5))
+                question_type = params.get("question_type", "Mixed")
                 subject_id = int(params.get("subject_id"))
                 class_id = int(params.get("class_id"))
                 teacher_id = int(params.get("teacher_id")) # Or from session/token if we did auth
@@ -57,6 +58,7 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                     grade_level=grade_level,
                     difficulty=difficulty,
                     count=question_count,
+                    question_type=question_type,
                     progress_callback=progress_callback
                 )
                 

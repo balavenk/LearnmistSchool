@@ -12,9 +12,10 @@ interface UploadMaterialModalProps {
     onSuccess: () => void;
     schoolId?: number; // Might not need if backend infers from token
     gradeId: number;
+    subjectEndpoint?: string;
 }
 
-const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClose, onSuccess, gradeId }) => {
+const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClose, onSuccess, gradeId, subjectEndpoint = '/school-admin/subjects/' }) => {
     const [file, setFile] = useState<File | null>(null);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
@@ -30,7 +31,7 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
 
     const fetchSubjects = async () => {
         try {
-            const response = await api.get('/school-admin/subjects/');
+            const response = await api.get(subjectEndpoint);
             setSubjects(response.data);
             if (response.data.length > 0) {
                 // Determine if we should pre-select or let user choose. 

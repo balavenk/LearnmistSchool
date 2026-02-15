@@ -33,6 +33,7 @@ import TeacherStudents from './pages/teacher/Students';
 import TeacherGrading from './pages/teacher/Grading';
 import StudentGrading from './pages/teacher/StudentGrading';
 import TeacherQuestionBank from './pages/teacher/QuestionBank';
+import TeacherUploadPdf from './pages/teacher/UploadPdf';
 
 // Student Pages
 import StudentAssignments from './pages/student/Assignments';
@@ -86,6 +87,8 @@ const App: React.FC = () => {
           <Route path="teacher/assignments/:assignmentId/questions" element={<QuizDetails />} />
           <Route path="teacher/question-bank" element={<TeacherQuestionBank />} />
           <Route path="teacher/students" element={<TeacherStudents />} />
+          <Route path="teacher/upload" element={<TeacherUploadPdf />} />
+          <Route path="teacher/upload/:fileId/progress" element={<TrainProgress />} />
           <Route path="grading" element={<TeacherGrading />} />
           <Route path="grading/:studentId" element={<StudentGrading />} />
 

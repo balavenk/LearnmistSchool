@@ -1,9 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
 
 const TrainProgress: React.FC = () => {
     const { fileId } = useParams<{ fileId: string }>();
     const navigate = useNavigate();
+    const role = localStorage.getItem('role');
+    const returnPath = role === 'TEACHER' ? '/teacher/upload' : '/train-llm';
     const [logs, setLogs] = useState<string[]>([]);
     const [completed, setCompleted] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -26,9 +29,18 @@ const TrainProgress: React.FC = () => {
         socket.onmessage = (event) => {
             const message = event.data;
             if (message === "DONE") {
-                setCompleted(true);
-                setProgress(100);
-                addLog("✓ Training Completed Successfully!");
+                const markComplete = async () => {
+                    try {
+                        await api.put(`/upload/training-material/${fileId}/status`, { file_status: 'Trained' });
+                    } catch (error) {
+                        console.error('Failed to mark file as trained', error);
+                    } finally {
+                        setCompleted(true);
+                        setProgress(100);
+                        addLog("✓ Training Completed Successfully!");
+                    }
+                };
+                void markComplete();
             } else {
                 addLog(message);
                 // Simulate progress based on log count (rough estimation)
@@ -138,7 +150,7 @@ const TrainProgress: React.FC = () => {
             {/* Enhanced Action Buttons */}
             <div className="flex justify-between items-center">
                 <button
-                    onClick={() => navigate('/train-llm')}
+                    onClick={() => navigate(returnPath)}
                     className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold rounded-xl border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-md hover:shadow-lg"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +159,7 @@ const TrainProgress: React.FC = () => {
                     Back to List
                 </button>
                 <button
-                    onClick={() => navigate('/train-llm')}
+                    onClick={() => navigate(returnPath)}
                     disabled={!completed}
                     className={`inline-flex items-center gap-2 px-8 py-3 text-sm font-bold rounded-xl transition-all shadow-md ${
                         completed 
