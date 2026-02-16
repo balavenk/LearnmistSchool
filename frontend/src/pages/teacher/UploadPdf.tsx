@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import api from '../../api/axios';
 import UploadMaterialModal from '../../components/UploadMaterialModal';
 
@@ -26,17 +25,12 @@ interface PaginatedResponse {
     total_pages: number;
 }
 
-type MaterialTab = 'UPLOADED' | 'TRAINED';
-
 const TeacherUploadPdf: React.FC = () => {
-    const navigate = useNavigate();
     const [grades, setGrades] = useState<Grade[]>([]);
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [materials, setMaterials] = useState<PdfFile[]>([]);
-    const [activeTab, setActiveTab] = useState<MaterialTab>('UPLOADED');
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [trainingId, setTrainingId] = useState<number | null>(null);
 
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -85,33 +79,10 @@ const TeacherUploadPdf: React.FC = () => {
         }
     }, [selectedGradeId, currentPage]);
 
-    const filteredMaterials = useMemo(() => {
-        if (activeTab === 'TRAINED') {
-            return materials.filter((m) => m.file_status === 'Trained');
-        }
-        return materials.filter((m) => m.file_status !== 'Trained');
-    }, [materials, activeTab]);
-
     const handleUploadSuccess = () => {
         if (selectedGradeId !== '') {
             setCurrentPage(1);
             fetchMaterials(Number(selectedGradeId), 1);
-        }
-    };
-
-    const handleTrain = async (fileId: number) => {
-        setTrainingId(fileId);
-        try {
-            await api.post(`/upload/training-material/${fileId}/train`, {
-                file_status: 'Processing',
-                file_metadata: JSON.stringify({ triggered_by: 'teacher' }),
-            });
-            navigate(`/teacher/upload/${fileId}/progress`);
-        } catch (error) {
-            console.error('Failed to start training', error);
-            alert('Failed to start training for this PDF.');
-        } finally {
-            setTrainingId(null);
         }
     };
 
@@ -159,29 +130,6 @@ const TeacherUploadPdf: React.FC = () => {
                 </select>
             </div>
 
-            <div className="flex gap-2">
-                <button
-                    onClick={() => setActiveTab('UPLOADED')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        activeTab === 'UPLOADED'
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                    }`}
-                >
-                    Uploaded
-                </button>
-                <button
-                    onClick={() => setActiveTab('TRAINED')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        activeTab === 'TRAINED'
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                    }`}
-                >
-                    Trained
-                </button>
-            </div>
-
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
@@ -192,18 +140,17 @@ const TeacherUploadPdf: React.FC = () => {
                             <th className="px-6 py-4">Size</th>
                             <th className="px-6 py-4">Status</th>
                             <th className="px-6 py-4">Upload Date</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {loading ? (
-                            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
+                            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
                         ) : selectedGradeId === '' ? (
-                            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">Select a grade to view materials.</td></tr>
-                        ) : filteredMaterials.length === 0 ? (
-                            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">No PDFs found for this tab.</td></tr>
+                            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">Select a grade to view materials.</td></tr>
+                        ) : materials.length === 0 ? (
+                            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No PDFs found.</td></tr>
                         ) : (
-                            filteredMaterials.map((pdf) => (
+                            materials.map((pdf) => (
                                 <tr key={pdf.id} className="hover:bg-slate-50">
                                     <td className="px-6 py-4 text-slate-900 font-medium">{pdf.subject_name}</td>
                                     <td className="px-6 py-4 font-medium text-slate-900">{pdf.original_filename}</td>
@@ -217,17 +164,6 @@ const TeacherUploadPdf: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-slate-500">{new Date(pdf.uploaded_at).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 text-right">
-                                        {activeTab === 'UPLOADED' && (
-                                            <button
-                                                onClick={() => handleTrain(pdf.id)}
-                                                disabled={trainingId === pdf.id}
-                                                className="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                                            >
-                                                {trainingId === pdf.id ? 'Starting...' : 'Train'}
-                                            </button>
-                                        )}
-                                    </td>
                                 </tr>
                             ))
                         )}
