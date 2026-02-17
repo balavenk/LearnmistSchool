@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import DashboardLayout from './components/DashboardLayout';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
@@ -33,7 +34,7 @@ import TeacherStudents from './pages/teacher/Students';
 import TeacherGrading from './pages/teacher/Grading';
 import StudentGrading from './pages/teacher/StudentGrading';
 import TeacherQuestionBank from './pages/teacher/QuestionBank';
-import TeacherUploadPdf from './pages/teacher/UploadPdf';
+import TeacherUploadPdf from './pages/teacher/UploadPdf'
 
 // Student Pages
 import StudentAssignments from './pages/student/Assignments';
@@ -50,6 +51,26 @@ import Register from './pages/Register';
 const App: React.FC = () => {
   return (
     <Router>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            style: {
+              background: '#10b981',
+            },
+          },
+          error: {
+            style: {
+              background: '#ef4444',
+            },
+          },
+        }}
+      />
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -89,12 +110,13 @@ const App: React.FC = () => {
           <Route path="teacher/students" element={<TeacherStudents />} />
           <Route path="teacher/upload" element={<TeacherUploadPdf />} />
           <Route path="teacher/upload/:fileId/progress" element={<TrainProgress />} />
-          <Route path="grading" element={<TeacherGrading />} />
-          <Route path="grading/:studentId" element={<StudentGrading />} />
+          <Route path="teacher/grading" element={<TeacherGrading />} />
+          <Route path="teacher/grading/:studentId" element={<StudentGrading />} />
 
 
           {/* Backwards compatibility / Redirects if needed */}
           <Route path="assignments" element={<Navigate to="/teacher/assignments" replace />} />
+          <Route path="grading" element={<Navigate to="/teacher/grading" replace />} />
 
           {/* STUDENT */}
           <Route path="student" element={<Navigate to="/my-grades" replace />} />

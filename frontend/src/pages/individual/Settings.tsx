@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 const Settings: React.FC = () => {
@@ -70,10 +71,10 @@ const Settings: React.FC = () => {
                     class_id: selectedClass || null
                 }
             });
-            alert("Settings saved successfully!");
+            toast.success("Settings saved successfully!");
         } catch (err) {
             console.error(err);
-            alert("Failed to save settings.");
+            toast.error("Failed to save settings.");
         } finally {
             setIsLoading(false);
         }

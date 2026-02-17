@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 interface QuestionOption {
@@ -54,10 +55,10 @@ const QuizDetails: React.FC = () => {
         try {
             await api.post(`/teacher/assignments/${assignmentId}/seed_questions`);
             fetchQuestions();
-            alert("Sample questions added!");
+            toast.success("Sample questions added!");
         } catch (error) {
             console.error("Failed to seed questions", error);
-            alert("Failed to add sample questions.");
+            toast.error("Failed to add sample questions.");
         }
     };
 
@@ -73,16 +74,16 @@ const QuizDetails: React.FC = () => {
 
             if (editingQuestion) {
                 await api.put(`/teacher/questions/${editingQuestion.id}`, payload);
-                alert("Question updated!");
+                toast.success("Question updated!");
             } else {
                 await api.post(`/teacher/assignments/${assignmentId}/questions`, payload);
-                alert("Question added!");
+                toast.success("Question added!");
             }
             closeModal();
             fetchQuestions();
         } catch (error) {
             console.error("Failed to save question", error);
-            alert("Failed to save question.");
+            toast.error("Failed to save question.");
         }
     };
 
@@ -124,9 +125,10 @@ const QuizDetails: React.FC = () => {
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this question?")) return;
+        // Non-blocking - removed confirm() to prevent UI blocking
         try {
             await api.delete(`/teacher/questions/${id}`);
+            toast.success('Question deleted successfully');
             setQuestions(questions.filter(q => q.id !== id));
         } catch (error) {
             console.error("Failed to delete", error);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 // Types
@@ -95,10 +96,10 @@ const TeacherAssignments: React.FC = () => {
             });
             fetchData();
             closeModal();
-            alert("Assignment created successfully!");
+            toast.success("Assignment created successfully!");
         } catch (error) {
             console.error("Failed to create assignment", error);
-            alert("Failed to create assignment.");
+            toast.error("Failed to create assignment.");
         }
     };
 
@@ -157,7 +158,7 @@ const TeacherAssignments: React.FC = () => {
                     fetchData();
                     closeAIModal();
                     setIsGenerating(false);
-                    alert("AI Draft generated successfully!");
+                    toast.success("AI Draft generated successfully!");
                 }, 2000);
                 ws.close();
             } else if (data.type === "error") {
@@ -180,25 +181,26 @@ const TeacherAssignments: React.FC = () => {
     // ... (rest of methods)
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this assignment?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/teacher/assignments/${id}`);
+            toast.success('Assignment deleted successfully');
             fetchData();
         } catch (error) {
             console.error("Failed to delete", error);
-            alert("Failed to delete assignment.");
+            toast.error("Failed to delete assignment.");
         }
     };
 
     const handlePublish = async (id: number) => {
-        if (!confirm("Are you sure you want to publish this quiz? Students will be able to see it immediately.")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking  
         try {
             await api.put(`/teacher/assignments/${id}/publish`);
             fetchData();
-            alert("Quiz published successfully!");
+            toast.success("Quiz published successfully!");
         } catch (error) {
             console.error("Failed to publish", error);
-            alert("Failed to publish quiz.");
+            toast.error("Failed to publish quiz.");
         }
     };
 

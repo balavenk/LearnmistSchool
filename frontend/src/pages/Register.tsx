@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
 
 const Register: React.FC = () => {
@@ -39,7 +40,7 @@ const Register: React.FC = () => {
 
             // Auto-login or redirect to login?
             // Let's redirect to login for simplicity and security pattern
-            alert("Registration successful! Please login.");
+            toast.success("Registration successful! Please login.");
             navigate('/login');
 
         } catch (err: any) {

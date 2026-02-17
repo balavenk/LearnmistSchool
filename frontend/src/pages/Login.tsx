@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
 
 const Login: React.FC = () => {
@@ -47,7 +48,7 @@ const Login: React.FC = () => {
                 else if (role.toUpperCase() === 'INDIVIDUAL') navigate('/individual');
                 else navigate('/');
             } else {
-                alert("Login failed: No access token received");
+                toast.error("Login failed: No access token received");
             }
 
         } catch (error: any) {
@@ -56,20 +57,20 @@ const Login: React.FC = () => {
             let errorMessage = "Login failed";
             if (error.response) {
                 // Server responded with a status code
-                errorMessage += ` (Status: ${error.response.status})`;
-                if (error.response.data) {
-                    // Try to format the data nicel
-                    errorMessage += "\n\nDetails:\n" + JSON.stringify(error.response.data, null, 2);
+                if (error.response.status === 401) {
+                    errorMessage = "Invalid username or password";
+                } else {
+                    errorMessage += ` (Status: ${error.response.status})`;
                 }
             } else if (error.request) {
                 // Request made but no response
-                errorMessage += ": No response from server. Check if backend is running.";
+                errorMessage = "No response from server. Check if backend is running.";
             } else {
                 // Request setup error
-                errorMessage += ": " + error.message;
+                errorMessage = error.message;
             }
 
-            alert(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }

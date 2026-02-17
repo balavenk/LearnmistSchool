@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
 
 interface Subject {
@@ -16,6 +17,7 @@ interface UploadMaterialModalProps {
 }
 
 const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClose, onSuccess, gradeId, subjectEndpoint = '/school-admin/subjects/' }) => {
+    console.log('📤 UploadMaterialModal props:', { isOpen, gradeId, subjectEndpoint });
     const [file, setFile] = useState<File | null>(null);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
@@ -25,20 +27,42 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
 
     useEffect(() => {
         if (isOpen) {
+            console.log('📖 Modal opened, fetching subjects from:', subjectEndpoint);
             fetchSubjects();
+            // Reset form when modal opens
+            setFile(null);
+            setSelectedSubjectId('');
+            setDescription('');
+            setError('');
         }
+    }, [isOpen, subjectEndpoint]);
+
+    // Cleanup: Prevent body scroll when modal is open
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        
+        // Cleanup on unmount
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
     }, [isOpen]);
 
     const fetchSubjects = async () => {
         try {
+            console.log('Fetching subjects from endpoint:', subjectEndpoint);
             const response = await api.get(subjectEndpoint);
+            console.log('Received subjects:', response.data);
             setSubjects(response.data);
-            if (response.data.length > 0) {
-                // Determine if we should pre-select or let user choose. 
-                // Usually user chooses subject.
+            if (response.data.length === 0) {
+                setError('No subjects found. You may not be assigned to any subjects for this grade. Please contact your administrator.');
             }
         } catch (err) {
             console.error("Failed to fetch subjects", err);
+            setError('Failed to load subjects. Please try again.');
         }
     };
 
@@ -50,6 +74,7 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
     };
 
     const handleUpload = async () => {
+        console.log('🚀 Starting upload process...');
         if (!file) {
             setError('Please select a file');
             return;
@@ -61,6 +86,8 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
 
         setLoading(true);
         setError('');
+
+        console.log('📦 Preparing upload:', { fileName: file.name, gradeId, selectedSubjectId, description });
 
         const formData = new FormData();
         formData.append('file', file);
@@ -89,18 +116,30 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
         // Better: Fetch it on mount.
 
         try {
-            // Get user info first - or maybe just use the fact we are school admin.
-            // Let's try to get profile first.
+            // Get user info first to get school_id
+            console.log('👤 Fetching user info...');
             const me = await api.get('/auth/me');
+            console.log('User data:', me.data);
             const schoolId = me.data.school_id;
+            console.log('School ID:', schoolId);
+
+            if (!schoolId) {
+                setError('Your account is not linked to a school. Please contact your administrator.');
+                return;
+            }
 
             formData.append('school_id', schoolId.toString());
 
-            await api.post('/upload/training-material', formData, {
+            console.log('📤 Uploading to /upload/training-material...');
+            const uploadResponse = await api.post('/upload/training-material', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
             });
+            console.log('✅ Upload successful!', uploadResponse.data);
+            
+            // Show success toast
+            toast.success('PDF uploaded successfully!');
             
             // Reset form fields after successful upload
             setFile(null);
@@ -116,18 +155,30 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
             onSuccess();
             onClose();
         } catch (err: any) {
-            console.error(err);
-            setError(err.response?.data?.detail || 'Upload failed');
+            console.error('❌ Upload failed:', err);
+            console.error('Error response:', err.response);
+            const errorMsg = err.response?.data?.detail || err.message || 'Upload failed. Please try again.';
+            setError(errorMsg);
         } finally {
             setLoading(false);
         }
     };
 
+    console.log('UploadMaterialModal render - isOpen:', isOpen);
+    
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+        <div 
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={(e) => {
+                // Close modal if clicking on backdrop
+                if (e.target === e.currentTarget) {
+                    onClose();
+                }
+            }}
+        >
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-bold text-slate-900">Upload PDF for Training</h3>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600">

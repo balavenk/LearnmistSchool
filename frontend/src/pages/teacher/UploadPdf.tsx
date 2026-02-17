@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import UploadMaterialModal from '../../components/UploadMaterialModal';
 
@@ -39,28 +40,35 @@ const TeacherUploadPdf: React.FC = () => {
 
     const fetchGrades = async () => {
         try {
+            console.log('Fetching teacher grades...');
             const res = await api.get<Grade[]>('/teacher/grades/');
+            console.log('Received grades:', res.data);
             setGrades(res.data);
             if (res.data.length > 0) {
                 setSelectedGradeId((prev) => (prev === '' ? res.data[0].id : prev));
+            } else {
+                console.warn('No grades found for teacher');
             }
         } catch (error) {
-            console.error('Failed to fetch grades', error);
+            toast.error('Failed to load grades. Please check if you have been assigned to any grades.');
         }
     };
 
     const fetchMaterials = async (gradeId: number, page: number = 1) => {
         setLoading(true);
         try {
+            console.log(`Fetching materials for grade ${gradeId}, page ${page}...`);
             const response = await api.get<PaginatedResponse>(
                 `/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
             );
+            console.log('Received materials:', response.data);
             setMaterials(response.data.items);
             setTotalPages(response.data.total_pages);
             setTotalCount(response.data.total);
             setCurrentPage(response.data.page);
         } catch (error) {
             console.error('Failed to fetch uploaded materials', error);
+            toast.error('Failed to load materials. You may not have access to this grade or there was a server error.');
             setMaterials([]);
             setTotalPages(1);
             setTotalCount(0);
@@ -70,26 +78,49 @@ const TeacherUploadPdf: React.FC = () => {
     };
 
     useEffect(() => {
+        console.log('📚 Component mounted, fetching grades...');
         fetchGrades();
     }, []);
 
     useEffect(() => {
+        console.log('🔄 selectedGradeId or currentPage changed:', { selectedGradeId, currentPage });
         if (selectedGradeId !== '') {
             fetchMaterials(Number(selectedGradeId), currentPage);
+        } else {
+            console.log('⏸️ No grade selected, skipping materials fetch');
         }
     }, [selectedGradeId, currentPage]);
 
+    useEffect(() => {
+        console.log('🎭 Modal state changed:', showUploadModal);
+    }, [showUploadModal]);
+
     const handleUploadSuccess = () => {
+        console.log('✅ Upload successful, refreshing materials...');
         if (selectedGradeId !== '') {
             setCurrentPage(1);
             fetchMaterials(Number(selectedGradeId), 1);
         }
+        setShowUploadModal(false);
     };
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
+            console.log(`📄 Changing to page ${newPage}`);
             setCurrentPage(newPage);
         }
+    };
+
+    const handleOpenModal = () => {
+        console.log('🎯 Upload PDF button clicked!', { selectedGradeId, showUploadModal });
+        if (selectedGradeId === '') {
+            console.warn('❌ No grade selected');
+            toast('Please select a grade first', { icon: '⚠️' });
+            return;
+        }
+        console.log('✅ Opening upload modal for grade:', selectedGradeId);
+        setShowUploadModal(true);
+        console.log('Modal state should now be true');
     };
 
     return (
@@ -101,7 +132,10 @@ const TeacherUploadPdf: React.FC = () => {
                 </div>
 
                 <button
-                    onClick={() => setShowUploadModal(true)}
+                    onClick={(e) => {
+                        console.log('🖱️ Button click event fired', e);
+                        handleOpenModal();
+                    }}
                     disabled={selectedGradeId === ''}
                     className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -198,7 +232,10 @@ const TeacherUploadPdf: React.FC = () => {
 
             <UploadMaterialModal
                 isOpen={showUploadModal}
-                onClose={() => setShowUploadModal(false)}
+                onClose={() => {
+                    console.log('Closing upload modal');
+                    setShowUploadModal(false);
+                }}
                 onSuccess={handleUploadSuccess}
                 gradeId={Number(selectedGradeId)}
                 subjectEndpoint="/teacher/subjects/"

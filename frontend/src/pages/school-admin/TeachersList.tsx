@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { ColumnDef } from '@tanstack/react-table';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 
 interface Teacher {
     id: number;
@@ -74,10 +78,10 @@ const TeachersList: React.FC = () => {
             fetchTeachers();
             setIsCreateModalOpen(false);
             setNewUsername(''); setNewEmail(''); // setNewSubject('');
-            alert("Teacher created successfully (Default password: password123)");
+            toast.success("Teacher created successfully (Default password: password123)");
         } catch (error) {
             console.error("Failed to create teacher", error);
-            alert("Failed to create teacher. Username/Email might be duplicate.");
+            toast.error("Failed to create teacher. Username/Email might be duplicate.");
         }
     };
 
@@ -85,6 +89,68 @@ const TeachersList: React.FC = () => {
     const toggleStatus = (id: number) => {
         console.log("Toggle status not implemented in backend", id);
     };
+
+    const columns: ColumnDef<Teacher>[] = useMemo(
+        () => [
+            {
+                header: 'Username',
+                accessorKey: 'username',
+                cell: (info) => (
+                    <span className="font-medium text-slate-900">{info.getValue() as string}</span>
+                ),
+            },
+            {
+                header: 'Email',
+                accessorKey: 'email',
+                cell: (info) => (
+                    <span className="text-slate-500">{info.getValue() as string}</span>
+                ),
+            },
+            {
+                header: 'Status',
+                accessorKey: 'status',
+                cell: (info) => {
+                    const status = info.getValue() as string;
+                    return (
+                        <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}
+                        >
+                            {status}
+                        </span>
+                    );
+                },
+            },
+            {
+                header: 'Actions',
+                id: 'actions',
+                cell: (info) => {
+                    const teacher = info.row.original;
+                    return (
+                        <div className="text-right space-x-2">
+                            <button
+                                onClick={() => toggleStatus(teacher.id)}
+                                className={`text-xs font-medium ${
+                                    teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'
+                                }`}
+                            >
+                                {teacher.status === 'Active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <span className="text-slate-300">|</span>
+                            <button
+                                onClick={() => navigate(`/school-admin/teachers/${teacher.id}/classes`)}
+                                className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                            >
+                                Change class
+                            </button>
+                        </div>
+                    );
+                },
+            },
+        ],
+        [navigate]
+    );
 
     return (
         <div className="space-y-6">
@@ -108,52 +174,23 @@ const TeachersList: React.FC = () => {
                 />
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Username</th>
-                            <th className="px-6 py-4">Email</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={4} className="text-center py-8">Loading...</td></tr>
-                        ) : paginated.map(teacher => (
-                            <tr key={teacher.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4 font-medium text-slate-900">{teacher.username}</td>
-                                <td className="px-6 py-4 text-slate-500">{teacher.email}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${teacher.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {teacher.status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right space-x-2">
-                                    <button onClick={() => toggleStatus(teacher.id)} className={`text-xs font-medium ${teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}>
-                                        {teacher.status === 'Active' ? 'Deactivate' : 'Activate'}
-                                    </button>
-                                    <span className="text-slate-300">|</span>
-                                    <button onClick={() => navigate(`/school-admin/teachers/${teacher.id}/classes`)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800">
-                                        Change class
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {!loading && paginated.length === 0 && <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No teachers found.</td></tr>}
-                    </tbody>
-                </table>
-                {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm">
-                        <span className="text-slate-500">Page {currentPage} of {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            <DataTable
+                data={paginated}
+                columns={columns}
+                isLoading={loading}
+                emptyMessage="No teachers found."
+            />
+
+            {totalPages > 1 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={filtered.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    onPageChange={setCurrentPage}
+                    isLoading={loading}
+                />
+            )}
 
             {/* Create Teacher Modal */}
             {isCreateModalOpen && (

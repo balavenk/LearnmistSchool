@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Plus, Play, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { format } from 'date-fns';
 import TakeQuiz from './TakeQuiz';
@@ -92,7 +93,7 @@ const MyQuizzes: React.FC = () => {
             fetchQuizzes();
         } catch (err) {
             console.error("Create failed", err);
-            alert("Failed to create quiz");
+            toast.error("Failed to create quiz");
         }
     };
 

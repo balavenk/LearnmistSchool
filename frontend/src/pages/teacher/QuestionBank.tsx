@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Smile, Zap, ShieldAlert } from 'lucide-react';
+import api from '../../api/axios';
 import PAGINATION_CONFIG from '../../config/pagination';
 
 interface Class {
@@ -53,10 +54,7 @@ const QuestionBank: React.FC = () => {
 
     const fetchClasses = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:8000/teacher/classes/', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get('/teacher/classes/');
             setClasses(res.data);
         } catch (error) {
             console.error(error);
@@ -65,10 +63,7 @@ const QuestionBank: React.FC = () => {
 
     const fetchSubjects = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:8000/teacher/subjects/', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get('/teacher/subjects/');
             setSubjects(res.data);
         } catch (error) {
             console.error(error);
@@ -78,7 +73,6 @@ const QuestionBank: React.FC = () => {
     const fetchQuestions = useCallback(async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
             const params: any = {
                 class_id: selectedClassId,
                 subject_id: selectedSubjectId,
@@ -88,16 +82,7 @@ const QuestionBank: React.FC = () => {
             if (difficulty) params.difficulty = difficulty;
             if (searchText) params.search = searchText;
 
-            console.log('Fetching questions with params:', params); // Debug log
-
-            const res = await axios.get('http://localhost:8000/teacher/questions/', {
-                headers: { Authorization: `Bearer ${token}` },
-                params
-            });
-            
-            console.log('API Response:', res.data); // Debug: Check actual response structure
-            console.log('Response type:', Array.isArray(res.data) ? 'Array' : 'Object');
-            console.log('Response length/total:', Array.isArray(res.data) ? res.data.length : res.data.total);
+            const res = await api.get('/teacher/questions/', { params });
             
             // Handle different API response formats
             if (Array.isArray(res.data)) {
@@ -176,29 +161,26 @@ const QuestionBank: React.FC = () => {
     const handleCreateQuiz = async () => {
         setCreating(true);
         try {
-            const token = localStorage.getItem('token');
             const payload = {
                 title: quizTitle,
                 description: quizDesc,
                 due_date: dueDate ? new Date(dueDate).toISOString() : null,
-                class_id: selectedClassId, // Assuming we assign to the filtered class
-                subject_id: selectedSubjectId, // Assuming we use selected subject
+                class_id: selectedClassId,
+                subject_id: selectedSubjectId,
                 question_ids: selectedIds
             };
 
-            await axios.post('http://localhost:8000/teacher/assignments/from-bank', payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.post('/teacher/assignments/from-bank', payload);
 
-            alert('Quiz Created Successfully!');
+            toast.success('Quiz Created Successfully!');
             setShowModal(false);
             setQuizTitle('');
             setQuizDesc('');
             setSelectedIds([]);
-            navigate('/teacher/assignments'); // Redirect to assignments list
+            navigate('/teacher/assignments');
         } catch (error) {
             console.error(error);
-            alert('Failed to create quiz');
+            toast.error('Failed to create quiz');
         } finally {
             setCreating(false);
         }

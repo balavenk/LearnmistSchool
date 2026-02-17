@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { DataTable } from '../../components/DataTable';
 
 interface Assignment {
     id: number;
@@ -88,14 +91,15 @@ const TeacherClasses: React.FC = () => {
             setSelectedGrade(''); setSelectedClass(''); setSelectedSubject('');
         } catch (error) {
             console.error("Failed to assign class", error);
-            alert("Failed to assign. Check if already exists.");
+            toast.error("Failed to assign. Check if already exists.");
         }
     };
 
     const handleDelete = async (assignmentId: number) => {
-        if (!confirm("Remove this class assignment?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/school-admin/assignments/${assignmentId}`);
+            toast.success('Class assignment removed');
             setAssignments(prev => prev.filter(a => a.id !== assignmentId));
         } catch (error) {
             console.error("Failed to delete", error);
@@ -105,6 +109,50 @@ const TeacherClasses: React.FC = () => {
     // Filter classes by grade
     // const availableClasses = classes.filter(c => c.grade_id === Number(selectedGrade));
     // Actually schema for Class has grade_id
+
+    // DataTable Columns
+    const columns = useMemo<ColumnDef<Assignment>[]>(
+        () => [
+            {
+                accessorKey: 'grade.name',
+                header: 'Grade',
+                cell: ({ row }) => (
+                    <span className="text-slate-900 font-medium">{row.original.grade?.name || 'N/A'}</span>
+                ),
+            },
+            {
+                accessorKey: 'class_.name',
+                header: 'Class / Section',
+                cell: ({ row }) => (
+                    <span className="text-slate-500">
+                        {row.original.class_ ? `${row.original.class_.name} (${row.original.class_.section})` : 'All Classes'}
+                    </span>
+                ),
+            },
+            {
+                accessorKey: 'subject.name',
+                header: 'Subject',
+                cell: ({ row }) => (
+                    <span className="text-slate-700">{row.original.subject?.name || 'N/A'}</span>
+                ),
+            },
+            {
+                id: 'actions',
+                header: 'Actions',
+                cell: ({ row }) => (
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => handleDelete(row.original.id)}
+                            className="text-red-600 hover:text-red-800 font-medium text-xs"
+                        >
+                            Remove
+                        </button>
+                    </div>
+                ),
+            },
+        ],
+        []
+    );
 
     return (
         <div className="space-y-6">
@@ -121,42 +169,13 @@ const TeacherClasses: React.FC = () => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Grade</th>
-                            <th className="px-6 py-4">Class / Section</th>
-                            <th className="px-6 py-4">Subject</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={4} className="text-center py-8">Loading...</td></tr>
-                        ) : assignments.map(a => (
-                            <tr key={a.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4 text-slate-900 font-medium">{a.grade?.name || 'N/A'}</td>
-                                <td className="px-6 py-4 text-slate-500">
-                                    {a.class_ ? `${a.class_.name} (${a.class_.section})` : 'All Classes'}
-                                </td>
-                                <td className="px-6 py-4 text-slate-700">{a.subject?.name || 'N/A'}</td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => handleDelete(a.id)}
-                                        className="text-red-600 hover:text-red-800 font-medium text-xs"
-                                    >
-                                        Remove
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {!loading && assignments.length === 0 && (
-                            <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No classes assigned yet.</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            {/* DataTable */}
+            <DataTable
+                columns={columns}
+                data={assignments}
+                isLoading={loading}
+                emptyMessage="No classes assigned yet."
+            />
 
             {/* Modal */}
             {isAddModalOpen && (

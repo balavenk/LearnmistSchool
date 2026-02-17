@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 
 interface Student {
     id: number;
@@ -83,10 +87,10 @@ const StudentsList: React.FC = () => {
             });
             fetchStudents();
             setIsModalOpen(false);
-            alert("Student updated successfully");
+            toast.success("Student updated successfully");
         } catch (error) {
             console.error("Failed to update student", error);
-            alert("Failed to update student.");
+            toast.error("Failed to update student.");
         }
     };
 
@@ -106,6 +110,75 @@ const StudentsList: React.FC = () => {
         const c = classes.find(c => c.id === id);
         return c ? `${c.name} (${c.section})` : id;
     };
+
+    const columns: ColumnDef<Student>[] = useMemo(
+        () => [
+            {
+                header: 'Name',
+                accessorKey: 'name',
+                cell: (info) => (
+                    <span className="font-medium text-slate-900">{info.getValue() as string}</span>
+                ),
+            },
+            {
+                header: 'Username',
+                accessorKey: 'username',
+                cell: (info) => (
+                    <span className="text-slate-600 font-mono text-xs">
+                        {(info.getValue() as string) || '-'}
+                    </span>
+                ),
+            },
+            {
+                header: 'Active',
+                accessorKey: 'active',
+                cell: (info) => {
+                    const active = info.getValue() as boolean;
+                    return (
+                        <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}
+                        >
+                            {active ? 'Active' : 'Inactive'}
+                        </span>
+                    );
+                },
+            },
+            {
+                header: 'Grade',
+                accessorKey: 'grade_id',
+                cell: (info) => (
+                    <span className="text-slate-600">{getGradeName(info.getValue() as number)}</span>
+                ),
+            },
+            {
+                header: 'Class',
+                accessorKey: 'class_id',
+                cell: (info) => (
+                    <span className="text-slate-600">{getClassName(info.getValue() as number | null)}</span>
+                ),
+            },
+            {
+                header: 'Actions',
+                id: 'actions',
+                cell: (info) => {
+                    const student = info.row.original;
+                    return (
+                        <div className="text-right">
+                            <button
+                                onClick={() => openEditModal(student)}
+                                className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
+                            >
+                                Edit
+                            </button>
+                        </div>
+                    );
+                },
+            },
+        ],
+        [grades, classes]
+    );
 
     // Add Student State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -129,10 +202,10 @@ const StudentsList: React.FC = () => {
             setNewStudentEmail('');
             setNewStudentGradeId('');
             setNewStudentClassId('');
-            alert("Student created successfully!");
+            toast.success("Student created successfully!");
         } catch (error) {
             console.error("Failed to create student", error);
-            alert("Failed to create student.");
+            toast.error("Failed to create student.");
         }
     };
 
@@ -161,59 +234,23 @@ const StudentsList: React.FC = () => {
                 />
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Name</th>
-                            <th className="px-6 py-4">Username</th>
-                            <th className="px-6 py-4">Active</th>
-                            <th className="px-6 py-4">Grade</th>
-                            <th className="px-6 py-4">Class</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
-                        ) : paginated.map(student => (
-                            <tr key={student.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4 font-medium text-slate-900">{student.name}</td>
-                                <td className="px-6 py-4 text-slate-600 font-mono text-xs">{student.username || '-'}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${student.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {student.active ? 'Active' : 'Inactive'}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-slate-600">
-                                    {getGradeName(student.grade_id)}
-                                </td>
-                                <td className="px-6 py-4 text-slate-600">
-                                    {getClassName(student.class_id)}
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => openEditModal(student)}
-                                        className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
-                                    >
-                                        Edit
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {!loading && paginated.length === 0 && <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No students found.</td></tr>}
-                    </tbody>
-                </table>
-                {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm">
-                        <span className="text-slate-500">Page {currentPage} of {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            <DataTable
+                data={paginated}
+                columns={columns}
+                isLoading={loading}
+                emptyMessage="No students found."
+            />
+
+            {totalPages > 1 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={filtered.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    onPageChange={setCurrentPage}
+                    isLoading={loading}
+                />
+            )}
 
             {/* Add Student Modal */}
             {isAddModalOpen && (

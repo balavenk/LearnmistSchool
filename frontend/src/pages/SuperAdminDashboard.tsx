@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import type { ColumnDef } from '@tanstack/react-table';
+import { DataTable } from '../components/DataTable';
 
 const SuperAdminDashboard: React.FC = () => {
-  const [stats, setStats] = React.useState({
+  const [stats, setStats] = useState({
     total_schools: 0,
     active_users: 0,
     total_quizzes: 0,
@@ -9,9 +11,69 @@ const SuperAdminDashboard: React.FC = () => {
     recent_schools: [] as any[],
   });
   const userName = localStorage.getItem("username") || "Super Admin";
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
+  // DataTable Columns for Recent Schools
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'School Name',
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-100 rounded-lg p-2">
+              <svg
+                className="w-4 h-4 text-indigo-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+            </div>
+            <span className="font-semibold text-slate-900">
+              {row.original.name}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'address',
+        header: 'Address',
+        cell: ({ row }) => (
+          <span className="text-slate-600">
+            {row.original.address || "N/A"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'active',
+        header: 'Status',
+        cell: ({ row }) => (
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+              row.original.active ? "bg-green-100 text-green-700 border border-green-200" : "bg-red-100 text-red-700 border border-red-200"
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                row.original.active ? "bg-green-500" : "bg-red-500"
+              }`}
+            ></span>
+            {row.original.active ? "Active" : "Inactive"}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  useEffect(() => {
     const fetchStats = async () => {
       try {
         // We need to import api here or assume it's available via context/props?
@@ -267,93 +329,12 @@ const SuperAdminDashboard: React.FC = () => {
             </h3>
           </div>
         </div>
-        {stats.recent_schools.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
-              <svg
-                className="w-8 h-8 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                />
-              </svg>
-            </div>
-            <p className="text-slate-500 font-medium">No schools found</p>
-            <p className="text-slate-400 text-sm mt-1">
-              Schools will appear here once added
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b-2 border-slate-200">
-                  <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider">
-                    School Name
-                  </th>
-                  <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider">
-                    Address
-                  </th>
-                  <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {stats.recent_schools.map((school) => (
-                  <tr
-                    key={school.id}
-                    className="hover:bg-indigo-50 transition-colors duration-150"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-indigo-100 rounded-lg p-2">
-                          <svg
-                            className="w-4 h-4 text-indigo-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                            />
-                          </svg>
-                        </div>
-                        <span className="font-semibold text-slate-900">
-                          {school.name}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-slate-600">
-                        {school.address || "N/A"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${school.active ? "bg-green-100 text-green-700 border border-green-200" : "bg-red-100 text-red-700 border border-red-200"}`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${school.active ? "bg-green-500" : "bg-red-500"}`}
-                        ></span>
-                        {school.active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={columns}
+          data={stats.recent_schools}
+          isLoading={loading}
+          emptyMessage="No schools found. Schools will appear here once added."
+        />
       </div>
     </div>
   );

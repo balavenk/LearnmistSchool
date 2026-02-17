@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import toast from 'react-hot-toast';
+import type { ColumnDef } from '@tanstack/react-table';
 import api from '../../api/axios';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 
 // --- Types ---
 type UserRole = 'SCHOOL_ADMIN' | 'TEACHER' | 'STUDENT';
@@ -130,11 +134,10 @@ const UserManagement: React.FC = () => {
 
     const handleDeactivate = async (userId: number, currentStatus: boolean) => {
         if (!userId) {
-            alert("No user linked to this record.");
+            toast("No user linked to this record.", { icon: '⚠️' });
             return;
         }
-        if (!confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} this user?`)) return;
-
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             const endpoint = currentStatus
                 ? `/super-admin/users/${userId}/deactivate`
@@ -172,13 +175,13 @@ const UserManagement: React.FC = () => {
 
         } catch (error) {
             console.error("Action failed", error);
-            alert("Failed to update status.");
+            toast.error("Failed to update status.");
         }
     };
 
     const handleResetClick = (userId: number) => {
         if (!userId) {
-            alert("No user login linked.");
+            toast("No user login linked.", { icon: '⚠️' });
             return;
         }
         setSelectedUserForReset(userId);
@@ -190,15 +193,133 @@ const UserManagement: React.FC = () => {
         if (!selectedUserForReset || !newPassword) return;
         try {
             await api.post(`/super-admin/users/${selectedUserForReset}/reset-password`, { password: newPassword });
-            alert("Password reset successfully.");
+            toast.success("Password reset successfully.");
             setResetModalOpen(false);
             setNewPassword('');
             setSelectedUserForReset(null);
         } catch (error) {
             console.error("Reset failed", error);
-            alert("Failed to reset password.");
+            toast.error("Failed to reset password.");
         }
     };
+
+    const columns: ColumnDef<any>[] = useMemo(() => {
+        const baseColumns: ColumnDef<any>[] = [
+            {
+                header: 'Name',
+                accessorKey: 'name',
+                cell: (info) => {
+                    const item = info.row.original;
+                    return (
+                        <div className="flex items-center gap-3">
+                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl p-2.5 font-bold text-sm shadow-md">
+                                {(item.name || item.username || 'U').substring(0, 2).toUpperCase()}
+                            </div>
+                            <span className="font-bold text-slate-900">{item.name || '-'}</span>
+                        </div>
+                    );
+                },
+            },
+            {
+                header: 'Username',
+                accessorKey: 'username',
+                cell: (info) => (
+                    <span className="text-slate-600 font-medium">{info.getValue() as string}</span>
+                ),
+            },
+        ];
+
+        if (activeTab !== 'STUDENT') {
+            baseColumns.push({
+                header: 'Email',
+                accessorKey: 'email',
+                cell: (info) => <span className="text-slate-600">{info.getValue() as string}</span>,
+            });
+        }
+
+        baseColumns.push(
+            {
+                header: 'Last Login',
+                accessorKey: 'last_login',
+                cell: (info) => {
+                    const lastLogin = info.getValue() as string | undefined;
+                    return lastLogin ? (
+                        <span className="text-slate-500">
+                            {new Date(lastLogin).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                            })}
+                        </span>
+                    ) : (
+                        <span className="text-xs text-slate-400 italic">Never logged in</span>
+                    );
+                },
+            },
+            {
+                header: 'Status',
+                accessorKey: 'active',
+                cell: (info) => {
+                    const active = info.getValue() !== false;
+                    return (
+                        <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                                active
+                                    ? 'bg-green-100 text-green-700 border border-green-200'
+                                    : 'bg-red-100 text-red-700 border border-red-200'
+                            }`}
+                        >
+                            <span className={`w-2 h-2 rounded-full ${active ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                            {active ? 'Active' : 'Inactive'}
+                        </span>
+                    );
+                },
+            },
+            {
+                header: 'Actions',
+                id: 'actions',
+                cell: (info) => {
+                    const item = info.row.original;
+                    const loginId = activeTab === 'STUDENT' ? item.user_id : item.id;
+                    if (!loginId) return <span className="text-slate-400 text-xs italic">No Login</span>;
+
+                    return (
+                        <div className="flex gap-2 text-sm font-bold">
+                            <button
+                                onClick={() => handleDeactivate(loginId, item.active !== false)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all border ${
+                                    item.active !== false
+                                        ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 border-amber-200'
+                                        : 'text-green-600 bg-green-50 hover:bg-green-100 border-green-200'
+                                }`}
+                            >
+                                {item.active !== false ? '⏸' : '▶'}
+                                {item.active !== false ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                                onClick={() => handleResetClick(loginId)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                                    />
+                                </svg>
+                                Reset
+                            </button>
+                        </div>
+                    );
+                },
+            }
+        );
+
+        return baseColumns;
+    }, [activeTab, handleDeactivate, handleResetClick]);
 
     return (
         <div className="space-y-6 h-[calc(100vh-8rem)] flex flex-col">
@@ -299,128 +420,24 @@ const UserManagement: React.FC = () => {
 
                     {/* Enhanced Table */}
                     <div className="flex-1 overflow-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-slate-600 font-bold sticky top-0 border-b-2 border-slate-200 shadow-sm">
-                                <tr>
-                                    <th className="px-6 py-4 text-xs uppercase tracking-wider">Name</th>
-                                    <th className="px-6 py-4 text-xs uppercase tracking-wider">Username</th>
-                                    {activeTab !== 'STUDENT' && <th className="px-6 py-4 text-xs uppercase tracking-wider">Email</th>}
-                                    <th className="px-6 py-4 text-xs uppercase tracking-wider">Last Login</th>
-                                    <th className="px-6 py-4 text-xs uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-4 text-xs uppercase tracking-wider">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {loading ? (
-                                    <tr><td colSpan={5} className="px-6 py-16 text-center"><div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent"></div></td></tr>
-                                ) : paginatedList.length > 0 ? (
-                                    paginatedList.map((item) => (
-                                        <tr key={item.id} className="hover:bg-indigo-50 transition-colors duration-150">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl p-2.5 font-bold text-sm shadow-md">
-                                                        {(item.name || item.username || 'U').substring(0, 2).toUpperCase()}
-                                                    </div>
-                                                    <span className="font-bold text-slate-900">{item.name || '-'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-600 font-medium">
-                                                {item.username}
-                                            </td>
-                                            {activeTab !== 'STUDENT' && (
-                                                <td className="px-6 py-4 text-slate-600">{item.email}</td>
-                                            )}
-                                            <td className="px-6 py-4 text-slate-500">
-                                                {item.last_login ? new Date(item.last_login).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : <span className="text-xs text-slate-400 italic">Never logged in</span>}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${(item.active !== false) ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'
-                                                    }`}>
-                                                    <span className={`w-2 h-2 rounded-full ${(item.active !== false) ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                                    {(item.active !== false) ? 'Active' : 'Inactive'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex gap-2 text-sm font-bold">
-                                                    {/* ID Resolution: item.id is UserID for admins/teachers. For Student, item.user_id is the login ID. */}
-                                                    {(() => {
-                                                        const loginId = activeTab === 'STUDENT' ? (item as any).user_id : item.id;
-                                                        if (!loginId) return <span className="text-slate-400 text-xs italic">No Login</span>;
-
-                                                        return (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => handleDeactivate(loginId, item.active !== false)}
-                                                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all border ${item.active !== false ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 border-amber-200' : 'text-green-600 bg-green-50 hover:bg-green-100 border-green-200'}`}
-                                                                >
-                                                                    {item.active !== false ? '⏸' : '▶'}
-                                                                    {item.active !== false ? 'Deactivate' : 'Activate'}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleResetClick(loginId)}
-                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                                                                    </svg>
-                                                                    Reset
-                                                                </button>
-                                                            </>
-                                                        );
-                                                    })()}
-                                                </div>
-                                            </td>
-                                            {/* Add extra columns if data available */}
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={7} className="px-6 py-20 text-center">
-                                            <div className="flex flex-col items-center">
-                                                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-100 mb-4">
-                                                    <svg className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                                    </svg>
-                                                </div>
-                                                <p className="text-slate-500 font-medium text-lg">No {activeTab.toLowerCase().replace('_', ' ')}s found</p>
-                                                <p className="text-slate-400 text-sm mt-1">Try adjusting your search criteria</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                        <DataTable
+                            data={paginatedList}
+                            columns={columns}
+                            isLoading={loading}
+                            emptyMessage={`No ${activeTab.toLowerCase().replace('_', ' ')}s found. Try adjusting your search criteria.`}
+                        />
                     </div>
 
                     {/* Enhanced Pagination */}
                     {totalPages > 1 && (
-                        <div className="p-2 border-t-2 border-slate-200 flex justify-between items-center bg-gradient-to-r from-slate-50 to-slate-100 shrink-0">
-                            <button
-                                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                                disabled={currentPage === 1}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 border-2 border-slate-300 rounded-xl text-sm font-bold bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-md"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
-                                Previous
-                            </button>
-                            <div className="flex items-center gap-2 bg-indigo-100 px-4 py-2 rounded-xl border-2 border-indigo-200">
-                                <span className="text-sm font-bold text-indigo-900">Page {currentPage}</span>
-                                <span className="text-sm text-indigo-600">of</span>
-                                <span className="text-sm font-bold text-indigo-900">{totalPages}</span>
-                            </div>
-                            <button
-                                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                                disabled={currentPage === totalPages}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 border-2 border-slate-300 rounded-xl text-sm font-bold bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-md"
-                            >
-                                Next
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                            </button>
-                        </div>
+                        <PaginationControls
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalItems={filteredList.length}
+                            itemsPerPage={ITEMS_PER_PAGE}
+                            onPageChange={setCurrentPage}
+                            isLoading={loading}
+                        />
                     )}
                 </div>
             ) : (

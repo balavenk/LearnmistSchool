@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 const TrainFileDetails: React.FC = () => {
@@ -74,7 +75,7 @@ const TrainFileDetails: React.FC = () => {
             navigate(`/train-llm/${fileId}/progress`);
         } catch (error) {
             console.error("Training failed", error);
-            alert("Failed to initiate training.");
+            toast.error("Failed to initiate training.");
         } finally {
             setTraining(false);
         }

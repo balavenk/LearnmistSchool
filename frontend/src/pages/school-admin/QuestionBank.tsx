@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 
 interface Grade {
     id: number;
@@ -45,9 +48,37 @@ const QuestionBank: React.FC = () => {
 
     const navigate = useNavigate();
 
-    const handleSelect = (gradeId: number) => {
+    const handleSelect = useCallback((gradeId: number) => {
         navigate(`/school-admin/question-bank/${gradeId}`);
-    };
+    }, [navigate]);
+
+    // DataTable Columns
+    const columns = useMemo<ColumnDef<Grade>[]>(
+        () => [
+            {
+                accessorKey: 'name',
+                header: 'Grade Name',
+                cell: ({ row }) => (
+                    <span className="font-medium text-slate-900">{row.original.name}</span>
+                ),
+            },
+            {
+                id: 'action',
+                header: 'Action',
+                cell: ({ row }) => (
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => handleSelect(row.original.id)}
+                            className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                        >
+                            Select Grade
+                        </button>
+                    </div>
+                ),
+            },
+        ],
+        [handleSelect]
+    );
 
     return (
         <div className="space-y-6">
@@ -68,45 +99,24 @@ const QuestionBank: React.FC = () => {
                 />
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Grade Name</th>
-                            {/* <th className="px-6 py-4">Students</th> */}
-                            <th className="px-6 py-4 text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
-                        ) : paginated.map(grade => (
-                            <tr key={grade.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4 font-medium text-slate-900">{grade.name}</td>
-                                {/* <td className="px-6 py-4 text-slate-600">{grade.studentsCount || '-'}</td> */}
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => handleSelect(grade.id)}
-                                        className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-100 border border-indigo-200 transition-colors"
-                                    >
-                                        Select Grade
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {!loading && paginated.length === 0 && <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400">No grades found.</td></tr>}
-                    </tbody>
-                </table>
-                {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm">
-                        <span className="text-slate-500">Page {currentPage} of {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {/* DataTable */}
+            <DataTable
+                columns={columns}
+                data={paginated}
+                isLoading={loading}
+                emptyMessage="No grades found."
+            />
+
+            {/* Pagination */}
+            {!loading && filtered.length > 0 && totalPages > 1 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    totalItems={filtered.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                />
+            )}
         </div>
     );
 };

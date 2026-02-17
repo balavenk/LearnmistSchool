@@ -1,6 +1,9 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 
 interface Grade {
     id: number;
@@ -67,7 +70,7 @@ const GradesList: React.FC = () => {
             setNewGradeName('');
         } catch (error) {
             console.error("Failed to create grade", error);
-            alert("Failed to create grade");
+            toast.error("Failed to create grade");
         }
     };
 
@@ -98,18 +101,19 @@ const GradesList: React.FC = () => {
             setNewSectionName('');
         } catch (error) {
             console.error("Failed to add section", error);
-            alert("Failed to add section");
+            toast.error("Failed to add section");
         }
     };
 
     const handleDeleteSection = async (classId: number) => {
-        if (!confirm("Are you sure you want to delete this section?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/school-admin/classes/${classId}`);
+            toast.success('Section deleted successfully');
             if (selectedGrade) fetchSections(selectedGrade.id);
         } catch (error) {
             console.error("Failed to delete section", error);
-            alert("Failed to delete section. It may have students or assignments assigned.");
+            toast.error("Failed to delete section. It may have students or assignments assigned.");
         }
     };
 
@@ -121,6 +125,40 @@ const GradesList: React.FC = () => {
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
     const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    // DataTable Columns
+    const columns = useMemo<ColumnDef<Grade>[]>(
+        () => [
+            {
+                accessorKey: 'name',
+                header: 'Grade Name',
+                cell: ({ row }) => (
+                    <span className="font-medium text-slate-900">{row.original.name}</span>
+                ),
+            },
+            {
+                id: 'actions',
+                header: 'Actions',
+                cell: ({ row }) => (
+                    <div className="flex items-center justify-end gap-2">
+                        <button
+                            onClick={() => openSectionsModal(row.original)}
+                            className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 border border-indigo-200 rounded-full hover:bg-indigo-50"
+                        >
+                            Manage Sections
+                        </button>
+                        <button
+                            onClick={() => window.location.href = `/school-admin/grades/${row.original.id}/subjects`}
+                            className="text-emerald-600 hover:text-emerald-800 font-medium text-xs px-3 py-1 border border-emerald-200 rounded-full hover:bg-emerald-50"
+                        >
+                            Subjects
+                        </button>
+                    </div>
+                ),
+            },
+        ],
+        []
+    );
 
     return (
         <div className="space-y-6">
@@ -144,49 +182,24 @@ const GradesList: React.FC = () => {
                 />
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Grade Name</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
-                        ) : paginated.map(grade => (
-                            <tr key={grade.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4 font-medium text-slate-900">{grade.name}</td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => openSectionsModal(grade)}
-                                        className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 border border-indigo-200 rounded-full hover:bg-indigo-50 mr-2"
-                                    >
-                                        Manage Sections
-                                    </button>
-                                    <button
-                                        onClick={() => window.location.href = `/school-admin/grades/${grade.id}/subjects`}
-                                        className="text-emerald-600 hover:text-emerald-800 font-medium text-xs px-3 py-1 border border-emerald-200 rounded-full hover:bg-emerald-50"
-                                    >
-                                        Subjects
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {!loading && paginated.length === 0 && <tr><td colSpan={2} className="px-6 py-8 text-center text-slate-400">No grades found.</td></tr>}
-                    </tbody>
-                </table>
-                {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm">
-                        <span className="text-slate-500">Page {currentPage} of {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {/* DataTable */}
+            <DataTable
+                columns={columns}
+                data={paginated}
+                isLoading={loading}
+                emptyMessage="No grades found."
+            />
+
+            {/* Pagination */}
+            {!loading && filtered.length > 0 && totalPages > 1 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    totalItems={filtered.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                />
+            )}
 
             {/* Add Grade Modal */}
             {isAddGradeModalOpen && (

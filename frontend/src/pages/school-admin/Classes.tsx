@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import toast from 'react-hot-toast';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 import api from '../../api/axios';
 
 // Interfaces matching Backend Schemas
@@ -76,6 +80,52 @@ const Classes: React.FC = () => {
         return teachers.find(t => t.id === id)?.username || 'Unknown Teacher';
     };
 
+    // Column Definitions
+    const classColumns = useMemo<ColumnDef<ClassData>[]>(() => [
+        {
+            accessorKey: 'name',
+            header: 'Class Name',
+            cell: ({ row }) => (
+                <div className="flex items-center">
+                    <div className="h-8 w-8 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold mr-3 text-sm shrink-0">
+                        {row.original.section}
+                    </div>
+                    <span className="font-medium text-slate-900">{row.original.name}</span>
+                </div>
+            ),
+        },
+        {
+            id: 'grade_section',
+            header: 'Grade & Section',
+            cell: ({ row }) => (
+                <span className="text-slate-600">
+                    {getGradeName(row.original.grade_id)} - Section {row.original.section}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'class_teacher_id',
+            header: 'Teacher',
+            cell: ({ row }) => (
+                <span className="text-slate-600">{getTeacherName(row.original.class_teacher_id)}</span>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => (
+                <div className="text-right">
+                    <button
+                        onClick={() => openAssignModal(row.original.id, row.original.class_teacher_id)}
+                        className="text-sm font-medium px-3 py-1 rounded text-indigo-600 hover:bg-indigo-50"
+                    >
+                        Assign Teacher
+                    </button>
+                </div>
+            ),
+        },
+    ], [grades, teachers]);
+
     // Filter Logic
     const filteredClasses = useMemo(() => {
         return classes.filter(cls =>
@@ -104,10 +154,10 @@ const Classes: React.FC = () => {
             });
             fetchData();
             closeModal();
-            alert("Class created successfully!");
+            toast.success("Class created successfully!");
         } catch (error) {
             console.error("Failed to create class", error);
-            alert("Failed to create class.");
+            toast.error("Failed to create class.");
         }
     };
 
@@ -119,10 +169,10 @@ const Classes: React.FC = () => {
             await api.put(`/school-admin/classes/${assignClassId}/teacher/${assignTeacherId}`);
             fetchData();
             closeAssignModal();
-            alert("Teacher assigned successfully!");
+            toast.success("Teacher assigned successfully!");
         } catch (error) {
             console.error("Failed to assign teacher", error);
-            alert("Failed to assign teacher.");
+            toast.error("Failed to assign teacher.");
         }
     };
 
@@ -181,76 +231,22 @@ const Classes: React.FC = () => {
 
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
-                            <th className="px-6 py-4">Class Name</th>
-                            <th className="px-6 py-4">Grade & Section</th>
-                            <th className="px-6 py-4">Teacher</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={4} className="text-center py-8">Loading...</td></tr>
-                        ) : paginatedClasses.map((cls) => (
-                            <tr key={cls.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="px-6 py-4 font-medium text-slate-900">
-                                    <div className="flex items-center">
-                                        <div className="h-8 w-8 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold mr-3 text-sm shrink-0">
-                                            {cls.section}
-                                        </div>
-                                        {cls.name}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-slate-600">
-                                    {getGradeName(cls.grade_id)} - Section {cls.section}
-                                </td>
-                                <td className="px-6 py-4 text-slate-600">
-                                    {getTeacherName(cls.class_teacher_id)}
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => openAssignModal(cls.id, cls.class_teacher_id)}
-                                        className="text-sm font-medium px-3 py-1 rounded text-indigo-600 hover:bg-indigo-50"
-                                    >
-                                        Assign Teacher
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-
-                        {!loading && paginatedClasses.length === 0 && (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
-                                    No classes found matching your search.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                <DataTable
+                    data={paginatedClasses}
+                    columns={classColumns}
+                    isLoading={loading}
+                    emptyMessage="No classes found matching your search."
+                />
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
-                        <button
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Previous
-                        </button>
-                        <span className="text-sm text-slate-600">
-                            Page {currentPage} of {totalPages}
-                        </span>
-                        <button
-                            disabled={currentPage === totalPages}
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Next
-                        </button>
-                    </div>
+                    <PaginationControls
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        totalItems={filteredClasses.length}
+                        pageSize={ITEMS_PER_PAGE}
+                    />
                 )}
             </div>
 

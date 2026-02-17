@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import toast from 'react-hot-toast';
+import type { ColumnDef, Row } from '@tanstack/react-table';
+import { DataTable } from '../../components/DataTable';
 import api from '../../api/axios';
 
 interface SchoolAdmin {
@@ -22,6 +25,100 @@ interface School {
 }
 
 const Schools: React.FC = () => {
+    // Column Definitions - Main Schools Table
+    const schoolColumnsDefinition: ColumnDef<School>[] = useMemo(() => [
+        {
+            accessorKey: 'name',
+            header: 'School Name',
+            cell: ({ row }) => (
+                <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
+                        {row.original.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <span className="font-bold text-slate-900">{row.original.name}</span>
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'address',
+            header: 'Address',
+            cell: ({ row }) => (
+                <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="truncate">{row.original.address || 'No address'}</span>
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'statistics',
+            header: 'Statistics',
+            cell: ({ row }) => (
+                <div className="flex flex-col gap-1 items-center">
+                    <div className="flex items-center gap-1.5 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <span className="font-bold text-blue-700 text-xs">{row.original.students}</span>
+                        <span className="text-blue-600 text-xs">Students</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1 rounded-lg border border-purple-100">
+                        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span className="font-bold text-purple-700 text-xs">{row.original.teachers}</span>
+                        <span className="text-purple-600 text-xs">Teachers</span>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'active',
+            header: 'Status',
+            cell: ({ row }) => (
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                    row.original.active
+                        ? 'bg-green-100 text-green-700 border border-green-200'
+                        : 'bg-red-100 text-red-700 border border-red-200'
+                }`}>
+                    <span className={`w-2 h-2 rounded-full ${row.original.active ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    {row.original.active ? 'Active' : 'Inactive'}
+                </span>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: () => null, // Placeholder - will be rendered separately
+        },
+    ], []);
+
+    // Column Definitions - Admin Grid Table
+    const adminColumnsDefinition: ColumnDef<SchoolAdmin>[] = useMemo(() => [
+        {
+            accessorKey: 'username',
+            header: 'Username',
+            cell: ({ row }) => <span>{row.original.username}</span>,
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <span className={`px-2 py-0.5 rounded-full text-xs ${
+                    row.original.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}>
+                    {row.original.status}
+                </span>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: () => null, // Placeholder - will be rendered separately
+        },
+    ], []);
     // State
     const [schools, setSchools] = useState<School[]>([]);
     const [loading, setLoading] = useState(true);
@@ -187,7 +284,7 @@ const Schools: React.FC = () => {
                     curriculum_id: Number(selectedCurriculumId),
                     school_type_id: Number(selectedSchoolTypeId)
                 });
-                alert("School updated successfully!");
+                toast.success("School updated successfully!");
             } else {
                 // 1. Create School
                 const schoolRes = await api.post('/super-admin/schools/', {
@@ -212,10 +309,10 @@ const Schools: React.FC = () => {
                         });
                     } catch (err) {
                         console.error(`Failed to create admin ${admin.username}`, err);
-                        alert(`School created, but failed to create admin ${admin.username}. Username might be taken.`);
+                        toast(`School created, but failed to create admin ${admin.username}. Username might be taken.`, { icon: '⚠️', duration: 6000 });
                     }
                 }
-                alert("School created successfully!");
+                toast.success("School created successfully!");
             }
 
             // Refresh list
@@ -223,7 +320,7 @@ const Schools: React.FC = () => {
             closeModal();
         } catch (error) {
             console.error("Failed to save school", error);
-            alert("Failed to save school. Name might be duplicate.");
+            toast.error("Failed to save school. Name might be duplicate.");
         }
     };
 
@@ -321,69 +418,16 @@ const Schools: React.FC = () => {
                     <h3 className="text-lg font-bold text-slate-800">All Schools</h3>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50 border-b-2 border-slate-200">
-                                <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider">School Name</th>
-                                <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider hidden md:table-cell">Address</th>
-                                <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider text-center">Statistics</th>
-                                <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider">Status</th>
-                                <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {loading ? (
-                                <tr><td colSpan={5} className="text-center py-12 text-slate-400"><div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div></td></tr>
-                            ) : paginatedSchools.map((school) => (
-                                <tr key={school.id} className="hover:bg-indigo-50 transition-colors duration-150">
-                                    <td className="px-6 py-5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
-                                                {school.name.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <span className="font-bold text-slate-900">{school.name}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 hidden md:table-cell text-slate-600 text-sm max-w-xs" title={school.address}>
-                                        <div className="flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            </svg>
-                                            <span className="truncate">{school.address || "No address"}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5">
-                                        <div className="flex flex-col gap-1 items-center">
-                                            <div className="flex items-center gap-1.5 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">
-                                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                                </svg>
-                                                <span className="font-bold text-blue-700 text-xs">{school.students}</span>
-                                                <span className="text-blue-600 text-xs">Students</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1 rounded-lg border border-purple-100">
-                                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                </svg>
-                                                <span className="font-bold text-purple-700 text-xs">{school.teachers}</span>
-                                                <span className="text-purple-600 text-xs">Teachers</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5">
-                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${school.active
-                                            ? 'bg-green-100 text-green-700 border border-green-200'
-                                            : 'bg-red-100 text-red-700 border border-red-200'
-                                            }`}>
-                                            <span className={`w-2 h-2 rounded-full ${school.active ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                            {school.active ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-5 text-right">
+                    <DataTable
+                        data={paginatedSchools}
+                        columns={schoolColumnsDefinition.map((col) => {
+                            if (col.id === 'actions') {
+                                return {
+                                    ...col,
+                                    cell: ({ row }: { row: Row<School> }) => (
                                         <div className="flex items-center justify-end gap-2">
                                             <button
-                                                onClick={() => handleEditClick(school)}
+                                                onClick={() => handleEditClick(row.original)}
                                                 className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg transition-all text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200"
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -392,37 +436,25 @@ const Schools: React.FC = () => {
                                                 Edit
                                             </button>
                                             <button
-                                                onClick={() => toggleSchoolStatus(school.id)}
-                                                className={`inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg transition-all border ${school.active
-                                                    ? 'text-red-600 bg-red-50 hover:bg-red-100 border-red-200'
-                                                    : 'text-green-600 bg-green-50 hover:bg-green-100 border-green-200'
-                                                    }`}
+                                                onClick={() => toggleSchoolStatus(row.original.id)}
+                                                className={`inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg transition-all border ${
+                                                    row.original.active
+                                                        ? 'text-red-600 bg-red-50 hover:bg-red-100 border-red-200'
+                                                        : 'text-green-600 bg-green-50 hover:bg-green-100 border-green-200'
+                                                }`}
                                             >
-                                                {school.active ? '✕' : '✓'}
-                                                {school.active ? 'Deactivate' : 'Activate'}
+                                                {row.original.active ? '✕' : '✓'}
+                                                {row.original.active ? 'Deactivate' : 'Activate'}
                                             </button>
                                         </div>
-                                    </td>
-                            </tr>
-                        ))}
-
-                            {!loading && paginatedSchools.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-16 text-center">
-                                        <div className="flex flex-col items-center">
-                                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
-                                                <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                                </svg>
-                                            </div>
-                                            <p className="text-slate-500 font-medium text-lg">No schools found</p>
-                                            <p className="text-slate-400 text-sm mt-1">Try adjusting your search criteria</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                    ),
+                                };
+                            }
+                            return col;
+                        })}
+                        isLoading={loading}
+                        emptyMessage="No schools found. Try adjusting your search criteria."
+                    />
                 </div>
 
                 {/* Enhanced Pagination */}
@@ -585,44 +617,32 @@ const Schools: React.FC = () => {
 
                                     {/* Admins Grid */}
                                     <div className="border border-slate-200 rounded-lg overflow-hidden">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="bg-slate-100 text-slate-600 font-semibold">
-                                                <tr>
-                                                    <th className="px-4 py-2">Username</th>
-                                                    <th className="px-4 py-2">Status</th>
-                                                    <th className="px-4 py-2 text-right">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {newSchoolAdmins.length === 0 ? (
-                                                    <tr>
-                                                        <td colSpan={3} className="px-4 py-6 text-center text-slate-400">
-                                                            No admins added yet.
-                                                        </td>
-                                                    </tr>
-                                                ) : (
-                                                    newSchoolAdmins.map((admin) => (
-                                                        <tr key={admin.id}>
-                                                            <td className="px-4 py-2">{admin.username}</td>
-                                                            <td className="px-4 py-2">
-                                                                <span className={`px-2 py-0.5 rounded-full text-xs ${admin.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                                    {admin.status}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-4 py-2 text-right">
+                                        <DataTable
+                                            data={newSchoolAdmins}
+                                            columns={adminColumnsDefinition.map((col) => {
+                                                if (col.id === 'actions') {
+                                                    return {
+                                                        ...col,
+                                                        cell: ({ row }: { row: Row<SchoolAdmin> }) => (
+                                                            <div className="text-right">
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => toggleNewAdminStatus(admin.id!)}
-                                                                    className={`text-xs font-medium hover:underline ${admin.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}
+                                                                    onClick={() => toggleNewAdminStatus(row.original.id!)}
+                                                                    className={`text-xs font-medium hover:underline ${
+                                                                        row.original.status === 'Active' ? 'text-red-600' : 'text-green-600'
+                                                                    }`}
                                                                 >
-                                                                    {admin.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                                                    {row.original.status === 'Active' ? 'Deactivate' : 'Activate'}
                                                                 </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
+                                                            </div>
+                                                        ),
+                                                    };
+                                                }
+                                                return col;
+                                            })}
+                                            isLoading={false}
+                                            emptyMessage="No admins added yet."
+                                        />
                                     </div>
                                 </div>
                             )}

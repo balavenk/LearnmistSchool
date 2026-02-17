@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { getWebSocketUrl } from '../../config/api';
 
 const TrainProgress: React.FC = () => {
     const { fileId } = useParams<{ fileId: string }>();
@@ -13,11 +14,8 @@ const TrainProgress: React.FC = () => {
     const ws = useRef<WebSocket | null>(null);
 
     useEffect(() => {
-        // Initialize WebSocket
-        // Connect to same host as API but ws protocol
-        // Assuming API is proxied via vite or absolute URL
-        // In local dev main.py runs on localhost:8000
-        const wsUrl = `ws://localhost:8000/upload/ws/train/${fileId}`;
+        // Initialize WebSocket connection for real-time training progress
+        const wsUrl = getWebSocketUrl(`/upload/ws/train/${fileId}`);
 
         const socket = new WebSocket(wsUrl);
         ws.current = socket;

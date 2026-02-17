@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { ArrowLeft, User } from 'lucide-react';
 import api from '../../api/axios';
 
@@ -134,12 +135,12 @@ const StudentGrading: React.FC = () => {
                 answers: answersPayload
             });
 
-            alert("Grade saved successfully!");
+            toast.success("Grade saved successfully!");
             setSelectedSubmissionId(null);
             fetchSubmissions(); // Refresh list
         } catch (error) {
             console.error("Failed to save grade", error);
-            alert("Failed to save grade.");
+            toast.error("Failed to save grade.");
         }
     };
 
