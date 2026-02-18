@@ -33,6 +33,7 @@ const MyQuizzes: React.FC = () => {
     const [difficulty, setDifficulty] = useState('Medium');
     const [questionType, setQuestionType] = useState('Multiple Choice'); // MCQ, True/False, Short Answer
     const [dueDate, setDueDate] = useState('');
+    const [includeFromPDF, setIncludeFromPDF] = useState(false);
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -86,7 +87,8 @@ const MyQuizzes: React.FC = () => {
                 question_count: Number(questionCount),
                 difficulty_level: difficulty,
                 question_type: questionType,
-                due_date: dueDate ? new Date(dueDate).toISOString() : null
+                due_date: dueDate ? new Date(dueDate).toISOString() : null,
+                include_from_pdf: includeFromPDF
             });
             setShowCreateModal(false);
             resetForm();
@@ -106,6 +108,7 @@ const MyQuizzes: React.FC = () => {
         setDifficulty('Medium');
         setQuestionType('Multiple Choice');
         setDueDate('');
+        setIncludeFromPDF(false);
         navigate('/individual/quizzes'); // Ensure URL cleans up
     };
 
@@ -205,6 +208,32 @@ const MyQuizzes: React.FC = () => {
                                     placeholder="e.g. Algebra Basics"
                                 />
                             </div>
+ {/* PDF Source Checkbox */}
+                            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <div className="flex items-center h-6">
+                                        <input
+                                            type="checkbox"
+                                            checked={includeFromPDF}
+                                            onChange={(e) => setIncludeFromPDF(e.target.checked)}
+                                            className="w-5 h-5 rounded-lg border-2 border-amber-400 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-0 cursor-pointer transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                            </svg>
+                                            <span className="text-sm font-bold text-amber-900">Include from Uploaded PDF/Book</span>
+                                        </div>
+                                        <p className="text-xs text-amber-700 leading-relaxed">
+                                            {includeFromPDF 
+                                                ? '\u2713 Quiz will be generated only from uploaded PDF materials'
+                                                : '\u25cb Quiz will use open source questions (general knowledge base)'}
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
 
                             {/* Subject Typeahead */}
                             <div className="relative">
@@ -301,6 +330,7 @@ const MyQuizzes: React.FC = () => {
                                 />
                             </div>
 
+                           
                             <div className="flex justify-end space-x-3 pt-4">
                                 <button
                                     type="button"

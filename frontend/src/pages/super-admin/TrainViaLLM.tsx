@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import axios from 'axios';
 import { PAGINATION_CONFIG } from '../../config/pagination';
 import { DataTable } from '../../components/DataTable';
 import { PaginationControls } from '../../components/PaginationControls';
@@ -26,23 +27,37 @@ const TrainViaLLM: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
+    const deferredSearchQuery = useDeferredValue(searchQuery);
 
-    useEffect(() => {
-        fetchFiles();
-    }, []);
-
-    const fetchFiles = async () => {
+    const fetchFiles = useCallback(async (signal?: AbortSignal) => {
         try {
-            const response = await api.get('/upload/all-training-materials');
+            const response = await api.get('/upload/all-training-materials', { signal });
             setFiles(response.data);
-        } catch (error) {
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
             console.error("Failed to load materials", error);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const handleUpdateStatus = async (id: number, status: string) => {
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const loadFiles = async () => {
+            await fetchFiles(abortController.signal);
+        };
+
+        loadFiles();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
+    }, [fetchFiles]);
+
+    const handleUpdateStatus = useCallback(async (id: number, status: string) => {
         try {
             await api.put(`/upload/training-material/${id}/status`, { file_status: status });
             // Refresh list or optimistic update
@@ -51,9 +66,9 @@ const TrainViaLLM: React.FC = () => {
             console.error("Failed to update status", error);
             toast.error("Failed to update status");
         }
-    };
+    }, []);
 
-    const handleDownload = async (file: PdfFile) => {
+    const handleDownload = useCallback(async (file: PdfFile) => {
         try {
             const response = await api.get(`/upload/training-material/${file.id}/download`, {
                 responseType: 'blob'
@@ -77,21 +92,28 @@ const TrainViaLLM: React.FC = () => {
             console.error("Download failed", error);
             toast.error("Failed to download file");
         }
-    };
+    }, []);
 
-    const filteredFiles = files.filter(f => {
-        const matchesTab = activeTab === 'NOT_TRAINED'
-            ? (f.file_status === 'Uploaded' || f.file_status === 'Skipped' || f.file_status === 'Processing')
-            : f.file_status === 'Trained';
-        
-        const matchesSearch = searchQuery === '' || 
-            f.original_filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            f.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            f.school_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            f.grade_name.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        return matchesTab && matchesSearch;
-    });
+    const filteredFiles = useMemo(() => {
+        return files.filter(f => {
+            const matchesTab = activeTab === 'NOT_TRAINED'
+                ? (f.file_status === 'Uploaded' || f.file_status === 'Skipped' || f.file_status === 'Processing')
+                : f.file_status === 'Trained';
+            
+            const matchesSearch = deferredSearchQuery === '' || 
+                f.original_filename.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
+                f.subject_name.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
+                f.school_name.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
+                f.grade_name.toLowerCase().includes(deferredSearchQuery.toLowerCase());
+            
+            return matchesTab && matchesSearch;
+        });
+    }, [files, activeTab, deferredSearchQuery]);
+
+    const isFilterLoading = useMemo(
+        () => searchQuery !== deferredSearchQuery,
+        [searchQuery, deferredSearchQuery]
+    );
 
     const totalPages = Math.ceil(filteredFiles.length / PAGINATION_CONFIG.TRAINING_FILES_PER_PAGE);
     const paginatedFiles = useMemo(() => {
@@ -99,9 +121,20 @@ const TrainViaLLM: React.FC = () => {
         return filteredFiles.slice(startIndex, startIndex + PAGINATION_CONFIG.TRAINING_FILES_PER_PAGE);
     }, [filteredFiles, currentPage]);
 
-    useEffect(() => {
+    const handleTabChange = useCallback((tab: 'NOT_TRAINED' | 'TRAINED') => {
+        setActiveTab(tab);
         setCurrentPage(1);
-    }, [activeTab, searchQuery]);
+    }, []);
+
+    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchQuery(e.target.value);
+        setCurrentPage(1);
+    }, []);
+
+    const handleClearSearch = useCallback(() => {
+        setSearchQuery('');
+        setCurrentPage(1);
+    }, []);
 
     // DataTable Columns
     const columns = useMemo<ColumnDef<PdfFile>[]>(
@@ -219,7 +252,7 @@ const TrainViaLLM: React.FC = () => {
                 ),
             },
         ],
-        [activeTab, navigate]
+        [activeTab, navigate, handleDownload, handleUpdateStatus]
     );
 
     return (
@@ -259,7 +292,7 @@ const TrainViaLLM: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
                 <div className="flex border-b-2 border-slate-200">
                     <button
-                        onClick={() => setActiveTab('NOT_TRAINED')}
+                        onClick={() => handleTabChange('NOT_TRAINED')}
                         className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${
                             activeTab === 'NOT_TRAINED'
                                 ? 'border-indigo-600 bg-white text-indigo-600 shadow-sm'
@@ -277,7 +310,7 @@ const TrainViaLLM: React.FC = () => {
                         </div>
                     </button>
                     <button
-                        onClick={() => setActiveTab('TRAINED')}
+                        onClick={() => handleTabChange('TRAINED')}
                         className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${
                             activeTab === 'TRAINED'
                                 ? 'border-indigo-600 bg-white text-indigo-600 shadow-sm'
@@ -306,12 +339,12 @@ const TrainViaLLM: React.FC = () => {
                             type="text"
                             placeholder="Search by filename, subject, school, or grade..."
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={handleSearchChange}
                             className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 placeholder-slate-400"
                         />
                         {searchQuery && (
                             <button
-                                onClick={() => setSearchQuery('')}
+                                onClick={handleClearSearch}
                                 className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -330,7 +363,7 @@ const TrainViaLLM: React.FC = () => {
             <DataTable
                 columns={columns}
                 data={paginatedFiles}
-                isLoading={loading}
+                isLoading={loading || isFilterLoading}
                 emptyMessage={searchQuery ? 'No files found matching your search' : 'No files found in this category'}
             />
 
@@ -342,6 +375,7 @@ const TrainViaLLM: React.FC = () => {
                     onPageChange={setCurrentPage}
                     totalItems={filteredFiles.length}
                     itemsPerPage={PAGINATION_CONFIG.TRAINING_FILES_PER_PAGE}
+                    isLoading={isFilterLoading}
                 />
             )}
         </div>

@@ -74,21 +74,40 @@ const SuperAdminDashboard: React.FC = () => {
   );
 
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     const fetchStats = async () => {
       try {
         // We need to import api here or assume it's available via context/props?
         // Assuming standard import pattern.
         const response = await import("../api/axios").then((m) =>
-          m.default.get("/super-admin/stats"),
+          m.default.get("/super-admin/stats", {
+            signal: abortController.signal
+          })
         );
-        setStats(response.data);
-      } catch (error) {
+        if (isMounted) {
+          setStats(response.data);
+        }
+      } catch (error: any) {
+        if (error.name === 'AbortError' || error.name === 'CanceledError') {
+          // Silently ignore canceled requests (navigation away from page)
+          return;
+        }
         console.error("Failed to fetch dashboard stats", error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
+    
     fetchStats();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
   if (loading) {

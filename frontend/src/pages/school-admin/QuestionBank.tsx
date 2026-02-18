@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useNavigate } from 'react-router-dom';
-import api from '../../api/axios';
-import { DataTable } from '../../components/DataTable';
+import api from '../../api/axios';import axios from 'axios';import { DataTable } from '../../components/DataTable';
 import { PaginationControls } from '../../components/PaginationControls';
 
 interface Grade {
@@ -13,6 +12,7 @@ interface Grade {
 }
 
 const QuestionBank: React.FC = () => {
+    const navigate = useNavigate();
     const [grades, setGrades] = useState<Grade[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -21,32 +21,49 @@ const QuestionBank: React.FC = () => {
     const ITEMS_PER_PAGE = 8;
 
     useEffect(() => {
-        fetchGrades();
-    }, []);
+        const abortController = new AbortController();
+        let isMounted = true;
 
-    const fetchGrades = async () => {
-        try {
-            setLoading(true);
-            const res = await api.get('/school-admin/grades/');
-            // The API returns a list of Grade objects { id, name, school_id }
-            setGrades(res.data);
-        } catch (error) {
-            console.error("Failed to fetch grades", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        const fetchGrades = async () => {
+            try {
+                setLoading(true);
+                const res = await api.get('/school-admin/grades/', { signal: abortController.signal });
+                
+                if (isMounted) {
+                    setGrades(res.data);
+                }
+            } catch (error: any) {
+                // Silently ignore canceled requests (navigation away from page)
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') {
+                    return;
+                }
+                if (isMounted) {
+                    console.error("Failed to fetch grades", error);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchGrades();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
+    }, []);
 
     const filtered = useMemo(() => {
         return grades.filter(g =>
-            g.name.toLowerCase().includes(searchTerm.toLowerCase())
+            g?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) ?? false
         );
     }, [grades, searchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
     const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    const navigate = useNavigate();
 
     const handleSelect = useCallback((gradeId: number) => {
         navigate(`/school-admin/question-bank/${gradeId}`);

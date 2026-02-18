@@ -25,6 +25,11 @@ api.interceptors.response.use(
         return response;
     },
     (error) => {
+        // Don't log canceled/aborted requests
+        if (axios.isCancel(error) || error.code === 'ERR_CANCELED' || error.message === 'canceled') {
+            return Promise.reject(error);
+        }
+        
         console.error(`❌ [Error] ${error.response?.status} ${error.config?.url}`, error.response?.data || error.message);
 
         if (error.response && error.response.status === 401) {

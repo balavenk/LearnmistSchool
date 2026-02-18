@@ -76,7 +76,7 @@ const App: React.FC = () => {
 
         {/* Protected Routes */}
         {/* Wrapped in Layout */}
-        <Route path="/" element={<DashboardLayout><Outlet /></DashboardLayout>}>
+        <Route path="/" element={<DashboardLayout />}>
           {/* SUPER ADMIN */}
           <Route path="super-admin" element={<SuperAdminDashboard />} />
           <Route path="schools" element={<Schools />} />

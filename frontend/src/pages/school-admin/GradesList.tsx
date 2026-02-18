@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import axios from 'axios';
 import { DataTable } from '../../components/DataTable';
 import { PaginationControls } from '../../components/PaginationControls';
 
@@ -37,18 +38,44 @@ const GradesList: React.FC = () => {
     const ITEMS_PER_PAGE = 8;
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchGrades = async () => {
+            try {
+                setLoading(true);
+                const res = await api.get('/school-admin/grades/', { signal: abortController.signal });
+                if (isMounted) {
+                    setGrades(res.data);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) {
+                    console.error("Failed to fetch grades", error);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
         fetchGrades();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
-    const fetchGrades = async () => {
+    // Refetch function for use after mutations
+    const refetchGrades = async () => {
         try {
-            setLoading(true);
             const res = await api.get('/school-admin/grades/');
             setGrades(res.data);
-        } catch (error) {
-            console.error("Failed to fetch grades", error);
-        } finally {
-            setLoading(false);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch grades", error);
         }
     };
 
@@ -65,7 +92,7 @@ const GradesList: React.FC = () => {
         e.preventDefault();
         try {
             await api.post('/school-admin/grades/', { name: newGradeName });
-            fetchGrades();
+            refetchGrades();
             setIsAddGradeModalOpen(false);
             setNewGradeName('');
         } catch (error) {
@@ -119,12 +146,17 @@ const GradesList: React.FC = () => {
 
     const filtered = useMemo(() => {
         return grades.filter(g =>
-            g.name.toLowerCase().includes(searchTerm.toLowerCase())
+            g?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) ?? false
         );
     }, [grades, searchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    
+    const paginated = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        return filtered.slice(start, end);
+    }, [filtered, currentPage]);
 
     // DataTable Columns
     const columns = useMemo<ColumnDef<Grade>[]>(

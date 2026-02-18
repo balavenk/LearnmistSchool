@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useTransition, useDeferredValue } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import toast from 'react-hot-toast';
 import { DataTable } from '../../components/DataTable';
 import { PaginationControls } from '../../components/PaginationControls';
 import api from '../../api/axios';
+import axios from 'axios';
 
 // Interfaces matching Backend Schemas
 interface ClassData {
@@ -35,6 +36,10 @@ const Classes: React.FC = () => {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [, startTransition] = useTransition();
+    
+    // Use deferred value for expensive filtering - React 18 feature
+    const deferredSearchTerm = useDeferredValue(searchTerm);
 
     // Create Class Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,35 +55,87 @@ const Classes: React.FC = () => {
 
     const ITEMS_PER_PAGE = 8;
 
-    // Fetch Data
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-            const [classesRes, gradesRes, teachersRes] = await Promise.all([
-                api.get('/school-admin/classes/'),
-                api.get('/school-admin/grades/'),
-                api.get('/school-admin/teachers/')
-            ]);
-            setClasses(classesRes.data);
-            setGrades(gradesRes.data);
-            setTeachers(teachersRes.data);
-        } catch (error) {
-            console.error("Failed to fetch class data", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Debug: Log when modal state changes
+    useEffect(() => {
+        console.log('Create Class Modal state:', isModalOpen);
+    }, [isModalOpen]);
 
     useEffect(() => {
+        console.log('Assign Teacher Modal state:', isAssignModalOpen);
+    }, [isAssignModalOpen]);
+
+    // Fetch Data
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const [classesRes, gradesRes, teachersRes] = await Promise.all([
+                    api.get('/school-admin/classes/', { signal: abortController.signal }),
+                    api.get('/school-admin/grades/', { signal: abortController.signal }),
+                    api.get('/school-admin/teachers/', { signal: abortController.signal })
+                ]);
+                
+                if (isMounted) {
+                    setClasses(classesRes.data);
+                    setGrades(gradesRes.data);
+                    setTeachers(teachersRes.data);
+                }
+            } catch (error: any) {
+                // Silently ignore canceled requests (navigation away from page)
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') {
+                    return;
+                }
+                if (isMounted) {
+                    console.error("Failed to fetch class data", error);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
         fetchData();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
-    // Helper Lookups
-    const getGradeName = (id: number) => grades.find(g => g.id === id)?.name || 'Unknown Grade';
-    const getTeacherName = (id?: number | null) => {
+    // Create efficient lookup maps - O(1) instead of O(n)
+    const gradeMap = useMemo(() => {
+        const map = new Map<number, string>();
+        grades.forEach(g => map.set(g.id, g.name));
+        return map;
+    }, [grades]);
+
+    const teacherMap = useMemo(() => {
+        const map = new Map<number, string>();
+        teachers.forEach(t => map.set(t.id, t.username));
+        return map;
+    }, [teachers]);
+
+    // Helper Lookups - Using maps for O(1) performance
+    const getGradeName = useCallback((id: number) => {
+        return gradeMap.get(id) || 'Unknown Grade';
+    }, [gradeMap]);
+    
+    const getTeacherName = useCallback((id?: number | null) => {
         if (!id) return 'Unassigned';
-        return teachers.find(t => t.id === id)?.username || 'Unknown Teacher';
-    };
+        return teacherMap.get(id) || 'Unknown Teacher';
+    }, [teacherMap]);
+
+    // Handler - defined before columns
+    const openAssignModal = useCallback((classId: number, currentTeacherId?: number | null) => {
+        console.log('Assign Teacher button clicked for class:', classId);
+        setAssignClassId(classId);
+        setAssignTeacherId(currentTeacherId || '');
+        setIsAssignModalOpen(true);
+    }, []);
 
     // Column Definitions
     const classColumns = useMemo<ColumnDef<ClassData>[]>(() => [
@@ -124,63 +181,59 @@ const Classes: React.FC = () => {
                 </div>
             ),
         },
-    ], [grades, teachers]);
+    ], [getGradeName, getTeacherName, openAssignModal]);
 
-    // Filter Logic
+    // Filter Logic - Optimized to avoid repeated function calls
     const filteredClasses = useMemo(() => {
-        return classes.filter(cls =>
-            cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            getTeacherName(cls.class_teacher_id).toLowerCase().includes(searchTerm.toLowerCase()) ||
-            getGradeName(cls.grade_id).toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [classes, searchTerm, grades, teachers]);
+        if (!deferredSearchTerm.trim()) return classes;
+        
+        const search = deferredSearchTerm.toLowerCase();
+        return classes.filter(cls => {
+            if (!cls) return false;
+            
+            // Check class name
+            if (cls.name?.toLowerCase()?.includes(search)) return true;
+            
+            // Check teacher name using map
+            const teacherName = cls.class_teacher_id ? 
+                (teacherMap.get(cls.class_teacher_id) || '').toLowerCase() : 'unassigned';
+            if (teacherName.includes(search)) return true;
+            
+            // Check grade name using map
+            const gradeName = (gradeMap.get(cls.grade_id) || '').toLowerCase();
+            if (gradeName.includes(search)) return true;
+            
+            return false;
+        });
+    }, [classes, deferredSearchTerm, teacherMap, gradeMap]);
 
     // Pagination Logic
     const totalPages = Math.ceil(filteredClasses.length / ITEMS_PER_PAGE);
-    const paginatedClasses = filteredClasses.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    
+    const paginatedClasses = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        return filteredClasses.slice(start, end);
+    }, [filteredClasses, currentPage]);
 
-    // Handlers
-    const handleCreateClass = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // Memoize filter loading state to prevent unnecessary re-renders
+    const isFilterLoading = useMemo(() => searchTerm !== deferredSearchTerm, [searchTerm, deferredSearchTerm]);
+
+    // Refetch function for handlers
+    const refetchData = useCallback(async () => {
         try {
-            await api.post('/school-admin/classes/', {
-                name: newClassName,
-                section: newSection,
-                grade_id: Number(selectedGradeId),
-                class_teacher_id: selectedTeacherId ? Number(selectedTeacherId) : null
-            });
-            fetchData();
-            closeModal();
-            toast.success("Class created successfully!");
+            const [classesRes, gradesRes, teachersRes] = await Promise.all([
+                api.get('/school-admin/classes/'),
+                api.get('/school-admin/grades/'),
+                api.get('/school-admin/teachers/')
+            ]);
+            setClasses(classesRes.data);
+            setGrades(gradesRes.data);
+            setTeachers(teachersRes.data);
         } catch (error) {
-            console.error("Failed to create class", error);
-            toast.error("Failed to create class.");
+            console.error("Failed to refetch class data", error);
         }
-    };
-
-    const handleAssignTeacher = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!assignClassId || !assignTeacherId) return;
-        try {
-            // PUT /classes/{class_id}/teacher/{teacher_id}
-            await api.put(`/school-admin/classes/${assignClassId}/teacher/${assignTeacherId}`);
-            fetchData();
-            closeAssignModal();
-            toast.success("Teacher assigned successfully!");
-        } catch (error) {
-            console.error("Failed to assign teacher", error);
-            toast.error("Failed to assign teacher.");
-        }
-    };
-
-    const openAssignModal = (classId: number, currentTeacherId?: number | null) => {
-        setAssignClassId(classId);
-        setAssignTeacherId(currentTeacherId || '');
-        setIsAssignModalOpen(true);
-    };
+    }, []);
 
     const closeModal = () => {
         setIsModalOpen(false);
@@ -196,6 +249,73 @@ const Classes: React.FC = () => {
         setAssignTeacherId('');
     };
 
+    // Memoized search handler to prevent unnecessary re-renders
+    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setSearchTerm(value);
+        // Reset page in a transition to keep UI responsive
+        startTransition(() => {
+            setCurrentPage(1);
+        });
+    }, []);
+
+    // Memoized clear handler for better performance
+    const handleClearSearch = useCallback(() => {
+        setSearchTerm('');
+        startTransition(() => {
+            setCurrentPage(1);
+        });
+    }, []);
+
+    // Memoized modal handlers to prevent performance issues
+    const handleOpenModal = useCallback(() => {
+        console.log('Add New Class button clicked');
+        setIsModalOpen(true);
+    }, []);
+
+    // Handlers
+    const handleCreateClass = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedGradeId) {
+            toast.error("Please select a grade");
+            return;
+        }
+        try {
+            await api.post('/school-admin/classes/', {
+                name: newClassName,
+                section: newSection,
+                grade_id: Number(selectedGradeId),
+                class_teacher_id: selectedTeacherId ? Number(selectedTeacherId) : null
+            });
+            await refetchData();
+            closeModal();
+            toast.success("Class created successfully!");
+        } catch (error: any) {
+            console.error("Failed to create class", error);
+            const errorMsg = error?.response?.data?.detail || "Failed to create class.";
+            toast.error(errorMsg);
+        }
+    };
+
+    const handleAssignTeacher = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!assignClassId || !assignTeacherId) {
+            toast.error("Please select a teacher");
+            return;
+        }
+        try {
+            // PUT /classes/{class_id}/teacher/{teacher_id}
+            await api.put(`/school-admin/classes/${assignClassId}/teacher/${assignTeacherId}`);
+            await refetchData();
+            closeAssignModal();
+            toast.success("Teacher assigned successfully!");
+        } catch (error: any) {
+            console.error("Failed to assign teacher", error);
+            const errorMsg = error?.response?.data?.detail || "Failed to assign teacher.";
+            toast.error(errorMsg);
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -205,7 +325,7 @@ const Classes: React.FC = () => {
                     <p className="text-slate-500 mt-1">Manage all classes, sections, and assigned teachers.</p>
                 </div>
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={handleOpenModal}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg shadow-sm font-medium transition-colors flex items-center"
                 >
                     <span className="mr-2 text-xl leading-none">+</span> Add New Class
@@ -219,10 +339,19 @@ const Classes: React.FC = () => {
                         type="text"
                         placeholder="Search classes or teachers..."
                         value={searchTerm}
-                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                        className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        onChange={handleSearchChange}
+                        className="w-full pl-10 pr-10 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     />
                     <span className="absolute left-3 top-2.5 text-slate-400">🔍</span>
+                    {searchTerm && (
+                        <button
+                            onClick={handleClearSearch}
+                            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors"
+                            aria-label="Clear search"
+                        >
+                            ✕
+                        </button>
+                    )}
                 </div>
                 <div className="text-sm text-slate-500">
                     Showing <span className="font-semibold">{filteredClasses.length}</span> classes
@@ -234,7 +363,7 @@ const Classes: React.FC = () => {
                 <DataTable
                     data={paginatedClasses}
                     columns={classColumns}
-                    isLoading={loading}
+                    isLoading={loading || isFilterLoading}
                     emptyMessage="No classes found matching your search."
                 />
 
@@ -245,18 +374,34 @@ const Classes: React.FC = () => {
                         totalPages={totalPages}
                         onPageChange={setCurrentPage}
                         totalItems={filteredClasses.length}
-                        pageSize={ITEMS_PER_PAGE}
+                        itemsPerPage={ITEMS_PER_PAGE}
+                        isLoading={isFilterLoading}
                     />
                 )}
             </div>
 
             {/* Create Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 my-8 animate-in fade-in zoom-in duration-200">
+                <div 
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black bg-opacity-50"
+                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) closeModal();
+                    }}
+                >
+                    <div 
+                        className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-slate-900">Add New Class</h2>
-                            <button onClick={closeModal} className="text-slate-400 hover:text-slate-600">✕</button>
+                            <button 
+                                type="button"
+                                onClick={closeModal} 
+                                className="text-slate-400 hover:text-slate-600 text-2xl leading-none w-8 h-8 flex items-center justify-center"
+                            >
+                                ✕
+                            </button>
                         </div>
 
                         <form onSubmit={handleCreateClass} className="space-y-4">
@@ -276,7 +421,10 @@ const Classes: React.FC = () => {
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
                                     <select
                                         value={selectedGradeId}
-                                        onChange={(e) => setSelectedGradeId(Number(e.target.value))}
+                                        onChange={(e) => {
+                                            const val = e.target.value ? Number(e.target.value) : '';
+                                            setSelectedGradeId(val);
+                                        }}
                                         required
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                     >
@@ -302,7 +450,10 @@ const Classes: React.FC = () => {
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Class Teacher (Optional)</label>
                                 <select
                                     value={selectedTeacherId}
-                                    onChange={(e) => setSelectedTeacherId(Number(e.target.value))}
+                                    onChange={(e) => {
+                                        const val = e.target.value ? Number(e.target.value) : '';
+                                        setSelectedTeacherId(val);
+                                    }}
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                 >
                                     <option value="">Unassigned</option>
@@ -323,18 +474,36 @@ const Classes: React.FC = () => {
 
             {/* Assign Teacher Modal */}
             {isAssignModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
-                    <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 animate-in fade-in zoom-in duration-200">
+                <div 
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black bg-opacity-50"
+                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) closeAssignModal();
+                    }}
+                >
+                    <div 
+                        className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-slate-900">Assign Teacher</h2>
-                            <button onClick={closeAssignModal} className="text-slate-400 hover:text-slate-600">✕</button>
+                            <button 
+                                type="button"
+                                onClick={closeAssignModal} 
+                                className="text-slate-400 hover:text-slate-600 text-2xl leading-none w-8 h-8 flex items-center justify-center"
+                            >
+                                ✕
+                            </button>
                         </div>
                         <form onSubmit={handleAssignTeacher} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Select Teacher</label>
                                 <select
                                     value={assignTeacherId}
-                                    onChange={(e) => setAssignTeacherId(Number(e.target.value))}
+                                    onChange={(e) => {
+                                        const val = e.target.value ? Number(e.target.value) : '';
+                                        setAssignTeacherId(val);
+                                    }}
                                     required
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                 >

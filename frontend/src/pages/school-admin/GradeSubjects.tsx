@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import axios from 'axios';
 
 interface Subject {
     id: number;
@@ -26,42 +27,46 @@ const GradeSubjects: React.FC = () => {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const [subjectsRes, gradeRes, gradesRes] = await Promise.all([
+                    api.get('/school-admin/subjects/', { signal: abortController.signal }),
+                    api.get(`/school-admin/grades/${gradeId}/subjects`, { signal: abortController.signal }),
+                    api.get('/school-admin/grades/', { signal: abortController.signal })
+                ]);
+
+                if (isMounted) {
+                    setAllSubjects(subjectsRes.data);
+                    const currentSubjects: Subject[] = gradeRes.data;
+                    const foundGrade = gradesRes.data.find((g: any) => g.id === parseInt(gradeId!));
+
+                    setGrade({ ...foundGrade, subjects: currentSubjects });
+                    setSelectedSubjectIds(currentSubjects.map(s => s.id));
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) {
+                    console.error("Failed to fetch data", error);
+                    toast.error("Failed to load data");
+                }
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
         if (gradeId) {
             fetchData();
         }
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, [gradeId]);
-
-    const fetchData = async () => {
-        setLoading(true);
-        try {
-            // Fetch All Subjects
-            const subjectsRes = await api.get('/school-admin/subjects/');
-            setAllSubjects(subjectsRes.data);
-
-            // Fetch Grade Subjects
-            const gradeRes = await api.get(`/school-admin/grades/${gradeId}/subjects`);
-            // Assuming this endpoint returns list of subjects associated with the grade
-            const currentSubjects: Subject[] = gradeRes.data;
-
-            // Getting grade details might require separate endpoint or we just assume IDs if not returned
-            // Let's assume we can get grade name from previous screen or fetch it.
-            // For now, let's just use the ID or fetch grade details if we had an endpoint.
-            // Since we don't have a direct "get grade" endpoint in the snippets viewed, 
-            // I'll fetch lists and filter (not efficient but checking snippets).
-            // Actually, I can fetch grades list and find.
-            const gradesRes = await api.get('/school-admin/grades/');
-            const foundGrade = gradesRes.data.find((g: any) => g.id === parseInt(gradeId!));
-
-            setGrade({ ...foundGrade, subjects: currentSubjects });
-            setSelectedSubjectIds(currentSubjects.map(s => s.id));
-
-        } catch (error) {
-            console.error("Failed to fetch data", error);
-            toast.error("Failed to load data");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleToggleSubject = (subjectId: number) => {
         setSelectedSubjectIds(prev =>

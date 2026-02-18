@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
 import toast from 'react-hot-toast';
 import type { ColumnDef } from '@tanstack/react-table';
 import api from '../../api/axios';
 import { DataTable } from '../../components/DataTable';
 import { PaginationControls } from '../../components/PaginationControls';
+import axios from 'axios';
 
 // --- Types ---
 type UserRole = 'SCHOOL_ADMIN' | 'TEACHER' | 'STUDENT';
@@ -49,21 +50,38 @@ const UserManagement: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(false);
+    
+    // Use deferred value for expensive filtering - React 18 feature
+    const deferredSearchTerm = useDeferredValue(searchTerm);
 
     // --- Constants ---
     const ITEMS_PER_PAGE = 10;
 
     // --- Fetch Schools ---
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+        
         const fetchSchools = async () => {
             try {
-                const res = await api.get('/super-admin/schools/');
-                setSchools(res.data);
-            } catch (err) {
-                console.error("Failed to fetch schools", err);
+                const res = await api.get('/super-admin/schools/', { signal: abortController.signal });
+                if (isMounted) {
+                    setSchools(res.data);
+                }
+            } catch (err: any) {
+                if (axios.isCancel(err) || err?.code === 'ERR_CANCELED') return;
+                if (isMounted) {
+                    console.error("Failed to fetch schools", err);
+                }
             }
         };
+        
         fetchSchools();
+        
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
     // --- Fetch Users/Students when School or Tab changes ---
@@ -74,26 +92,48 @@ const UserManagement: React.FC = () => {
             return;
         }
 
+        const abortController = new AbortController();
+        let isMounted = true;
+
         const fetchData = async () => {
-            setLoading(true);
+            if (isMounted) {
+                setLoading(true);
+            }
             try {
                 if (activeTab === 'STUDENT') {
-                    const res = await api.get(`/super-admin/schools/${selectedSchoolId}/students`);
-                    setStudents(res.data);
+                    const res = await api.get(`/super-admin/schools/${selectedSchoolId}/students`, {
+                        signal: abortController.signal
+                    });
+                    if (isMounted) {
+                        setStudents(res.data);
+                    }
                 } else {
                     const res = await api.get(`/super-admin/schools/${selectedSchoolId}/users`, {
-                        params: { role: activeTab }
+                        params: { role: activeTab },
+                        signal: abortController.signal
                     });
-                    setUsers(res.data);
+                    if (isMounted) {
+                        setUsers(res.data);
+                    }
                 }
-            } catch (err) {
-                console.error("Failed to fetch data", err);
+            } catch (err: any) {
+                if (axios.isCancel(err) || err?.code === 'ERR_CANCELED') return;
+                if (isMounted) {
+                    console.error("Failed to fetch data", err);
+                }
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchData();
+        
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, [selectedSchoolId, activeTab]);
 
     // --- Derived State ---
@@ -101,38 +141,49 @@ const UserManagement: React.FC = () => {
         let list: any[] = activeTab === 'STUDENT' ? students : users;
 
         return list.filter(item => {
-            const searchLower = searchTerm.toLowerCase();
+            const searchLower = deferredSearchTerm.toLowerCase();
             const name = (item.name || item.username || '').toLowerCase();
             const email = (item.email || '').toLowerCase();
             return name.includes(searchLower) || email.includes(searchLower);
         });
-    }, [users, students, activeTab, searchTerm]);
+    }, [users, students, activeTab, deferredSearchTerm]);
+
+    // Memoize filter loading state to prevent unnecessary re-renders
+    const isFilterLoading = useMemo(() => searchTerm !== deferredSearchTerm, [searchTerm, deferredSearchTerm]);
 
     const totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE);
-    const paginatedList = filteredList.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    
+    const paginatedList = useMemo(() => {
+        return filteredList.slice(
+            (currentPage - 1) * ITEMS_PER_PAGE,
+            currentPage * ITEMS_PER_PAGE
+        );
+    }, [filteredList, currentPage]);
 
     // --- Handlers ---
-    const handleTabChange = (tab: UserRole) => {
+    const handleTabChange = useCallback((tab: UserRole) => {
         setActiveTab(tab);
         setCurrentPage(1); // Reset page on tab change
         setSearchTerm(''); // Reset search
-    };
+    }, []);
 
-    const handleSchoolChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const handleSchoolChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
         setSelectedSchoolId(Number(e.target.value));
         setCurrentPage(1);
         setSearchTerm('');
-    };
+    }, []);
+    
+    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1);
+    }, []);
 
     // --- Action Handlers ---
     const [resetModalOpen, setResetModalOpen] = useState(false);
     const [selectedUserForReset, setSelectedUserForReset] = useState<number | null>(null);
     const [newPassword, setNewPassword] = useState('');
 
-    const handleDeactivate = async (userId: number, currentStatus: boolean) => {
+    const handleDeactivate = useCallback(async (userId: number, currentStatus: boolean) => {
         if (!userId) {
             toast("No user linked to this record.", { icon: '⚠️' });
             return;
@@ -177,9 +228,9 @@ const UserManagement: React.FC = () => {
             console.error("Action failed", error);
             toast.error("Failed to update status.");
         }
-    };
+    }, [activeTab, selectedSchoolId]);
 
-    const handleResetClick = (userId: number) => {
+    const handleResetClick = useCallback((userId: number) => {
         if (!userId) {
             toast("No user login linked.", { icon: '⚠️' });
             return;
@@ -187,9 +238,9 @@ const UserManagement: React.FC = () => {
         setSelectedUserForReset(userId);
         setNewPassword('');
         setResetModalOpen(true);
-    };
+    }, []);
 
-    const handleSavePassword = async () => {
+    const handleSavePassword = useCallback(async () => {
         if (!selectedUserForReset || !newPassword) return;
         try {
             await api.post(`/super-admin/users/${selectedUserForReset}/reset-password`, { password: newPassword });
@@ -201,7 +252,7 @@ const UserManagement: React.FC = () => {
             console.error("Reset failed", error);
             toast.error("Failed to reset password.");
         }
-    };
+    }, [selectedUserForReset, newPassword]);
 
     const columns: ColumnDef<any>[] = useMemo(() => {
         const baseColumns: ColumnDef<any>[] = [
@@ -405,7 +456,7 @@ const UserManagement: React.FC = () => {
                                 type="text"
                                 placeholder={`Search ${activeTab === 'SCHOOL_ADMIN' ? 'admins' : activeTab === 'TEACHER' ? 'teachers' : 'students'} by name or email...`}
                                 value={searchTerm}
-                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                                onChange={handleSearchChange}
                                 className="w-full pl-12 pr-4 py-2 border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-all"
                             />
                         </div>
@@ -423,7 +474,7 @@ const UserManagement: React.FC = () => {
                         <DataTable
                             data={paginatedList}
                             columns={columns}
-                            isLoading={loading}
+                            isLoading={loading || isFilterLoading}
                             emptyMessage={`No ${activeTab.toLowerCase().replace('_', ' ')}s found. Try adjusting your search criteria.`}
                         />
                     </div>
@@ -436,7 +487,7 @@ const UserManagement: React.FC = () => {
                             totalItems={filteredList.length}
                             itemsPerPage={ITEMS_PER_PAGE}
                             onPageChange={setCurrentPage}
-                            isLoading={loading}
+                            isLoading={loading || isFilterLoading}
                         />
                     )}
                 </div>

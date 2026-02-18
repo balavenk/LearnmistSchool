@@ -29,7 +29,7 @@ interface SubjectOption {
 
 const TeacherAssignments: React.FC = () => {
     const [assignments, setAssignments] = useState<Assignment[]>([]);
-    const [classes, setClasses] = useState<ClassOption[]>([]);
+    const [grades, setGrades] = useState<ClassOption[]>([]);
     const [subjects, setSubjects] = useState<SubjectOption[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -41,8 +41,9 @@ const TeacherAssignments: React.FC = () => {
     const [newTitle, setNewTitle] = useState('');
     const [newDesc, setNewDesc] = useState('');
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
-    const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
+    const [selectedGrade, setSelectedGrade] = useState<string>('');
     const [newDueDate, setNewDueDate] = useState('');
+    const [includeFromPDF, setIncludeFromPDF] = useState(false);
 
     // Form State (AI)
     const [aiTopic, setAiTopic] = useState('');
@@ -52,20 +53,20 @@ const TeacherAssignments: React.FC = () => {
     const [aiQuestionType, setAiQuestionType] = useState('Multiple Choice');
     const [aiDueDate, setAiDueDate] = useState('');
     const [aiSubjectId, setAiSubjectId] = useState<number | ''>('');
-    const [aiClassId, setAiClassId] = useState<number | ''>('');
+    const [aiIncludeFromPDF, setAiIncludeFromPDF] = useState(false);
 
 
     // Fetch Data
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [assignmentsRes, classesRes, subjectsRes] = await Promise.all([
+            const [assignmentsRes, gradesRes, subjectsRes] = await Promise.all([
                 api.get('/teacher/assignments/'),
-                api.get('/teacher/classes/'),
+                api.get('/teacher/grades/'),
                 api.get('/teacher/subjects/')
             ]);
             setAssignments(assignmentsRes.data);
-            setClasses(classesRes.data);
+            setGrades(gradesRes.data);
             setSubjects(subjectsRes.data);
         } catch (error) {
             console.error("Failed to fetch teacher data", error);
@@ -91,8 +92,9 @@ const TeacherAssignments: React.FC = () => {
                 description: newDesc,
                 due_date: newDueDate ? new Date(newDueDate).toISOString() : null,
                 status: 'PUBLISHED',
-                assigned_to_class_id: Number(selectedClassId),
-                subject_id: Number(selectedSubjectId)
+                grade: selectedGrade,
+                subject_id: Number(selectedSubjectId),
+                include_from_pdf: includeFromPDF
             });
             fetchData();
             closeModal();
@@ -132,8 +134,9 @@ const TeacherAssignments: React.FC = () => {
                     question_type: aiQuestionType,
                     due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
                     subject_id: Number(aiSubjectId),
-                    class_id: Number(aiClassId),
-                    teacher_id: Number(localStorage.getItem('userId')) || 1
+                    grade: aiGrade,
+                    teacher_id: Number(localStorage.getItem('userId')) || 1,
+                    include_from_pdf: aiIncludeFromPDF
                 }
             }));
         };
@@ -209,8 +212,9 @@ const TeacherAssignments: React.FC = () => {
         setNewTitle('');
         setNewDesc('');
         setSelectedSubjectId('');
-        setSelectedClassId('');
+        setSelectedGrade('');
         setNewDueDate('');
+        setIncludeFromPDF(false);
     };
 
     const closeAIModal = () => {
@@ -222,16 +226,16 @@ const TeacherAssignments: React.FC = () => {
         setAiQuestionType('Multiple Choice');
         setAiDueDate('');
         setAiSubjectId('');
-        setAiClassId('');
+        setAiIncludeFromPDF(false);
         setIsGenerating(false);
         setGenerationLogs([]);
     };
 
     // ... helper functions ...
-    const getClassName = (id?: number | null) => {
+    const getGradeName = (id?: number | null) => {
         if (!id) return "N/A";
-        const c = classes.find(c => c.id === id);
-        return c ? `${c.name} (${c.section})` : "Unknown Class";
+        const g = grades.find(g => g.id === id);
+        return g ? `${g.name} (${g.section})` : "Unknown Grade";
     };
 
     const getSubjectName = (id?: number | null) => {
@@ -386,8 +390,8 @@ const TeacherAssignments: React.FC = () => {
                                 <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
-                                <span className="font-medium">Class:</span>
-                                <span className="text-slate-700 font-semibold">{getClassName(assignment.class_id)}</span>
+                                <span className="font-medium">Grade:</span>
+                                <span className="text-slate-700 font-semibold">{getGradeName(assignment.class_id)}</span>
                             </div>
                         </div>
 
@@ -495,6 +499,31 @@ const TeacherAssignments: React.FC = () => {
                                 </label>
                                 <textarea required rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Describe the assignment..." className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none transition-all" />
                             </div>
+                            {/* PDF Checkbox */}
+                            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={includeFromPDF}
+                                        onChange={(e) => setIncludeFromPDF(e.target.checked)}
+                                        className="w-5 h-5 rounded-lg border-2 border-amber-400 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 cursor-pointer transition-all mt-0.5 group-hover:border-amber-500"
+                                    />
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                            </svg>
+                                            <span className="text-sm font-bold text-amber-900">Include from Uploaded PDF/Book</span>
+                                        </div>
+                                        <p className="text-xs text-amber-700 leading-relaxed">
+                                            {includeFromPDF 
+                                                ? '✓ Assignment will use questions only from uploaded PDF materials' 
+                                                : '○ Assignment will use open source questions'}
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
@@ -528,22 +557,24 @@ const TeacherAssignments: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                                     <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
                                     </svg>
-                                    Assign To (Class)
+                                    Grade
                                 </label>
                                 <select
                                     required
-                                    value={selectedClassId}
-                                    onChange={(e) => setSelectedClassId(Number(e.target.value))}
+                                    value={selectedGrade}
+                                    onChange={(e) => setSelectedGrade(e.target.value)}
                                     className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                 >
-                                    <option value="">Select Class</option>
-                                    {classes.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name} ({c.section})</option>
+                                    <option value="">Select Grade</option>
+                                    {Array.from(new Set(grades.map(g => g.name).filter(Boolean))).sort().map(grade => (
+                                        <option key={grade} value={grade}>{grade}</option>
                                     ))}
                                 </select>
                             </div>
+
+                            
                             <div className="flex gap-3 pt-6 border-t-2 border-slate-100 mt-6">
                                 <button type="button" onClick={closeModal} className="flex-1 px-6 py-3 border-2 border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-all flex items-center justify-center gap-2">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -629,6 +660,30 @@ const TeacherAssignments: React.FC = () => {
                                     />
                                     <p className="text-xs text-slate-400 mt-1">Describe what the quiz should be about.</p>
                                 </div>
+                                                                {/* PDF Checkbox */}
+                                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
+                                    <label className="flex items-start gap-3 cursor-pointer group">
+                                        <input
+                                            type="checkbox"
+                                            checked={aiIncludeFromPDF}
+                                            onChange={(e) => setAiIncludeFromPDF(e.target.checked)}
+                                            className="w-5 h-5 rounded-lg border-2 border-amber-400 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 cursor-pointer transition-all mt-0.5 group-hover:border-amber-500"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                </svg>
+                                                <span className="text-sm font-bold text-amber-900">Include from Uploaded PDF/Book</span>
+                                            </div>
+                                            <p className="text-xs text-amber-700 leading-relaxed">
+                                                {aiIncludeFromPDF 
+                                                    ? '✓ Quiz will be generated only from uploaded PDF materials' 
+                                                    : '○ Quiz will use open source questions and AI generation'}
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
@@ -646,31 +701,18 @@ const TeacherAssignments: React.FC = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
                                         <select
                                             required
-                                            value={aiClassId}
-                                            onChange={(e) => {
-                                                const id = Number(e.target.value);
-                                                setAiClassId(id);
-                                                // Auto-update grade level based on class if needed for prompt
-                                                const cls = classes.find(c => c.id === id);
-                                                if (cls) setAiGrade(cls.grade?.name || 'Grade 10');
-                                            }}
+                                            value={aiGrade}
+                                            onChange={(e) => setAiGrade(e.target.value)}
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                         >
-                                            <option value="">Select Class</option>
-                                            {classes.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            <option value="">Select Grade</option>
+                                            {Array.from(new Set(grades.map(g => g.name).filter(Boolean))).sort().map(grade => (
+                                                <option key={grade} value={grade}>{grade}</option>
                                             ))}
                                         </select>
-                                        {aiClassId && (
-                                            <div className="mt-1 text-xs text-slate-500 flex gap-2">
-                                                <span>Section: {classes.find(c => c.id === aiClassId)?.section}</span>
-                                                <span>•</span>
-                                                <span>Grade: {classes.find(c => c.id === aiClassId)?.grade?.name || 'N/A'}</span>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
 

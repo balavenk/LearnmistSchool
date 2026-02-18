@@ -3,6 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import axios from 'axios';
 import { DataTable } from '../../components/DataTable';
 
 interface Assignment {
@@ -39,42 +40,70 @@ const TeacherClasses: React.FC = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const [assignmentsRes, teachersRes] = await Promise.all([
+                    api.get(`/school-admin/teachers/${id}/assignments`, { signal: abortController.signal }),
+                    api.get('/school-admin/teachers/', { signal: abortController.signal })
+                ]);
+
+                if (isMounted) {
+                    setAssignments(assignmentsRes.data);
+                    const teacher = teachersRes.data.find((t: any) => t.id === Number(id));
+                    if (teacher) setTeacherName(teacher.username);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error("Failed to fetch assignments", error);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        const fetchOptions = async () => {
+            try {
+                const [gRes, cRes, sRes] = await Promise.all([
+                    api.get('/school-admin/grades/', { signal: abortController.signal }),
+                    api.get('/school-admin/classes/', { signal: abortController.signal }),
+                    api.get('/school-admin/subjects/', { signal: abortController.signal })
+                ]);
+                if (isMounted) {
+                    setGrades(gRes.data);
+                    setClasses(cRes.data);
+                    setSubjects(sRes.data);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error("Failed to fetch options", error);
+            }
+        };
+
         fetchData();
         fetchOptions();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, [id]);
 
-    const fetchData = async () => {
+    // Refetch function for use after mutations
+    const refetchData = async () => {
         try {
-            setLoading(true);
-            // Ideally we also fetch teacher details to show name
             const [assignmentsRes, teachersRes] = await Promise.all([
                 api.get(`/school-admin/teachers/${id}/assignments`),
-                api.get('/school-admin/teachers/') // Lazy way to get name, optimization possible
+                api.get('/school-admin/teachers/')
             ]);
-
             setAssignments(assignmentsRes.data);
             const teacher = teachersRes.data.find((t: any) => t.id === Number(id));
             if (teacher) setTeacherName(teacher.username);
-
-        } catch (error) {
-            console.error("Failed to fetch assignments", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchOptions = async () => {
-        try {
-            const [gRes, cRes, sRes] = await Promise.all([
-                api.get('/school-admin/grades/'),
-                api.get('/school-admin/classes/'),
-                api.get('/school-admin/subjects/')
-            ]);
-            setGrades(gRes.data);
-            setClasses(cRes.data);
-            setSubjects(sRes.data);
-        } catch (error) {
-            console.error("Failed to fetch options", error);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch assignments", error);
         }
     };
 
@@ -86,7 +115,7 @@ const TeacherClasses: React.FC = () => {
                 class_id: selectedClass ? Number(selectedClass) : null,
                 subject_id: Number(selectedSubject)
             });
-            fetchData();
+            refetchData();
             setIsAddModalOpen(false);
             setSelectedGrade(''); setSelectedClass(''); setSelectedSubject('');
         } catch (error) {

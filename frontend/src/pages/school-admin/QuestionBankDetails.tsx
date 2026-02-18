@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import UploadMaterialModal from '../../components/UploadMaterialModal';
 import api from '../../api/axios';
+import axios from 'axios';
 import { DataTable } from '../../components/DataTable';
 
 interface PdfFile {
@@ -42,8 +43,43 @@ const QuestionBankDetails: React.FC = () => {
         desc: true
     }]);
 
-    const fetchMaterials = async (page: number = 1) => {
-        setLoading(true);
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchMaterials = async (page: number = 1) => {
+            setLoading(true);
+            try {
+                const response = await api.get<PaginatedResponse>(
+                    `/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`,
+                    { signal: abortController.signal }
+                );
+                if (isMounted) {
+                    setPdfs(response.data.items);
+                    setTotalPages(response.data.total_pages);
+                    setTotalCount(response.data.total);
+                    setCurrentPage(response.data.page);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error("Failed to load materials", error);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        if (gradeId) {
+            fetchMaterials(currentPage);
+        }
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
+    }, [gradeId, currentPage]);
+
+    // Refetch function for use after mutations
+    const refetchMaterials = async (page: number = currentPage) => {
         try {
             const response = await api.get<PaginatedResponse>(
                 `/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
@@ -52,18 +88,11 @@ const QuestionBankDetails: React.FC = () => {
             setTotalPages(response.data.total_pages);
             setTotalCount(response.data.total);
             setCurrentPage(response.data.page);
-        } catch (error) {
-            console.error("Failed to load materials", error);
-        } finally {
-            setLoading(false);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch materials", error);
         }
     };
-
-    useEffect(() => {
-        if (gradeId) {
-            fetchMaterials(currentPage);
-        }
-    }, [gradeId, currentPage]);
 
     // Cleanup: Close modal when component unmounts (e.g., navigating away)
     useEffect(() => {
@@ -87,7 +116,7 @@ const QuestionBankDetails: React.FC = () => {
             await api.delete(`/upload/training-material/${id}`);
             toast.success('File deleted successfully');
             // Refetch current page to sync with server
-            fetchMaterials(currentPage);
+            refetchMaterials(currentPage);
         } catch (error: any) {
             console.error("Delete failed", error);
             toast.error(error.response?.data?.detail || "Failed to delete file");
@@ -97,7 +126,7 @@ const QuestionBankDetails: React.FC = () => {
     const handleUploadSuccess = () => {
         // Go to first page and refresh when new file is uploaded
         setCurrentPage(1);
-        fetchMaterials(1);
+        refetchMaterials(1);
     };
 
     const handlePageChange = (newPage: number) => {

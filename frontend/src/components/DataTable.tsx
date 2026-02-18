@@ -26,7 +26,7 @@ export interface DataTableProps<T> {
   enableMobileCards?: boolean;
 }
 
-export function DataTable<T>({
+function DataTableInner<T>({
   data,
   columns,
   sorting = [],
@@ -169,3 +169,6 @@ export function DataTable<T>({
     </div>
   );
 }
+
+// Memoize to prevent re-renders when parent state changes (like modal opening)
+export const DataTable = React.memo(DataTableInner) as <T>(props: DataTableProps<T>) => React.ReactElement;

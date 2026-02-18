@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import axios from 'axios';
 import { DataTable } from '../../components/DataTable';
 import { PaginationControls } from '../../components/PaginationControls';
 
@@ -27,39 +28,74 @@ const SubjectsList: React.FC = () => {
 
     const ITEMS_PER_PAGE = 8;
 
-    const fetchSubjects = async () => {
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchSubjects = async () => {
+            try {
+                setLoading(true);
+                const response = await api.get('/school-admin/subjects/', { signal: abortController.signal });
+                if (isMounted) {
+                    const data = response.data.map((s: any) => ({
+                        id: s.id,
+                        name: s.name,
+                        code: s.code || 'N/A',
+                        status: 'Active'
+                    }));
+                    setSubjects(data);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) {
+                    console.error("Failed to fetch subjects", error);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchSubjects();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
+    }, []);
+
+    // Refetch function for use after mutations
+    const refetchSubjects = async () => {
         try {
-            setLoading(true);
             const response = await api.get('/school-admin/subjects/');
-            // Backend returns {id, name, code, school_id}.
-            // Map to frontend interface
             const data = response.data.map((s: any) => ({
                 id: s.id,
                 name: s.name,
                 code: s.code || 'N/A',
-                status: 'Active'     // Default for now as backend doesn't have status for Subject
+                status: 'Active'
             }));
             setSubjects(data);
-        } catch (error) {
-            console.error("Failed to fetch subjects", error);
-        } finally {
-            setLoading(false);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch subjects", error);
         }
     };
 
-    useEffect(() => {
-        fetchSubjects();
-    }, []);
-
     const filtered = useMemo(() => {
         return subjects.filter(s =>
-            s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.code.toLowerCase().includes(searchTerm.toLowerCase())
+            s?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
+            s?.code?.toLowerCase()?.includes(searchTerm.toLowerCase())
         );
     }, [subjects, searchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    
+    const paginated = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        return filtered.slice(start, end);
+    }, [filtered, currentPage]);
 
     // DataTable Columns
     const columns = useMemo<ColumnDef<Subject>[]>(
@@ -123,7 +159,7 @@ const SubjectsList: React.FC = () => {
                 code: newCode
             });
             // If success, refresh list
-            fetchSubjects();
+            refetchSubjects();
             setIsModalOpen(false);
             setNewName(''); setNewCode('');
         } catch (error) {
@@ -137,7 +173,7 @@ const SubjectsList: React.FC = () => {
         try {
             await api.delete(`/school-admin/subjects/${id}`);
             toast.success('Subject deleted successfully');
-            fetchSubjects();
+            refetchSubjects();
         } catch (error: any) {
             console.error("Delete failed", error);
             toast.error(error.response?.data?.detail || "Failed to delete subject");

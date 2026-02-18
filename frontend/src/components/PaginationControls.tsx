@@ -11,7 +11,7 @@ export interface PaginationControlsProps {
   isLoading?: boolean;
 }
 
-export function PaginationControls({
+function PaginationControlsInner({
   currentPage,
   totalPages,
   totalItems,
@@ -132,3 +132,6 @@ export function PaginationControls({
     </div>
   );
 }
+
+// Memoize to prevent re-renders when parent state changes (like modal opening)
+export const PaginationControls = React.memo(PaginationControlsInner);
