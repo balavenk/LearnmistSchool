@@ -32,6 +32,7 @@ const MyQuizzes: React.FC = () => {
     const [difficulty, setDifficulty] = useState('Medium');
     const [questionType, setQuestionType] = useState('Multiple Choice'); // MCQ, True/False, Short Answer
     const [dueDate, setDueDate] = useState('');
+    const [usePdfContext, setUsePdfContext] = useState(false);
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -85,7 +86,8 @@ const MyQuizzes: React.FC = () => {
                 question_count: Number(questionCount),
                 difficulty_level: difficulty,
                 question_type: questionType,
-                due_date: dueDate ? new Date(dueDate).toISOString() : null
+                due_date: dueDate ? new Date(dueDate).toISOString() : null,
+                use_pdf_context: usePdfContext
             });
             setShowCreateModal(false);
             resetForm();
@@ -105,6 +107,7 @@ const MyQuizzes: React.FC = () => {
         setDifficulty('Medium');
         setQuestionType('Multiple Choice');
         setDueDate('');
+        setUsePdfContext(false);
         navigate('/individual/quizzes'); // Ensure URL cleans up
     };
 
@@ -204,7 +207,27 @@ const MyQuizzes: React.FC = () => {
                                     placeholder="e.g. Algebra Basics"
                                 />
                             </div>
-
+                            {/* PDF Context Checkbox */}
+                            <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl">
+                                <input
+                                    type="checkbox"
+                                    id="usePdfContextIndividual"
+                                    checked={usePdfContext}
+                                    onChange={(e) => setUsePdfContext(e.target.checked)}
+                                    className="mt-1 w-5 h-5 text-purple-600 border-purple-300 rounded focus:ring-purple-500 focus:ring-2 cursor-pointer"
+                                />
+                                <label htmlFor="usePdfContextIndividual" className="flex-1 cursor-pointer">
+                                    <div className="font-semibold text-slate-800 flex items-center gap-2">
+                                        <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        Generate from Trained PDF/Book
+                                    </div>
+                                    <p className="text-sm text-slate-600 mt-1">
+                                        Use questions from uploaded textbooks and PDFs. If unchecked, generates from general knowledge.
+                                    </p>
+                                </label>
+                            </div>
                             {/* Subject Typeahead */}
                             <div className="relative">
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>

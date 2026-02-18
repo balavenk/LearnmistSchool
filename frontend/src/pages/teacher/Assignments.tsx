@@ -8,17 +8,15 @@ interface Assignment {
     title: string;
     description: string;
     subject_id?: number | null; // Backend uses IDs
-    class_id?: number | null;
+    grade_id?: number | null;
     due_date?: string;
     status: 'PUBLISHED' | 'DRAFT'; // Matches Enum in backend (mapped in UI)
     assignedTo?: string; // Derived for UI
 }
 
-interface ClassOption {
+interface GradeOption {
     id: number;
     name: string;
-    section: string;
-    grade?: { name: string };
 }
 
 interface SubjectOption {
@@ -28,7 +26,7 @@ interface SubjectOption {
 
 const TeacherAssignments: React.FC = () => {
     const [assignments, setAssignments] = useState<Assignment[]>([]);
-    const [classes, setClasses] = useState<ClassOption[]>([]);
+    const [grades, setGrades] = useState<GradeOption[]>([]);
     const [subjects, setSubjects] = useState<SubjectOption[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -40,31 +38,32 @@ const TeacherAssignments: React.FC = () => {
     const [newTitle, setNewTitle] = useState('');
     const [newDesc, setNewDesc] = useState('');
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
-    const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
+    const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [newDueDate, setNewDueDate] = useState('');
 
     // Form State (AI)
     const [aiTopic, setAiTopic] = useState('');
-    const [aiGrade, setAiGrade] = useState('Grade 10');
+    const [aiGradeLevel, setAiGradeLevel] = useState('Grade 10');
     const [aiDifficulty, setAiDifficulty] = useState('Medium');
     const [aiQuestionCount, setAiQuestionCount] = useState(10);
     const [aiQuestionType, setAiQuestionType] = useState('Multiple Choice');
     const [aiDueDate, setAiDueDate] = useState('');
     const [aiSubjectId, setAiSubjectId] = useState<number | ''>('');
-    const [aiClassId, setAiClassId] = useState<number | ''>('');
+    const [aiGradeId, setAiGradeId] = useState<number | ''>();
+    const [aiUsePdfContext, setAiUsePdfContext] = useState(false);
 
 
     // Fetch Data
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [assignmentsRes, classesRes, subjectsRes] = await Promise.all([
+            const [assignmentsRes, gradesRes, subjectsRes] = await Promise.all([
                 api.get('/teacher/assignments/'),
-                api.get('/teacher/classes/'),
+                api.get('/teacher/grades/'),
                 api.get('/teacher/subjects/')
             ]);
             setAssignments(assignmentsRes.data);
-            setClasses(classesRes.data);
+            setGrades(gradesRes.data);
             setSubjects(subjectsRes.data);
         } catch (error) {
             console.error("Failed to fetch teacher data", error);
@@ -90,7 +89,7 @@ const TeacherAssignments: React.FC = () => {
                 description: newDesc,
                 due_date: newDueDate ? new Date(newDueDate).toISOString() : null,
                 status: 'PUBLISHED',
-                assigned_to_class_id: Number(selectedClassId),
+                grade_id: Number(selectedGradeId),
                 subject_id: Number(selectedSubjectId)
             });
             fetchData();
@@ -125,14 +124,15 @@ const TeacherAssignments: React.FC = () => {
                 action: "generate",
                 params: {
                     topic: aiTopic,
-                    grade_level: aiGrade,
+                    grade_level: aiGradeLevel,
                     difficulty: aiDifficulty,
                     question_count: aiQuestionCount,
                     question_type: aiQuestionType,
                     due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
                     subject_id: Number(aiSubjectId),
-                    class_id: Number(aiClassId),
-                    teacher_id: Number(localStorage.getItem('userId')) || 1
+                    grade_id: Number(aiGradeId),
+                    teacher_id: Number(localStorage.getItem('userId')) || 1,
+                    use_pdf_context: aiUsePdfContext
                 }
             }));
         };
@@ -207,29 +207,30 @@ const TeacherAssignments: React.FC = () => {
         setNewTitle('');
         setNewDesc('');
         setSelectedSubjectId('');
-        setSelectedClassId('');
+        setSelectedGradeId('');
         setNewDueDate('');
     };
 
     const closeAIModal = () => {
         setIsAIModalOpen(false);
         setAiTopic('');
-        setAiGrade('Grade 10');
+        setAiGradeLevel('Grade 10');
         setAiDifficulty('Medium');
         setAiQuestionCount(10);
         setAiQuestionType('Multiple Choice');
         setAiDueDate('');
         setAiSubjectId('');
-        setAiClassId('');
+        setAiGradeId('');
+        setAiUsePdfContext(false);
         setIsGenerating(false);
         setGenerationLogs([]);
     };
 
     // ... helper functions ...
-    const getClassName = (id?: number | null) => {
+    const getGradeName = (id?: number | null) => {
         if (!id) return "N/A";
-        const c = classes.find(c => c.id === id);
-        return c ? `${c.name} (${c.section})` : "Unknown Class";
+        const g = grades.find(g => g.id === id);
+        return g ? g.name : "Unknown Grade";
     };
 
     const getSubjectName = (id?: number | null) => {
@@ -384,8 +385,8 @@ const TeacherAssignments: React.FC = () => {
                                 <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
-                                <span className="font-medium">Class:</span>
-                                <span className="text-slate-700 font-semibold">{getClassName(assignment.class_id)}</span>
+                                <span className="font-medium">Grade:</span>
+                                <span className="text-slate-700 font-semibold">{getGradeName(assignment.grade_id)}</span>
                             </div>
                         </div>
 
@@ -526,19 +527,20 @@ const TeacherAssignments: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                                     <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
                                     </svg>
-                                    Assign To (Class)
+                                    Assign To (Grade)
                                 </label>
                                 <select
                                     required
-                                    value={selectedClassId}
-                                    onChange={(e) => setSelectedClassId(Number(e.target.value))}
+                                    value={selectedGradeId}
+                                    onChange={(e) => setSelectedGradeId(Number(e.target.value))}
                                     className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                 >
-                                    <option value="">Select Class</option>
-                                    {classes.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name} ({c.section})</option>
+                                    <option value="">Select Grade</option>
+                                    {grades.map(g => (
+                                        <option key={g.id} value={g.id}>{g.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -627,7 +629,27 @@ const TeacherAssignments: React.FC = () => {
                                     />
                                     <p className="text-xs text-slate-400 mt-1">Describe what the quiz should be about.</p>
                                 </div>
-
+                                {/* PDF Context Checkbox */}
+                                <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl">
+                                    <input
+                                        type="checkbox"
+                                        id="usePdfContext"
+                                        checked={aiUsePdfContext}
+                                        onChange={(e) => setAiUsePdfContext(e.target.checked)}
+                                        className="mt-1 w-5 h-5 text-purple-600 border-purple-300 rounded focus:ring-purple-500 focus:ring-2 cursor-pointer"
+                                    />
+                                    <label htmlFor="usePdfContext" className="flex-1 cursor-pointer">
+                                        <div className="font-semibold text-slate-800 flex items-center gap-2">
+                                            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            Generate from Trained PDF/Book
+                                        </div>
+                                        <p className="text-sm text-slate-600 mt-1">
+                                            Use questions from uploaded textbooks and PDFs. If unchecked, generates from general.
+                                        </p>
+                                    </label>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
@@ -644,31 +666,24 @@ const TeacherAssignments: React.FC = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
                                         <select
                                             required
-                                            value={aiClassId}
+                                            value={aiGradeId}
                                             onChange={(e) => {
                                                 const id = Number(e.target.value);
-                                                setAiClassId(id);
-                                                // Auto-update grade level based on class if needed for prompt
-                                                const cls = classes.find(c => c.id === id);
-                                                if (cls) setAiGrade(cls.grade?.name || 'Grade 10');
+                                                setAiGradeId(id);
+                                                // Auto-update grade level based on selected grade
+                                                const grade = grades.find(g => g.id === id);
+                                                if (grade) setAiGradeLevel(grade.name);
                                             }}
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                         >
-                                            <option value="">Select Class</option>
-                                            {classes.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            <option value="">Select Grade</option>
+                                            {grades.map(g => (
+                                                <option key={g.id} value={g.id}>{g.name}</option>
                                             ))}
                                         </select>
-                                        {aiClassId && (
-                                            <div className="mt-1 text-xs text-slate-500 flex gap-2">
-                                                <span>Section: {classes.find(c => c.id === aiClassId)?.section}</span>
-                                                <span>•</span>
-                                                <span>Grade: {classes.find(c => c.id === aiClassId)?.grade?.name || 'N/A'}</span>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
 

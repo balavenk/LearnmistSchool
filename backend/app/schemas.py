@@ -222,7 +222,8 @@ class AssignmentBase(BaseModel):
     question_type: Optional[str] = None
 
 class AssignmentCreate(AssignmentBase):
-    assigned_to_class_id: Optional[int] = None # Explicitly assign to a class for now
+    grade_id: Optional[int] = None  # Assign to a grade (frontend sends this)
+    assigned_to_class_id: Optional[int] = None  # Legacy support, maps to class_id
     subject_id: Optional[int] = None
 
 class Assignment(AssignmentBase):
@@ -302,7 +303,8 @@ class AssignmentFromBankCreate(BaseModel):
     title: str
     description: Optional[str] = None
     due_date: Optional[datetime] = None
-    class_id: int
+    grade_id: Optional[int] = None  # Frontend sends grade_id
+    class_id: Optional[int] = None  # Legacy support
     subject_id: int
     question_ids: List[int]
 

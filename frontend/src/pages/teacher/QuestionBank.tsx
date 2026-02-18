@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { Smile, Zap, ShieldAlert } from 'lucide-react';
 import PAGINATION_CONFIG from '../../config/pagination';
 
-interface Class {
+interface Grade {
     id: number;
     name: string;
-    section: string;
 }
 
 interface Subject {
@@ -25,12 +24,12 @@ interface Question {
 
 const QuestionBank: React.FC = () => {
     const navigate = useNavigate();
-    const [classes, setClasses] = useState<Class[]>([]);
+    const [grades, setGrades] = useState<Grade[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [questions, setQuestions] = useState<Question[]>([]);
 
     // Filters
-    const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
+    const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [difficulty, setDifficulty] = useState<string>('');
     const [searchText, setSearchText] = useState<string>('');
@@ -51,13 +50,13 @@ const QuestionBank: React.FC = () => {
     const [dueDate, setDueDate] = useState('');
     const [creating, setCreating] = useState(false);
 
-    const fetchClasses = async () => {
+    const fetchGrades = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:8000/teacher/classes/', {
+            const res = await axios.get('http://localhost:8000/teacher/grades/', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setClasses(res.data);
+            setGrades(res.data);
         } catch (error) {
             console.error(error);
         }
@@ -80,7 +79,7 @@ const QuestionBank: React.FC = () => {
         try {
             const token = localStorage.getItem('token');
             const params: any = {
-                class_id: selectedClassId,
+                grade_id: selectedGradeId,
                 subject_id: selectedSubjectId,
                 skip: (currentPage - 1) * questionsPerPage,
                 limit: questionsPerPage
@@ -130,33 +129,33 @@ const QuestionBank: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedClassId, selectedSubjectId, currentPage, questionsPerPage, difficulty, searchText]);
+    }, [selectedGradeId, selectedSubjectId, currentPage, questionsPerPage, difficulty, searchText]);
 
     useEffect(() => {
-        fetchClasses();
+        fetchGrades();
     }, []);
 
     useEffect(() => {
-        if (selectedClassId) {
+        if (selectedGradeId) {
             fetchSubjects();
         } else {
             setSubjects([]);
         }
-    }, [selectedClassId]);
+    }, [selectedGradeId]);
 
     // Consolidated pagination effect - reset to page 1 when filters change
     useEffect(() => {
-        if (selectedClassId && selectedSubjectId) {
+        if (selectedGradeId && selectedSubjectId) {
             setCurrentPage(1);
         } else {
             setQuestions([]);
             setTotalQuestions(0);
         }
-    }, [selectedClassId, selectedSubjectId, difficulty, searchText]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
 
     // Fetch questions when page changes or filters are ready (with debounce for search)
     useEffect(() => {
-        if (!selectedClassId || !selectedSubjectId) return;
+        if (!selectedGradeId || !selectedSubjectId) return;
 
         // Debounce search text changes
         const timer = setTimeout(() => {
@@ -164,7 +163,7 @@ const QuestionBank: React.FC = () => {
         }, searchText ? 500 : 0); // 500ms debounce for search, immediate for others
 
         return () => clearTimeout(timer);
-    }, [fetchQuestions, selectedClassId, selectedSubjectId, searchText]);
+    }, [fetchQuestions, selectedGradeId, selectedSubjectId, searchText]);
 
     const toggleSelection = (id: number) => {
         setSelectedIds(prev => prev.includes(id)
@@ -181,8 +180,8 @@ const QuestionBank: React.FC = () => {
                 title: quizTitle,
                 description: quizDesc,
                 due_date: dueDate ? new Date(dueDate).toISOString() : null,
-                class_id: selectedClassId, // Assuming we assign to the filtered class
-                subject_id: selectedSubjectId, // Assuming we use selected subject
+                grade_id: selectedGradeId, // Assign to the filtered grade
+                subject_id: selectedSubjectId, // Use selected subject
                 question_ids: selectedIds
             };
 
@@ -319,15 +318,15 @@ const QuestionBank: React.FC = () => {
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
-                            Class
+                            Grade
                         </label>
                         <select
                             className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium transition-all"
-                            value={selectedClassId}
-                            onChange={(e) => setSelectedClassId(Number(e.target.value) || '')}
+                            value={selectedGradeId}
+                            onChange={(e) => setSelectedGradeId(Number(e.target.value) || '')}
                         >
-                            <option value="">Select Class</option>
-                            {classes.map(c => <option key={c.id} value={c.id}>{c.name} - {c.section}</option>)}
+                            <option value="">Select Grade</option>
+                            {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                         </select>
                     </div>
 
@@ -342,7 +341,7 @@ const QuestionBank: React.FC = () => {
                             className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium transition-all disabled:bg-slate-100 disabled:cursor-not-allowed"
                             value={selectedSubjectId}
                             onChange={(e) => setSelectedSubjectId(Number(e.target.value) || '')}
-                            disabled={!selectedClassId}
+                            disabled={!selectedGradeId}
                         >
                             <option value="">Select Subject</option>
                             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}

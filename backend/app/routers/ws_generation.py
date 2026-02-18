@@ -2,9 +2,10 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.orm import Session
 from datetime import datetime
 import json
-from .. import database, models
-from ..services import rag_service
-from ..connection_manager import manager
+from app import database
+from app import models
+from app.services import rag_service
+from app.connection_manager import manager
 
 router = APIRouter(
     tags=["websocket"]
@@ -29,8 +30,11 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                 question_count = int(params.get("question_count", 5))
                 question_type = params.get("question_type", "Mixed")
                 subject_id = int(params.get("subject_id"))
-                class_id = int(params.get("class_id"))
+                # Support both class_id and grade_id (migrating to grade_id)
+                grade_id = params.get("grade_id") or params.get("class_id")
+                grade_id = int(grade_id) if grade_id else None
                 teacher_id = int(params.get("teacher_id")) # Or from session/token if we did auth
+                use_pdf_context = params.get("use_pdf_context", False)
                 
                 # 1. Get Subject Name and Teacher Info (for School ID)
                 subject = db.query(models.Subject).filter(models.Subject.id == subject_id).first()
@@ -59,6 +63,7 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                     difficulty=difficulty,
                     count=question_count,
                     question_type=question_type,
+                    use_pdf_context=use_pdf_context,
                     progress_callback=progress_callback
                 )
                 
@@ -73,7 +78,7 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                         status=models.AssignmentStatus.DRAFT,
                         teacher_id=teacher_id,
                         subject_id=subject_id,
-                        class_id=class_id,
+                        class_id=grade_id,  # Frontend sends grade_id, map to class_id for backward compatibility
                         due_date=datetime.utcnow() # Default
                     )
                     db.add(new_assignment)
@@ -85,7 +90,7 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                         q_type_str = q_data.get("question_type", "MULTIPLE_CHOICE")
                         try:
                             q_type = models.QuestionType(q_type_str)
-                        except:
+                        except ValueError:
                             q_type = models.QuestionType.MULTIPLE_CHOICE
                             
                         new_q = models.Question(
@@ -95,7 +100,7 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                             assignment_id=new_assignment.id,
                             school_id=school_id,
                             subject_id=subject_id,
-                            class_id=class_id,
+                            class_id=grade_id,  # Frontend sends grade_id, map to class_id for backward compatibility
                             difficulty_level=difficulty
                         )
                         db.add(new_q)
@@ -126,10 +131,10 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
             
     except WebSocketDisconnect:
         manager.disconnect(client_id)
-    except Exception as e:
+    except Exception as e:  # WebSocket context, broad catch for server errors
         print(f"WS Error: {e}")
         try:
-             await manager.send_json({"type": "error", "message": f"Server Error: {str(e)}"}, client_id)
-        except:
+            await manager.send_json({"type": "error", "message": f"Server Error: {str(e)}"}, client_id)
+        except Exception:
             pass
         manager.disconnect(client_id)

@@ -2,9 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
-from .. import database, models, schemas, auth
-from ..services import rag_service
-from ..config import settings
+from app import database
+from app import models
+from app import schemas
+from app import auth
+from app.services import rag_service
+from app.config import settings
 
 router = APIRouter(
     prefix="/teacher",
@@ -14,7 +17,7 @@ router = APIRouter(
 
 def get_current_teacher(current_user: models.User = Depends(auth.get_current_active_user)):
     if current_user.role not in [models.UserRole.TEACHER, models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN]:
-         raise HTTPException(status_code=403, detail="Not enough permissions")
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
 
 
@@ -102,7 +105,7 @@ def read_students(
     
     if class_id:
         if class_id not in visible_class_ids:
-             return schemas.PaginatedResponse(
+                return schemas.PaginatedResponse(
                 items=[],
                 total=0,
                 page=page,
@@ -138,13 +141,26 @@ def read_student(student_id: int, db: Session = Depends(database.get_db), curren
 
 @router.post("/assignments/", response_model=schemas.Assignment)
 def create_assignment(assignment: schemas.AssignmentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
-    # Verify class belongs to school
-    class_obj = db.query(models.Class).filter(
-        models.Class.id == assignment.assigned_to_class_id,
-        models.Class.school_id == current_user.school_id
-    ).first()
-    if not class_obj:
-        raise HTTPException(status_code=404, detail="Class not found")
+    # Support both grade_id (new) and assigned_to_class_id (legacy)
+    class_or_grade_id = assignment.grade_id or assignment.assigned_to_class_id
+    
+    # Note: Frontend now sends grade_id, but backend stores in class_id field for compatibility
+    # In future, we can migrate to separate grade_id and class_id fields
+    if class_or_grade_id:
+        # Verify the ID belongs to school (check both Grade and Class tables)
+        grade_obj = db.query(models.Grade).filter(
+            models.Grade.id == class_or_grade_id,
+            models.Grade.school_id == current_user.school_id
+        ).first()
+        
+        if not grade_obj:
+            # Try as class_id for backward compatibility
+            class_obj = db.query(models.Class).filter(
+                models.Class.id == class_or_grade_id,
+                models.Class.school_id == current_user.school_id
+            ).first()
+            if not class_obj:
+                raise HTTPException(status_code=404, detail="Grade/Class not found")
         
     new_assignment = models.Assignment(
         title=assignment.title,
@@ -152,7 +168,7 @@ def create_assignment(assignment: schemas.AssignmentCreate, db: Session = Depend
         due_date=assignment.due_date,
         status=assignment.status,
         teacher_id=current_user.id,
-        class_id=assignment.assigned_to_class_id,
+        class_id=class_or_grade_id,  # Store in class_id field (to be renamed to grade_id in future migration)
         subject_id=assignment.subject_id
     )
     db.add(new_assignment)
@@ -165,7 +181,7 @@ def read_assignments(db: Session = Depends(database.get_db), current_user: model
     return db.query(models.Assignment).filter(models.Assignment.teacher_id == current_user.id).all()
 
 @router.post("/assignments/ai-generate", response_model=schemas.Assignment)
-async def generate_ai_assignment(topic: str, grade_level: str, difficulty: str, question_count: int, subject_id: int, class_id: int, due_date: datetime = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+async def generate_ai_assignment(topic: str, grade_level: str, difficulty: str, question_count: int, subject_id: int, class_id: int, due_date: datetime = None, use_pdf_context: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
     # 1. Get Subject Name for RAG Context
     subject = db.query(models.Subject).filter(models.Subject.id == subject_id).first()
     subject_name = subject.name if subject else "General Knowledge"
@@ -177,7 +193,8 @@ async def generate_ai_assignment(topic: str, grade_level: str, difficulty: str, 
         subject_name=subject_name,
         grade_level=grade_level,
         difficulty=difficulty,
-        count=question_count
+        count=question_count,
+        use_pdf_context=use_pdf_context
     )
 
     if not generated_questions:
@@ -206,7 +223,7 @@ async def generate_ai_assignment(topic: str, grade_level: str, difficulty: str, 
         q_type_str = q_data.get("question_type", "MULTIPLE_CHOICE")
         try:
             q_type = models.QuestionType(q_type_str)
-        except:
+        except ValueError:
             q_type = models.QuestionType.MULTIPLE_CHOICE
             
         new_q = models.Question(
@@ -241,6 +258,9 @@ def create_assignment_from_bank(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_teacher)
 ):
+    # Support both grade_id (new) and class_id (legacy)
+    class_or_grade_id = data.grade_id or data.class_id
+    
     # 1. Create Assignment
     new_assignment = models.Assignment(
         title=data.title,
@@ -248,7 +268,7 @@ def create_assignment_from_bank(
         due_date=data.due_date,
         status=models.AssignmentStatus.DRAFT,
         teacher_id=current_user.id,
-        class_id=data.class_id,
+        class_id=class_or_grade_id,  # Store in class_id field (maps to grade)
         subject_id=data.subject_id
     )
     db.add(new_assignment)
@@ -310,6 +330,10 @@ def read_questions(
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(get_current_teacher)
 ):
+    """
+    Get all questions for the current teacher with optional filters.
+    Used for question bank browsing and filtering.
+    """
     query = db.query(models.Question).join(models.Assignment, models.Question.assignment_id == models.Assignment.id)
     
     # Filter by Teacher (security)
@@ -326,7 +350,7 @@ def read_questions(
         
     # Optional Filters
     if difficulty:
-         query = query.filter(models.Question.difficulty_level == difficulty)
+        query = query.filter(models.Question.difficulty_level == difficulty)
          
     if search:
         search_fmt = f"%{search}%"
@@ -382,7 +406,11 @@ def read_grades(db: Session = Depends(database.get_db), current_user: models.Use
 # --- Question Endpoints ---
 
 @router.get("/assignments/{assignment_id}/questions", response_model=List[schemas.Question])
-def read_questions(assignment_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+def read_assignment_questions(assignment_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+    """
+    Get all questions for a specific assignment.
+    Verifies that the assignment belongs to the current teacher.
+    """
     # Check assignment ownership
     assignment = db.query(models.Assignment).filter(
         models.Assignment.id == assignment_id,

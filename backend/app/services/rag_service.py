@@ -175,10 +175,12 @@ async def generate_quiz_questions(
     difficulty: str,
     count: int,
     question_type: str = "Mixed",
+    use_pdf_context: bool = False,
     progress_callback: Callable[[str, Dict], Awaitable[None]] = None
 ) -> List[Dict]:
     """
     Generates quiz questions using RAG.
+    If use_pdf_context is False, skips RAG and generates from general knowledge.
     """
     openai_api_key = os.getenv("OPENAI_API_KEY")
 
@@ -200,61 +202,67 @@ async def generate_quiz_questions(
     collection_name = "learnmist-school"
 
     try:
-        # 1. Embed the query (topic)
-        if progress_callback:
-            await progress_callback("Creating embeddings for topic...", {"step": "embedding", "topic": topic})
-            
-        emb_response = await client_openai.embeddings.create(
-            input=topic,
-            model="text-embedding-3-large"
-        )
-        query_vector = emb_response.data[0].embedding
-
-        # 2. Search Qdrant (check if collection exists first)
+        # 1. Embed the query (topic) - only if using PDF context
         context_text = ""
         
-        if not client_qdrant.collection_exists(collection_name):
-            msg = "No training materials uploaded yet. Collection not found. Using general knowledge."
-            print(msg)
-            context_text = msg
+        if use_pdf_context:
             if progress_callback:
-                await progress_callback("No training materials found in database.", {"step": "search_result", "info": msg})
-        else:
-            if progress_callback:
-                await progress_callback("Searching knowledge base...", {"step": "search", "subject": subject_name})
-
-            # 'search' missing in current version, using query_points
-            search_response = client_qdrant.query_points(
-                collection_name=collection_name,
-                query=query_vector,
-                limit=5,
-                query_filter=models.Filter(
-                    should=[
-                        models.FieldCondition(
-                            key="subject",
-                            match=models.MatchValue(value=subject_name)
-                        ),
-                        models.FieldCondition(
-                            key="subject_name", # Try alternate key just in case
-                            match=models.MatchValue(value=subject_name)
-                        )
-                    ]
-                )
+                await progress_callback("Creating embeddings for topic...", {"step": "embedding", "topic": topic})
+                
+            emb_response = await client_openai.embeddings.create(
+                input=topic,
+                model="text-embedding-3-large"
             )
-            search_results = search_response.points
-            
-            for hit in search_results:
-                context_text += f"{hit.payload.get('text', '')}\n\n"
+            query_vector = emb_response.data[0].embedding
 
-            if not context_text:
-                msg = "No specific textbook context found. Using general knowledge."
+            # 2. Search Qdrant (check if collection exists first)
+            if not client_qdrant.collection_exists(collection_name):
+                msg = "No training materials uploaded yet. Collection not found. Using general knowledge."
                 print(msg)
                 context_text = msg
                 if progress_callback:
-                     await progress_callback("No direct matches found.", {"step": "search_result", "info": msg})
+                    await progress_callback("No training materials found in database.", {"step": "search_result", "info": msg})
             else:
-                 if progress_callback:
-                     await progress_callback(f"Found {len(search_results)} relevant chunks.", {"step": "search_result", "chunks_found": len(search_results)})
+                if progress_callback:
+                    await progress_callback("Searching knowledge base...", {"step": "search", "subject": subject_name})
+
+                # 'search' missing in current version, using query_points
+                search_response = client_qdrant.query_points(
+                    collection_name=collection_name,
+                    query=query_vector,
+                    limit=5,
+                    query_filter=models.Filter(
+                        should=[
+                            models.FieldCondition(
+                                key="subject",
+                                match=models.MatchValue(value=subject_name)
+                            ),
+                            models.FieldCondition(
+                                key="subject_name", # Try alternate key just in case
+                                match=models.MatchValue(value=subject_name)
+                            )
+                        ]
+                    )
+                )
+                search_results = search_response.points
+                
+                for hit in search_results:
+                    context_text += f"{hit.payload.get('text', '')}\n\n"
+
+                if not context_text:
+                    msg = "No specific textbook context found. Using general knowledge."
+                    print(msg)
+                    context_text = msg
+                    if progress_callback:
+                         await progress_callback("No direct matches found.", {"step": "search_result", "info": msg})
+                else:
+                     if progress_callback:
+                         await progress_callback(f"Found {len(search_results)} relevant chunks.", {"step": "search_result", "chunks_found": len(search_results)})
+        else:
+            # Skip RAG, use general knowledge
+            context_text = "Using general knowledge base (no PDF/textbook context)."
+            if progress_callback:
+                await progress_callback("Generating from general knowledge (PDF context disabled).", {"step": "search_result", "info": context_text})
 
         normalized_question_type = (question_type or "Mixed").strip()
         question_type_map = {

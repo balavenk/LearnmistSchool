@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
-from app import database, models, schemas, auth
+from .. import database, models, schemas, auth
 
 router = APIRouter(
     prefix="/individual",
@@ -88,6 +88,7 @@ class IndividualQuizCreate(BaseModel):
     difficulty_level: Optional[str] = "Medium"
     question_type: Optional[str] = "Multiple Choice"
     due_date: Optional[datetime] = None
+    use_pdf_context: Optional[bool] = False
 
 @router.post("/quizzes", response_model=schemas.Assignment)
 def create_personal_quiz(quiz_data: IndividualQuizCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_individual_user)):
