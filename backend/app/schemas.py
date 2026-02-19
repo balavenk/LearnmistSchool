@@ -128,6 +128,9 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
+class UserStatusUpdate(BaseModel):
+    active: bool
+
 class SubjectBase(BaseModel):
     name: str
     code: Optional[str] = None

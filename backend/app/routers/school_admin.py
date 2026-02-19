@@ -70,6 +70,27 @@ def read_teachers(db: Session = Depends(database.get_db), current_user: models.U
         models.User.role == models.UserRole.TEACHER
     ).all()
 
+@router.patch("/teachers/{teacher_id}/status", response_model=schemas.User)
+def update_teacher_status(
+    teacher_id: int, 
+    status_data: schemas.UserStatusUpdate, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(get_current_school_admin)
+):
+    teacher = db.query(models.User).filter(
+        models.User.id == teacher_id,
+        models.User.school_id == current_user.school_id,
+        models.User.role == models.UserRole.TEACHER
+    ).first()
+    
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found in this school")
+    
+    teacher.active = status_data.active
+    db.commit()
+    db.refresh(teacher)
+    return teacher
+
 @router.post("/classes/", response_model=schemas.Class)
 def create_class(class_data: schemas.ClassCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
     # Verify grade belongs to school

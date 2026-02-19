@@ -82,8 +82,16 @@ const TeachersList: React.FC = () => {
     };
 
     // Toggle Status Handler
-    const toggleStatus = (id: number) => {
-        console.log("Toggle status not implemented in backend", id);
+    const toggleStatus = async (id: number, currentStatus: string) => {
+        try {
+            const newActive = currentStatus !== 'Active';
+            await api.patch(`/school-admin/teachers/${id}/status`, { active: newActive });
+            alert(`Teacher ${newActive ? 'activated' : 'deactivated'} successfully`);
+            fetchTeachers();
+        } catch (error) {
+            console.error("Failed to update teacher status", error);
+            alert("Failed to update teacher status");
+        }
     };
 
     return (
@@ -131,7 +139,10 @@ const TeachersList: React.FC = () => {
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 text-right space-x-2">
-                                    <button onClick={() => toggleStatus(teacher.id)} className={`text-xs font-medium ${teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}>
+                                    <button
+                                        onClick={() => toggleStatus(teacher.id, teacher.status)}
+                                        className={`text-xs font-medium ${teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}
+                                    >
                                         {teacher.status === 'Active' ? 'Deactivate' : 'Activate'}
                                     </button>
                                     <span className="text-slate-300">|</span>
