@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 interface Country {
     id: number;
@@ -52,10 +53,10 @@ const Countries: React.FC = () => {
         try {
             await api.delete(`/super-admin/master/countries/${id}`);
             fetchCountries();
-            alert("Country deleted successfully");
+            toast.success("Country deleted successfully");
         } catch (error: any) {
             console.error("Delete failed", error);
-            alert("Failed to delete. " + (error.response?.data?.detail || "It might be in use."));
+            toast.error("Failed to delete. " + (error.response?.data?.detail || "It might be in use."));
         }
     };
 
@@ -64,17 +65,17 @@ const Countries: React.FC = () => {
         try {
             if (modalMode === 'add') {
                 await api.post('/super-admin/master/countries', formData);
-                alert("Country created successfully");
+                toast.success("Country created successfully");
             } else {
                 if (!currentCountry) return;
                 await api.put(`/super-admin/master/countries/${currentCountry.id}`, formData);
-                alert("Country updated successfully");
+                toast.success("Country updated successfully");
             }
             setIsModalOpen(false);
             fetchCountries();
         } catch (error: any) {
             console.error("Save failed", error);
-            alert("Failed to save. " + (error.response?.data?.detail || ""));
+            toast.error("Failed to save. " + (error.response?.data?.detail || ""));
         }
     };
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 interface Subject {
     id: number;
@@ -70,7 +71,7 @@ const SubjectsList: React.FC = () => {
             setNewName(''); setNewCode('');
         } catch (error) {
             console.error("Failed to create subject", error);
-            alert("Failed to create subject. Might be duplicate.");
+            toast.error("Failed to create subject. Might be duplicate.");
         }
     };
 
@@ -81,7 +82,7 @@ const SubjectsList: React.FC = () => {
             fetchSubjects();
         } catch (error: any) {
             console.error("Delete failed", error);
-            alert(error.response?.data?.detail || "Failed to delete subject");
+            toast.error(error.response?.data?.detail || "Failed to delete subject");
         }
     };
 

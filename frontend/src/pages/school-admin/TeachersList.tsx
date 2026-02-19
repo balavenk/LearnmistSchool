@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 interface Teacher {
@@ -74,10 +75,10 @@ const TeachersList: React.FC = () => {
             fetchTeachers();
             setIsCreateModalOpen(false);
             setNewUsername(''); setNewEmail(''); // setNewSubject('');
-            alert("Teacher created successfully (Default password: password123)");
+            toast.success("Teacher created successfully (Default password: password123)");
         } catch (error) {
             console.error("Failed to create teacher", error);
-            alert("Failed to create teacher. Username/Email might be duplicate.");
+            toast.error("Failed to create teacher. Username/Email might be duplicate.");
         }
     };
 
@@ -86,11 +87,11 @@ const TeachersList: React.FC = () => {
         try {
             const newActive = currentStatus !== 'Active';
             await api.patch(`/school-admin/teachers/${id}/status`, { active: newActive });
-            alert(`Teacher ${newActive ? 'activated' : 'deactivated'} successfully`);
+            toast.success(`Teacher ${newActive ? 'activated' : 'deactivated'} successfully`);
             fetchTeachers();
         } catch (error) {
             console.error("Failed to update teacher status", error);
-            alert("Failed to update teacher status");
+            toast.error("Failed to update teacher status");
         }
     };
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 // --- Types ---
 type UserRole = 'SCHOOL_ADMIN' | 'TEACHER' | 'STUDENT';
@@ -130,7 +131,7 @@ const UserManagement: React.FC = () => {
 
     const handleDeactivate = async (userId: number, currentStatus: boolean) => {
         if (!userId) {
-            alert("No user linked to this record.");
+            toast.error("No user linked to this record.");
             return;
         }
         if (!confirm(`Are you sure you want to ${currentStatus ? 'deactivate' : 'activate'} this user?`)) return;
@@ -172,13 +173,13 @@ const UserManagement: React.FC = () => {
 
         } catch (error) {
             console.error("Action failed", error);
-            alert("Failed to update status.");
+            toast.error("Failed to update status.");
         }
     };
 
     const handleResetClick = (userId: number) => {
         if (!userId) {
-            alert("No user login linked.");
+            toast.error("No user login linked.");
             return;
         }
         setSelectedUserForReset(userId);
@@ -190,13 +191,13 @@ const UserManagement: React.FC = () => {
         if (!selectedUserForReset || !newPassword) return;
         try {
             await api.post(`/super-admin/users/${selectedUserForReset}/reset-password`, { password: newPassword });
-            alert("Password reset successfully.");
+            toast.success("Password reset successfully.");
             setResetModalOpen(false);
             setNewPassword('');
             setSelectedUserForReset(null);
         } catch (error) {
             console.error("Reset failed", error);
-            alert("Failed to reset password.");
+            toast.error("Failed to reset password.");
         }
     };
 

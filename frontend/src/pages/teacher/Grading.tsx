@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import toast from 'react-hot-toast';
 import PAGINATION_CONFIG from '../../config/pagination';
 
 interface ClassOption {
@@ -58,18 +59,18 @@ const TeacherGrading: React.FC = () => {
 
     const handleShowStudents = async () => {
         if (!selectedClassId) {
-            alert("Please select a class first.");
+            toast.error("Please select a class first.");
             return;
         }
         if (!selectedSubjectId) {
-            alert("Please select a subject.");
+            toast.error("Please select a subject.");
             return;
         }
 
         try {
             setFetchingStudents(true);
             const response = await api.get('/teacher/students/', {
-                params: { 
+                params: {
                     class_id: selectedClassId,
                     page: 1,
                     page_size: maxPageSize  // Get all students for the class using max page size from config
@@ -78,7 +79,7 @@ const TeacherGrading: React.FC = () => {
             setStudents(response.data.items || []);
         } catch (error) {
             console.error("Failed to fetch students", error);
-            alert("Failed to fetch students.");
+            toast.error("Failed to fetch students.");
         } finally {
             setFetchingStudents(false);
         }
@@ -122,11 +123,10 @@ const TeacherGrading: React.FC = () => {
                                     setStudents([]); // Clear previous students
                                     setSelectedSubjectId(''); // Reset subject
                                 }}
-                                className={`group cursor-pointer rounded-xl border-2 p-4 transition-all duration-200 relative overflow-hidden ${
-                                    selectedClassId === cls.id
+                                className={`group cursor-pointer rounded-xl border-2 p-4 transition-all duration-200 relative overflow-hidden ${selectedClassId === cls.id
                                         ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50 ring-4 ring-indigo-200 shadow-lg transform scale-105'
                                         : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-md hover:scale-102'
-                                }`}
+                                    }`}
                             >
                                 {selectedClassId === cls.id && (
                                     <div className="absolute top-2 right-2">
@@ -169,11 +169,10 @@ const TeacherGrading: React.FC = () => {
                         <button
                             onClick={handleShowStudents}
                             disabled={!selectedSubjectId || fetchingStudents}
-                            className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all duration-200 flex items-center gap-2 ${
-                                !selectedSubjectId
+                            className={`px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all duration-200 flex items-center gap-2 ${!selectedSubjectId
                                     ? 'bg-slate-300 cursor-not-allowed'
                                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl transform hover:scale-105'
-                            }`}
+                                }`}
                         >
                             {fetchingStudents ? (
                                 <>
@@ -268,7 +267,7 @@ const TeacherGrading: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center justify-center gap-3">
-                                                    <a 
+                                                    <a
                                                         href={`/grading/${student.id}`}
                                                         className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2 transform hover:scale-105"
                                                     >

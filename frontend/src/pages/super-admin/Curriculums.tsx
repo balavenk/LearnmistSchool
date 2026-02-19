@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 interface Curriculum {
     id: number;
@@ -63,10 +64,10 @@ const Curriculums: React.FC = () => {
         try {
             await api.delete(`/super-admin/master/curriculums/${id}`);
             fetchData();
-            alert("Curriculum deleted successfully");
+            toast.success("Curriculum deleted successfully");
         } catch (error: any) {
             console.error("Delete failed", error);
-            alert("Failed to delete. " + (error.response?.data?.detail || "It might be in use."));
+            toast.error("Failed to delete. " + (error.response?.data?.detail || "It might be in use."));
         }
     };
 
@@ -80,17 +81,17 @@ const Curriculums: React.FC = () => {
 
             if (modalMode === 'add') {
                 await api.post('/super-admin/master/curriculums', payload);
-                alert("Curriculum created successfully");
+                toast.success("Curriculum created successfully");
             } else {
                 if (!currentId) return;
                 await api.put(`/super-admin/master/curriculums/${currentId}`, payload);
-                alert("Curriculum updated successfully");
+                toast.success("Curriculum updated successfully");
             }
             setIsModalOpen(false);
             fetchData();
         } catch (error: any) {
             console.error("Save failed", error);
-            alert("Failed to save. " + (error.response?.data?.detail || ""));
+            toast.error("Failed to save. " + (error.response?.data?.detail || ""));
         }
     };
 

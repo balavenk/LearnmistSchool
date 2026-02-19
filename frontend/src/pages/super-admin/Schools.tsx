@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 interface SchoolAdmin {
     id?: number;
@@ -187,7 +188,7 @@ const Schools: React.FC = () => {
                     curriculum_id: Number(selectedCurriculumId),
                     school_type_id: Number(selectedSchoolTypeId)
                 });
-                alert("School updated successfully!");
+                toast.success("School updated successfully!");
             } else {
                 // 1. Create School
                 const schoolRes = await api.post('/super-admin/schools/', {
@@ -212,10 +213,10 @@ const Schools: React.FC = () => {
                         });
                     } catch (err) {
                         console.error(`Failed to create admin ${admin.username}`, err);
-                        alert(`School created, but failed to create admin ${admin.username}. Username might be taken.`);
+                        toast.error(`School created, but failed to create admin ${admin.username}. Username might be taken.`);
                     }
                 }
-                alert("School created successfully!");
+                toast.success("School created successfully!");
             }
 
             // Refresh list
@@ -223,7 +224,7 @@ const Schools: React.FC = () => {
             closeModal();
         } catch (error) {
             console.error("Failed to save school", error);
-            alert("Failed to save school. Name might be duplicate.");
+            toast.error("Failed to save school. Name might be duplicate.");
         }
     };
 
@@ -403,8 +404,8 @@ const Schools: React.FC = () => {
                                             </button>
                                         </div>
                                     </td>
-                            </tr>
-                        ))}
+                                </tr>
+                            ))}
 
                             {!loading && paginatedSchools.length === 0 && (
                                 <tr>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../api/axios';
 
 const Login: React.FC = () => {
@@ -37,7 +38,7 @@ const Login: React.FC = () => {
                 localStorage.setItem('username', returnedUsername || username);
                 if (school_name) localStorage.setItem('schoolName', school_name);
                 if (response.data.id) localStorage.setItem('userId', response.data.id);
-                
+
 
                 // Redirect based on role
                 if (role.toUpperCase() === 'SUPER_ADMIN') navigate('/super-admin');
@@ -47,29 +48,13 @@ const Login: React.FC = () => {
                 else if (role.toUpperCase() === 'INDIVIDUAL') navigate('/individual');
                 else navigate('/');
             } else {
-                alert("Login failed: No access token received");
+                toast.error("Login failed: No access token received");
             }
 
         } catch (error: any) {
             console.error("Login failed", error);
-
-            let errorMessage = "Login failed";
-            if (error.response) {
-                // Server responded with a status code
-                errorMessage += ` (Status: ${error.response.status})`;
-                if (error.response.data) {
-                    // Try to format the data nicel
-                    errorMessage += "\n\nDetails:\n" + JSON.stringify(error.response.data, null, 2);
-                }
-            } else if (error.request) {
-                // Request made but no response
-                errorMessage += ": No response from server. Check if backend is running.";
-            } else {
-                // Request setup error
-                errorMessage += ": " + error.message;
-            }
-
-            alert(errorMessage);
+            const errorMessage = error.response?.data?.detail || error.message || "Login failed";
+            toast.error(errorMessage);
         } finally {
             setIsLoading(false);
         }

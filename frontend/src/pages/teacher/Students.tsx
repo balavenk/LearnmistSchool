@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import PAGINATION_CONFIG from '../../config/pagination';
 
@@ -188,30 +189,30 @@ const Students: React.FC = () => {
     const fetchData = async (page: number = 1) => {
         try {
             setLoading(true);
-            
+
             // Fetch settings first if not loaded yet
             let currentPageSize = pageSize;
-            
+
             // Fetch settings to get backend pagination config
             const settingsRes = await api.get('/teacher/settings');
             if (settingsRes.data.pagination?.default_page_size) {
                 currentPageSize = settingsRes.data.pagination.default_page_size;
                 setPageSize(currentPageSize);
             }
-            
+
             // Now fetch data with correct page size
             const [studentsRes, gradesRes, classesRes] = await Promise.all([
                 api.get<PaginatedStudents>(`/teacher/students/?page=${page}&page_size=${currentPageSize}`),
                 api.get('/teacher/grades/'),
                 api.get('/teacher/classes/')
             ]);
-            
+
             // Update students from paginated response
             setStudents(studentsRes.data.items);
             setTotalPages(studentsRes.data.total_pages);
             setTotalCount(studentsRes.data.total);
             setCurrentPage(studentsRes.data.page);
-            
+
             setGrades(gradesRes.data);
             setClasses(classesRes.data);
         } catch (error) {
@@ -247,7 +248,7 @@ const Students: React.FC = () => {
             // alert("Student added successfully"); 
         } catch (error) {
             console.error("Failed to create student", error);
-            alert("Failed to create student");
+            toast.error("Failed to create student");
         }
     };
 
@@ -281,7 +282,7 @@ const Students: React.FC = () => {
                             Manage your students and track their progress
                         </p>
                     </div>
-                    
+
                     {/* Quick Stats */}
                     <div className="flex flex-wrap gap-3">
                         <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-indigo-100">
@@ -321,16 +322,15 @@ const Students: React.FC = () => {
                             </button>
                         )}
                     </div>
-                    
+
                     {/* View Toggle */}
                     <div className="flex gap-2 bg-white rounded-xl p-1.5 shadow-sm border border-indigo-100">
                         <button
                             onClick={() => setViewMode('table')}
-                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${
-                                viewMode === 'table' 
-                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md' 
+                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${viewMode === 'table'
+                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
                                     : 'text-slate-600 hover:bg-slate-50'
-                            }`}
+                                }`}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -339,11 +339,10 @@ const Students: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setViewMode('cards')}
-                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${
-                                viewMode === 'cards' 
-                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md' 
+                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${viewMode === 'cards'
+                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
                                     : 'text-slate-600 hover:bg-slate-50'
-                            }`}
+                                }`}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -351,7 +350,7 @@ const Students: React.FC = () => {
                             Cards
                         </button>
                     </div>
-                    
+
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl font-semibold transition-all duration-200 flex items-center gap-2 transform hover:scale-105"
@@ -523,8 +522,8 @@ const Students: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-center gap-2">
-                                            <button 
-                                                onClick={() => navigate(`/grading/${student.id}`)} 
+                                            <button
+                                                onClick={() => navigate(`/grading/${student.id}`)}
                                                 className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -637,7 +636,7 @@ const Students: React.FC = () => {
                                     <div className="text-xs text-slate-500 font-medium">Student ID: {student.id}</div>
                                 </div>
                             </div>
-                            
+
                             <div className="space-y-3 mb-4">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-slate-600 font-medium flex items-center gap-2">
@@ -662,9 +661,9 @@ const Students: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
-                            
-                            <button 
-                                onClick={() => navigate(`/grading/${student.id}`)} 
+
+                            <button
+                                onClick={() => navigate(`/grading/${student.id}`)}
                                 className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-3 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -710,7 +709,7 @@ const Students: React.FC = () => {
                         {/* Decorative background */}
                         <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full blur-3xl opacity-50 -mr-20 -mt-20"></div>
                         <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-blue-100 to-cyan-100 rounded-full blur-3xl opacity-50 -ml-20 -mb-20"></div>
-                        
+
                         <div className="flex justify-between items-center mb-6 relative z-10">
                             <div className="flex items-center gap-3">
                                 <div className="bg-gradient-to-br from-indigo-500 to-purple-500 p-2.5 rounded-xl shadow-lg">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 interface Student {
     id: number;
@@ -83,10 +84,10 @@ const StudentsList: React.FC = () => {
             });
             fetchStudents();
             setIsModalOpen(false);
-            alert("Student updated successfully");
+            toast.success("Student updated successfully");
         } catch (error) {
             console.error("Failed to update student", error);
-            alert("Failed to update student.");
+            toast.error("Failed to update student.");
         }
     };
 
@@ -129,10 +130,10 @@ const StudentsList: React.FC = () => {
             setNewStudentEmail('');
             setNewStudentGradeId('');
             setNewStudentClassId('');
-            alert("Student created successfully!");
+            toast.success("Student created successfully!");
         } catch (error) {
             console.error("Failed to create student", error);
-            alert("Failed to create student.");
+            toast.error("Failed to create student.");
         }
     };
 

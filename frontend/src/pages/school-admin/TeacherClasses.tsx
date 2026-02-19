@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 interface Assignment {
     id: number;
@@ -88,7 +89,7 @@ const TeacherClasses: React.FC = () => {
             setSelectedGrade(''); setSelectedClass(''); setSelectedSubject('');
         } catch (error) {
             console.error("Failed to assign class", error);
-            alert("Failed to assign. Check if already exists.");
+            toast.error("Failed to assign. Check if already exists.");
         }
     };
 

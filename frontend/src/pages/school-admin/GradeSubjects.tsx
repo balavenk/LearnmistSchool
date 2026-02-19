@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 interface Subject {
     id: number;
@@ -56,7 +57,7 @@ const GradeSubjects: React.FC = () => {
 
         } catch (error) {
             console.error("Failed to fetch data", error);
-            alert("Failed to load data");
+            toast.error("Failed to load data");
         } finally {
             setLoading(false);
         }
@@ -76,11 +77,11 @@ const GradeSubjects: React.FC = () => {
             await api.post(`/school-admin/grades/${gradeId}/subjects`, {
                 subject_ids: selectedSubjectIds
             });
-            alert("Subjects linked successfully!");
+            toast.success("Subjects linked successfully!");
             navigate('/school-admin/grades');
         } catch (error) {
             console.error("Failed to save", error);
-            alert("Failed to save changes");
+            toast.error("Failed to save changes");
         } finally {
             setSaving(false);
         }

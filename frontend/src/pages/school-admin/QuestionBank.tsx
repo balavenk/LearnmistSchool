@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 interface Grade {
@@ -132,8 +133,7 @@ const QuestionBank: React.FC = () => {
             };
 
             await api.post('/school-admin/assignments/from-bank', payload);
-
-            alert('Quiz Created Successfully!');
+            toast.success('Quiz Created Successfully!');
             setShowModal(false);
             setQuizTitle('');
             setQuizDesc('');
@@ -142,7 +142,7 @@ const QuestionBank: React.FC = () => {
             // navigate('/school-admin/assignments'); // If such a page exists
         } catch (error) {
             console.error(error);
-            alert('Failed to create quiz');
+            toast.error('Failed to create quiz');
         } finally {
             setCreating(false);
         }

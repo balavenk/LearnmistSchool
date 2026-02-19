@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Smile, Zap, ShieldAlert } from 'lucide-react';
+import toast from 'react-hot-toast';
 import PAGINATION_CONFIG from '../../config/pagination';
 
 interface Grade {
@@ -93,11 +94,11 @@ const QuestionBank: React.FC = () => {
                 headers: { Authorization: `Bearer ${token}` },
                 params
             });
-            
+
             console.log('API Response:', res.data); // Debug: Check actual response structure
             console.log('Response type:', Array.isArray(res.data) ? 'Array' : 'Object');
             console.log('Response length/total:', Array.isArray(res.data) ? res.data.length : res.data.total);
-            
+
             // Handle different API response formats
             if (Array.isArray(res.data)) {
                 // Backend is not implementing pagination properly - returning all results
@@ -189,7 +190,7 @@ const QuestionBank: React.FC = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            alert('Quiz Created Successfully!');
+            toast.success('Quiz Created Successfully!');
             setShowModal(false);
             setQuizTitle('');
             setQuizDesc('');
@@ -197,7 +198,7 @@ const QuestionBank: React.FC = () => {
             navigate('/teacher/assignments'); // Redirect to assignments list
         } catch (error) {
             console.error(error);
-            alert('Failed to create quiz');
+            toast.error('Failed to create quiz');
         } finally {
             setCreating(false);
         }
@@ -441,10 +442,9 @@ const QuestionBank: React.FC = () => {
                                     <td className="p-4 font-medium text-slate-800 text-sm leading-relaxed">{q.text}</td>
                                     <td className="p-4">
                                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm
-                                            ${
-                                                q.difficulty_level === 'Easy' ? 'bg-green-100 text-green-700 border-2 border-green-200' :
+                                            ${q.difficulty_level === 'Easy' ? 'bg-green-100 text-green-700 border-2 border-green-200' :
                                                 q.difficulty_level === 'Hard' ? 'bg-red-100 text-red-700 border-2 border-red-200' :
-                                                'bg-yellow-100 text-yellow-700 border-2 border-yellow-200'
+                                                    'bg-yellow-100 text-yellow-700 border-2 border-yellow-200'
                                             }`}>
                                             {q.difficulty_level === 'Easy' && <Smile className="w-3.5 h-3.5" />}
                                             {q.difficulty_level === 'Medium' && <Zap className="w-3.5 h-3.5" />}
@@ -516,11 +516,10 @@ const QuestionBank: React.FC = () => {
                                     <button
                                         key={i}
                                         onClick={() => setCurrentPage(pageNum)}
-                                        className={`w-10 h-10 rounded-lg font-bold transition-all ${
-                                            currentPage === pageNum
+                                        className={`w-10 h-10 rounded-lg font-bold transition-all ${currentPage === pageNum
                                                 ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md transform scale-110'
                                                 : 'border-2 border-slate-300 text-slate-700 hover:bg-slate-50'
-                                        }`}
+                                            }`}
                                     >
                                         {pageNum}
                                     </button>
@@ -547,7 +546,7 @@ const QuestionBank: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 border-2 border-slate-200 relative overflow-hidden">
                         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600"></div>
-                        
+
                         <div className="flex items-center gap-3 mb-6">
                             <div className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl p-3">
                                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

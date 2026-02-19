@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 const TrainFileDetails: React.FC = () => {
     const { fileId } = useParams<{ fileId: string }>();
@@ -74,7 +75,7 @@ const TrainFileDetails: React.FC = () => {
             navigate(`/train-llm/${fileId}/progress`);
         } catch (error) {
             console.error("Training failed", error);
-            alert("Failed to initiate training.");
+            toast.error("Failed to initiate training.");
         } finally {
             setTraining(false);
         }
@@ -88,7 +89,7 @@ const TrainFileDetails: React.FC = () => {
             </div>
         </div>
     );
-    
+
     if (!file) return (
         <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
@@ -122,8 +123,8 @@ const TrainFileDetails: React.FC = () => {
                             <p className="text-indigo-100 text-md mt-1">Configure training parameters and metadata</p>
                         </div>
                     </div>
-                    <button 
-                        onClick={() => navigate('/train-llm')} 
+                    <button
+                        onClick={() => navigate('/train-llm')}
                         className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-xl font-bold transition-all border-2 border-white/30 text-white"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,9 +204,8 @@ const TrainFileDetails: React.FC = () => {
                     <div className="space-y-1">
                         <span className="text-slate-500 text-xs uppercase tracking-wide font-bold">Status</span>
                         <div className="mt-2">
-                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${
-                                file.file_status === 'Trained' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'
-                            }`}>
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${file.file_status === 'Trained' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'
+                                }`}>
                                 <span className={`w-2 h-2 rounded-full ${file.file_status === 'Trained' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
                                 {file.file_status}
                             </span>
@@ -227,50 +227,50 @@ const TrainFileDetails: React.FC = () => {
                 </div>
                 <div className="p-6 space-y-6">
 
-                <div className="grid grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                            </svg>
-                            AI Agent
-                        </label>
-                        <select
-                            value={aiAgent}
-                            onChange={(e) => setAiAgent(e.target.value)}
-                            className="w-full rounded-xl border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm p-3 font-medium text-slate-900"
-                        >
-                            <option value="Open AI">Open AI</option>
-                        </select>
+                    <div className="grid grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                </svg>
+                                AI Agent
+                            </label>
+                            <select
+                                value={aiAgent}
+                                onChange={(e) => setAiAgent(e.target.value)}
+                                className="w-full rounded-xl border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm p-3 font-medium text-slate-900"
+                            >
+                                <option value="Open AI">Open AI</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                                </svg>
+                                Model
+                            </label>
+                            <select
+                                value={model}
+                                onChange={(e) => setModel(e.target.value)}
+                                className="w-full rounded-xl border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm p-3 font-medium text-slate-900"
+                            >
+                                <option value="GPT 4.1">GPT 4.1</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                            </svg>
-                            Model
-                        </label>
-                        <select
-                            value={model}
-                            onChange={(e) => setModel(e.target.value)}
-                            className="w-full rounded-xl border-2 border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm p-3 font-medium text-slate-900"
-                        >
-                            <option value="GPT 4.1">GPT 4.1</option>
-                        </select>
-                    </div>
-                </div>
 
                     <div className="flex justify-between items-center mb-3">
                         <label className="block text-sm font-bold text-slate-700 flex items-center gap-2">
                             <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                             </svg>
-                            Metadata 
+                            Metadata
                             <span className="text-slate-500 font-normal text-xs">(Max 10 attributes)</span>
                         </label>
-                        <button 
-                            onClick={addMetadataRow} 
-                            disabled={metadata.length >= 10} 
+                        <button
+                            onClick={addMetadataRow}
+                            disabled={metadata.length >= 10}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-2 border-indigo-200"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,8 +297,8 @@ const TrainFileDetails: React.FC = () => {
                                     onChange={(e) => handleMetadataChange(index, 'value', e.target.value)}
                                 />
                                 {metadata.length > 1 && (
-                                    <button 
-                                        onClick={() => removeMetadataRow(index)} 
+                                    <button
+                                        onClick={() => removeMetadataRow(index)}
                                         className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                                         title="Remove attribute"
                                     >
@@ -311,33 +311,32 @@ const TrainFileDetails: React.FC = () => {
                         ))}
                     </div>
 
-                <div className="pt-6 border-t-2 border-slate-200 flex justify-end">
-                    <button
-                        onClick={handleTrain}
-                        disabled={training}
-                        className={`inline-flex items-center gap-2 px-8 py-3 rounded-xl text-white font-bold transition-all shadow-md text-sm ${
-                            training 
-                                ? 'bg-slate-400 cursor-not-allowed' 
-                                : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-lg hover:scale-105'
-                        }`}
-                    >
-                        {training ? (
-                            <>
-                                <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                Initiating Training...
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                                Start Training
-                            </>
-                        )}
-                    </button>
-                </div>
+                    <div className="pt-6 border-t-2 border-slate-200 flex justify-end">
+                        <button
+                            onClick={handleTrain}
+                            disabled={training}
+                            className={`inline-flex items-center gap-2 px-8 py-3 rounded-xl text-white font-bold transition-all shadow-md text-sm ${training
+                                    ? 'bg-slate-400 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-lg hover:scale-105'
+                                }`}
+                        >
+                            {training ? (
+                                <>
+                                    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Initiating Training...
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    Start Training
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

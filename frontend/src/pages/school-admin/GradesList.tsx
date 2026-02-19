@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 interface Grade {
     id: number;
@@ -67,7 +68,7 @@ const GradesList: React.FC = () => {
             setNewGradeName('');
         } catch (error) {
             console.error("Failed to create grade", error);
-            alert("Failed to create grade");
+            toast.error("Failed to create grade");
         }
     };
 
@@ -98,7 +99,7 @@ const GradesList: React.FC = () => {
             setNewSectionName('');
         } catch (error) {
             console.error("Failed to add section", error);
-            alert("Failed to add section");
+            toast.error("Failed to add section");
         }
     };
 
@@ -109,7 +110,7 @@ const GradesList: React.FC = () => {
             if (selectedGrade) fetchSections(selectedGrade.id);
         } catch (error) {
             console.error("Failed to delete section", error);
-            alert("Failed to delete section. It may have students or assignments assigned.");
+            toast.error("Failed to delete section. It may have students or assignments assigned.");
         }
     };
 

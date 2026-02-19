@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import UploadMaterialModal from '../../components/UploadMaterialModal';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 interface PdfFile {
     id: number;
@@ -79,7 +80,7 @@ const QuestionBankDetails: React.FC = () => {
             fetchMaterials(currentPage);
         } catch (error: any) {
             console.error("Delete failed", error);
-            alert(error.response?.data?.detail || "Failed to delete file");
+            toast.error(error.response?.data?.detail || "Failed to delete file");
         }
     };
 

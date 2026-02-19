@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 import { PAGINATION_CONFIG } from '../../config/pagination';
 
 interface PdfFile {
@@ -45,7 +46,7 @@ const TrainViaLLM: React.FC = () => {
             setFiles(prev => prev.map(f => f.id === id ? { ...f, file_status: status } : f));
         } catch (error) {
             console.error("Failed to update status", error);
-            alert("Failed to update status");
+            toast.error("Failed to update status");
         }
     };
 
@@ -71,7 +72,7 @@ const TrainViaLLM: React.FC = () => {
             link.parentNode?.removeChild(link);
         } catch (error) {
             console.error("Download failed", error);
-            alert("Failed to download file");
+            toast.error("Failed to download file");
         }
     };
 
@@ -79,13 +80,13 @@ const TrainViaLLM: React.FC = () => {
         const matchesTab = activeTab === 'NOT_TRAINED'
             ? (f.file_status === 'Uploaded' || f.file_status === 'Skipped' || f.file_status === 'Processing')
             : f.file_status === 'Trained';
-        
-        const matchesSearch = searchQuery === '' || 
+
+        const matchesSearch = searchQuery === '' ||
             f.original_filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
             f.subject_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             f.school_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             f.grade_name.toLowerCase().includes(searchQuery.toLowerCase());
-        
+
         return matchesTab && matchesSearch;
     });
 
@@ -137,11 +138,10 @@ const TrainViaLLM: React.FC = () => {
                 <div className="flex border-b-2 border-slate-200">
                     <button
                         onClick={() => setActiveTab('NOT_TRAINED')}
-                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${
-                            activeTab === 'NOT_TRAINED'
+                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'NOT_TRAINED'
                                 ? 'border-indigo-600 bg-white text-indigo-600 shadow-sm'
                                 : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100'
-                        }`}
+                            }`}
                     >
                         <div className="flex items-center justify-center gap-2">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,11 +155,10 @@ const TrainViaLLM: React.FC = () => {
                     </button>
                     <button
                         onClick={() => setActiveTab('TRAINED')}
-                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${
-                            activeTab === 'TRAINED'
+                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'TRAINED'
                                 ? 'border-indigo-600 bg-white text-indigo-600 shadow-sm'
                                 : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100'
-                        }`}
+                            }`}
                     >
                         <div className="flex items-center justify-center gap-2">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,21 +264,19 @@ const TrainViaLLM: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4 text-slate-600 font-medium">{(file.file_size / 1024).toFixed(1)} KB</td>
                                     <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${
-                                            file.file_status === 'Trained'
+                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${file.file_status === 'Trained'
                                                 ? 'bg-green-50 text-green-700 border-green-200'
                                                 : file.file_status === 'Skipped'
-                                                ? 'bg-slate-100 text-slate-700 border-slate-300'
-                                                : file.file_status === 'Processing'
-                                                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                                : 'bg-blue-50 text-blue-700 border-blue-200'
-                                        }`}>
-                                            <span className={`w-2 h-2 rounded-full ${
-                                                file.file_status === 'Trained' ? 'bg-green-500' :
-                                                file.file_status === 'Skipped' ? 'bg-slate-500' :
-                                                file.file_status === 'Processing' ? 'bg-amber-500 animate-pulse' :
-                                                'bg-blue-500'
-                                            }`}></span>
+                                                    ? 'bg-slate-100 text-slate-700 border-slate-300'
+                                                    : file.file_status === 'Processing'
+                                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                                            }`}>
+                                            <span className={`w-2 h-2 rounded-full ${file.file_status === 'Trained' ? 'bg-green-500' :
+                                                    file.file_status === 'Skipped' ? 'bg-slate-500' :
+                                                        file.file_status === 'Processing' ? 'bg-amber-500 animate-pulse' :
+                                                            'bg-blue-500'
+                                                }`}></span>
                                             {file.file_status || 'Uploaded'}
                                         </span>
                                     </td>

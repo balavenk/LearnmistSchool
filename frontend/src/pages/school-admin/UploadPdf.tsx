@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../api/axios';
+import toast from 'react-hot-toast';
 import UploadMaterialModal from '../../components/UploadMaterialModal';
 
 interface Grade {
@@ -96,7 +97,7 @@ const QuestionBank: React.FC = () => {
             }
         } catch (error: any) {
             console.error("Delete failed", error);
-            alert(error.response?.data?.detail || "Failed to delete file");
+            toast.error(error.response?.data?.detail || "Failed to delete file");
         }
     };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 interface Assignment {
@@ -134,12 +135,12 @@ const StudentGrading: React.FC = () => {
                 answers: answersPayload
             });
 
-            alert("Grade saved successfully!");
+            toast.success("Grade saved successfully!");
             setSelectedSubmissionId(null);
             fetchSubmissions(); // Refresh list
         } catch (error) {
             console.error("Failed to save grade", error);
-            alert("Failed to save grade.");
+            toast.error("Failed to save grade.");
         }
     };
 
@@ -199,11 +200,10 @@ const StudentGrading: React.FC = () => {
             <div className="flex space-x-2 bg-white rounded-xl p-2 shadow-sm border border-slate-200">
                 <button
                     onClick={() => setActiveTab('quiz')}
-                    className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
-                        activeTab === 'quiz'
+                    className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'quiz'
                             ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md transform scale-105'
                             : 'text-slate-600 hover:bg-slate-50'
-                    }`}
+                        }`}
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -212,11 +212,10 @@ const StudentGrading: React.FC = () => {
                 </button>
                 <button
                     onClick={() => setActiveTab('project')}
-                    className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
-                        activeTab === 'project'
+                    className={`flex-1 py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'project'
                             ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md transform scale-105'
                             : 'text-slate-600 hover:bg-slate-50'
-                    }`}
+                        }`}
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -250,11 +249,10 @@ const StudentGrading: React.FC = () => {
                             <div
                                 key={sub.id}
                                 onClick={() => fetchSubmissionDetail(sub.id)}
-                                className={`group p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 relative overflow-hidden ${
-                                    selectedSubmissionId === sub.id
+                                className={`group p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 relative overflow-hidden ${selectedSubmissionId === sub.id
                                         ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-500 ring-4 ring-indigo-200 shadow-lg transform scale-105'
                                         : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-md'
-                                }`}
+                                    }`}
                             >
                                 {selectedSubmissionId === sub.id && (
                                     <div className="absolute top-3 right-3">
@@ -270,11 +268,10 @@ const StudentGrading: React.FC = () => {
                                     </svg>
                                     {new Date(sub.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </div>
-                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${
-                                    sub.status === 'GRADED' ? 'bg-green-100 text-green-700' :
-                                    sub.status === 'SUBMITTED' ? 'bg-orange-100 text-orange-700' :
-                                    'bg-gray-100 text-gray-700'
-                                }`}>
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold ${sub.status === 'GRADED' ? 'bg-green-100 text-green-700' :
+                                        sub.status === 'SUBMITTED' ? 'bg-orange-100 text-orange-700' :
+                                            'bg-gray-100 text-gray-700'
+                                    }`}>
                                     {sub.status === 'GRADED' && (
                                         <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -314,11 +311,10 @@ const StudentGrading: React.FC = () => {
                                     const graded = gradedAnswers[q.id] || { points: 0, isCorrect: false };
 
                                     return (
-                                        <div key={q.id} className={`p-6 rounded-xl border-2 transition-all ${
-                                            graded.isCorrect 
-                                                ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' 
+                                        <div key={q.id} className={`p-6 rounded-xl border-2 transition-all ${graded.isCorrect
+                                                ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
                                                 : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200'
-                                        }`}>
+                                            }`}>
                                             <div className="flex justify-between items-start mb-4">
                                                 <div className="flex items-start gap-3 flex-1">
                                                     <div className="bg-indigo-600 text-white rounded-lg px-3 py-1.5 font-bold text-sm">
@@ -340,11 +336,10 @@ const StudentGrading: React.FC = () => {
                                                     </svg>
                                                     Student Answer:
                                                 </div>
-                                                <div className={`p-4 rounded-lg font-medium shadow-sm ${
-                                                    graded.isCorrect 
-                                                        ? 'bg-green-100 text-green-900 border-2 border-green-300' 
+                                                <div className={`p-4 rounded-lg font-medium shadow-sm ${graded.isCorrect
+                                                        ? 'bg-green-100 text-green-900 border-2 border-green-300'
                                                         : 'bg-red-100 text-red-900 border-2 border-red-300'
-                                                }`}>
+                                                    }`}>
                                                     {q.question_type === 'MULTIPLE_CHOICE' || q.question_type === 'TRUE_FALSE'
                                                         ? q.options.find(o => o.id === studentAns?.selected_option_id)?.text || "No Answer Provided"
                                                         : studentAns?.text_answer || "No Answer Provided"

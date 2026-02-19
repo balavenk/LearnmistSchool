@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
+import { toast } from 'react-hot-toast';
 
 // Interfaces matching Backend Schemas
 interface ClassData {
@@ -104,10 +105,10 @@ const Classes: React.FC = () => {
             });
             fetchData();
             closeModal();
-            alert("Class created successfully!");
+            toast.success("Class created successfully!");
         } catch (error) {
             console.error("Failed to create class", error);
-            alert("Failed to create class.");
+            toast.error("Failed to create class.");
         }
     };
 
@@ -119,10 +120,10 @@ const Classes: React.FC = () => {
             await api.put(`/school-admin/classes/${assignClassId}/teacher/${assignTeacherId}`);
             fetchData();
             closeAssignModal();
-            alert("Teacher assigned successfully!");
+            toast.success("Teacher assigned successfully!");
         } catch (error) {
             console.error("Failed to assign teacher", error);
-            alert("Failed to assign teacher.");
+            toast.error("Failed to assign teacher.");
         }
     };
 
