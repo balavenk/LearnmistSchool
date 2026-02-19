@@ -157,9 +157,8 @@ const TeacherUploadPdf: React.FC = () => {
                                     <td className="px-6 py-4 text-slate-500 max-w-xs truncate" title={pdf.description}>{pdf.description || '-'}</td>
                                     <td className="px-6 py-4 text-slate-500">{(pdf.file_size / 1024).toFixed(1)} KB</td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                            pdf.file_status === 'Trained' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-                                        }`}>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${pdf.file_status === 'Trained' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                            }`}>
                                             {pdf.file_status || 'Uploaded'}
                                         </span>
                                     </td>
@@ -200,8 +199,7 @@ const TeacherUploadPdf: React.FC = () => {
                 isOpen={showUploadModal}
                 onClose={() => setShowUploadModal(false)}
                 onSuccess={handleUploadSuccess}
-                gradeId={Number(selectedGradeId)}
-                subjectEndpoint="/teacher/subjects/"
+                initialGradeId={Number(selectedGradeId)}
             />
         </div>
     );

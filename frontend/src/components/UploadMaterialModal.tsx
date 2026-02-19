@@ -6,37 +6,91 @@ interface Subject {
     name: string;
 }
 
+interface Grade {
+    id: number;
+    name: string;
+    school_id?: number;
+}
+
 interface UploadMaterialModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
-    schoolId?: number; // Might not need if backend infers from token
-    gradeId: number;
-    subjectEndpoint?: string;
+    schoolId?: number;
+    initialGradeId?: number;
 }
 
-const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClose, onSuccess, gradeId, subjectEndpoint = '/school-admin/subjects/' }) => {
+const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClose, onSuccess, initialGradeId }) => {
     const [file, setFile] = useState<File | null>(null);
+    const [grades, setGrades] = useState<Grade[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [selectedGradeId, setSelectedGradeId] = useState<number | ''>(initialGradeId || '');
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [currentSchoolId, setCurrentSchoolId] = useState<number | null>(null);
 
     useEffect(() => {
         if (isOpen) {
-            fetchSubjects();
+            fetchGrades();
+            fetchUserInfo();
         }
     }, [isOpen]);
 
-    const fetchSubjects = async () => {
+    const fetchUserInfo = async () => {
         try {
-            const response = await api.get(subjectEndpoint);
-            setSubjects(response.data);
-            if (response.data.length > 0) {
-                // Determine if we should pre-select or let user choose. 
-                // Usually user chooses subject.
+            const res = await api.get('/auth/me');
+            setCurrentSchoolId(res.data.school_id);
+        } catch (err) {
+            console.error("Failed to fetch user info", err);
+        }
+    };
+
+    useEffect(() => {
+        if (selectedGradeId) {
+            fetchSubjects(Number(selectedGradeId));
+        } else {
+            setSubjects([]);
+            setSelectedSubjectId('');
+        }
+    }, [selectedGradeId]);
+
+    const fetchGrades = async () => {
+        try {
+            const role = localStorage.getItem('role')?.toUpperCase();
+            let endpoint = '/school-admin/grades/';
+            if (role === 'TEACHER') {
+                endpoint = '/teacher/grades/';
             }
+            const response = await api.get(endpoint);
+            setGrades(response.data);
+
+            if (initialGradeId) {
+                setSelectedGradeId(initialGradeId);
+            } else if (response.data.length > 0 && !selectedGradeId) {
+                // Optional: auto-select first grade? Maybe better to let user choose.
+            }
+        } catch (err) {
+            console.error("Failed to fetch grades", err);
+        }
+    };
+
+    const fetchSubjects = async (gId: number) => {
+        try {
+            const role = localStorage.getItem('role')?.toUpperCase();
+            let endpoint = `/school-admin/grades/${gId}/subjects`;
+
+            if (role === 'TEACHER') {
+                endpoint = `/teacher/grades/${gId}/subjects`;
+            } else if (role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN') {
+                // For Admins, show ALL subjects in the school so they can manage curriculum freely
+                endpoint = `/school-admin/subjects/`;
+            }
+
+            const response = await api.get(endpoint);
+            setSubjects(response.data);
+            setSelectedSubjectId('');
         } catch (err) {
             console.error("Failed to fetch subjects", err);
         }
@@ -54,6 +108,10 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
             setError('Please select a file');
             return;
         }
+        if (!selectedGradeId) {
+            setError('Please select a grade');
+            return;
+        }
         if (!selectedSubjectId) {
             setError('Please select a subject');
             return;
@@ -64,7 +122,7 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
 
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('grade_id', gradeId.toString());
+        formData.append('grade_id', selectedGradeId.toString());
         formData.append('subject_id', selectedSubjectId.toString());
         if (description) formData.append('description', description);
         // school_id is required by backend form but typically backend can infer or we pass it. 
@@ -89,30 +147,35 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
         // Better: Fetch it on mount.
 
         try {
-            // Get user info first - or maybe just use the fact we are school admin.
-            // Let's try to get profile first.
-            const me = await api.get('/auth/me');
-            const schoolId = me.data.school_id;
+            // Find school_id from selected grade
+            const selectedGrade = grades.find(g => g.id === Number(selectedGradeId));
+            const schoolIdToUse = selectedGrade?.school_id || currentSchoolId;
 
-            formData.append('school_id', schoolId.toString());
+            if (!schoolIdToUse) {
+                // Last ditch effort: Fetch if both missing (shouldn't happen with grades pre-loaded)
+                const me = await api.get('/auth/me');
+                formData.append('school_id', me.data.school_id.toString());
+            } else {
+                formData.append('school_id', schoolIdToUse.toString());
+            }
 
             await api.post('/upload/training-material', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
             });
-            
+
             // Reset form fields after successful upload
             setFile(null);
             setSelectedSubjectId('');
             setDescription('');
-            
+
             // Reset file input element
             const fileInput = document.getElementById('file-upload') as HTMLInputElement;
             if (fileInput) {
                 fileInput.value = '';
             }
-            
+
             onSuccess();
             onClose();
         } catch (err: any) {
@@ -140,18 +203,43 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Select Grade
+                        </label>
+                        <select
+                            value={selectedGradeId}
+                            onChange={(e) => {
+                                setSelectedGradeId(Number(e.target.value));
+                                setSelectedSubjectId('');
+                            }}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                            <option value="">Select a grade...</option>
+                            {grades.map(g => (
+                                <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
                             Select Subject
                         </label>
                         <select
                             value={selectedSubjectId}
                             onChange={(e) => setSelectedSubjectId(Number(e.target.value))}
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                            disabled={!selectedGradeId || subjects.length === 0}
                         >
-                            <option value="">Select a subject...</option>
+                            <option value="">{subjects.length === 0 ? 'No subjects found for this grade' : 'Select a subject...'}</option>
                             {subjects.map(sub => (
                                 <option key={sub.id} value={sub.id}>{sub.name}</option>
                             ))}
                         </select>
+                        {selectedGradeId && subjects.length === 0 && (
+                            <p className="text-amber-600 text-xs mt-1">
+                                No subjects are currently assigned to this grade.
+                            </p>
+                        )}
                     </div>
 
                     <div>

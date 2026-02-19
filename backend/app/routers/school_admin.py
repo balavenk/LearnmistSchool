@@ -176,8 +176,11 @@ def create_grade(grade: schemas.GradeCreate, db: Session = Depends(database.get_
     return new_grade
 
 @router.get("/grades/", response_model=List[schemas.Grade])
-def read_grades(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
-    return db.query(models.Grade).filter(models.Grade.school_id == current_user.school_id).all()
+def read_grades(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+    query = db.query(models.Grade)
+    if current_user.role != models.UserRole.SUPER_ADMIN:
+        query = query.filter(models.Grade.school_id == current_user.school_id)
+    return query.all()
 
 @router.put("/classes/{class_id}/teacher/{teacher_id}")
 def assign_class_teacher(class_id: int, teacher_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
@@ -389,11 +392,18 @@ def delete_teacher_assignment(assignment_id: int, db: Session = Depends(database
 # --- Grade-Subject Management ---
 
 @router.get("/grades/{grade_id}/subjects", response_model=List[schemas.Subject])
-def read_grade_subjects(grade_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
-    grade = db.query(models.Grade).filter(
-        models.Grade.id == grade_id, 
-        models.Grade.school_id == current_user.school_id
-    ).first()
+def read_grade_subjects(grade_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+    # Allow SCHOOL_ADMIN, TEACHER, and SUPER_ADMIN
+    if current_user.role not in [models.UserRole.SCHOOL_ADMIN, models.UserRole.TEACHER, models.UserRole.SUPER_ADMIN]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+        
+    query = db.query(models.Grade).filter(models.Grade.id == grade_id)
+    
+    # If not super admin, restrict to user's school
+    if current_user.role != models.UserRole.SUPER_ADMIN:
+        query = query.filter(models.Grade.school_id == current_user.school_id)
+        
+    grade = query.first()
     if not grade:
         raise HTTPException(status_code=404, detail="Grade not found")
         

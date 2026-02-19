@@ -671,3 +671,14 @@ def read_dashboard_stats(db: Session = Depends(database.get_db), current_user: m
         classes=class_stats_list
     )
 
+
+@router.get("/grades/{grade_id}/subjects", response_model=List[schemas.Subject])
+def read_grade_subjects(grade_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+    # Get subjects assigned to this teacher for this specific grade
+    subjects = db.query(models.Subject).join(models.TeacherAssignment).filter(
+        models.TeacherAssignment.teacher_id == current_user.id,
+        models.TeacherAssignment.grade_id == grade_id
+    ).distinct().all()
+    
+    return subjects
+

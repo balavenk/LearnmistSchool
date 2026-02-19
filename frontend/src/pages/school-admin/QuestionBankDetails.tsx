@@ -187,7 +187,7 @@ const QuestionBankDetails: React.FC = () => {
                 <table className="w-full text-left text-sm">
                     <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                         <tr>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
                                 onClick={() => handleSort('subject_name')}
                             >
@@ -196,7 +196,7 @@ const QuestionBankDetails: React.FC = () => {
                                     <SortIcon field="subject_name" />
                                 </div>
                             </th>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
                                 onClick={() => handleSort('original_filename')}
                             >
@@ -206,7 +206,7 @@ const QuestionBankDetails: React.FC = () => {
                                 </div>
                             </th>
                             <th className="px-6 py-4">Description</th>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
                                 onClick={() => handleSort('file_size')}
                             >
@@ -216,7 +216,7 @@ const QuestionBankDetails: React.FC = () => {
                                 </div>
                             </th>
                             <th className="px-6 py-4">Status</th>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
                                 onClick={() => handleSort('uploaded_at')}
                             >
@@ -296,7 +296,7 @@ const QuestionBankDetails: React.FC = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
                         </button>
-                        
+
                         {/* Page Numbers */}
                         <div className="flex items-center gap-1">
                             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -310,16 +310,15 @@ const QuestionBankDetails: React.FC = () => {
                                 } else {
                                     pageNum = currentPage - 2 + i;
                                 }
-                                
+
                                 return (
                                     <button
                                         key={pageNum}
                                         onClick={() => handlePageChange(pageNum)}
-                                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                            currentPage === pageNum
+                                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNum
                                                 ? 'bg-indigo-600 text-white'
                                                 : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
-                                        }`}
+                                            }`}
                                     >
                                         {pageNum}
                                     </button>
@@ -355,7 +354,7 @@ const QuestionBankDetails: React.FC = () => {
                 isOpen={showUploadModal}
                 onClose={() => setShowUploadModal(false)}
                 onSuccess={handleUploadSuccess}
-                gradeId={Number(gradeId)}
+                initialGradeId={Number(gradeId)}
             />
         </div>
     );
