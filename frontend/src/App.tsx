@@ -20,6 +20,7 @@ import TeachersList from './pages/school-admin/TeachersList';
 import StudentsList from './pages/school-admin/StudentsList';
 import SubjectsList from './pages/school-admin/SubjectsList';
 import GradesList from './pages/school-admin/GradesList';
+import UploadPdf from './pages/school-admin/UploadPdf';
 import QuestionBank from './pages/school-admin/QuestionBank';
 import QuestionBankDetails from './pages/school-admin/QuestionBankDetails';
 import Classes from './pages/school-admin/Classes';
@@ -76,8 +77,9 @@ const App: React.FC = () => {
           <Route path="school-admin/subjects" element={<SubjectsList />} />
           <Route path="school-admin/grades" element={<GradesList />} />
           <Route path="school-admin/grades/:gradeId/subjects" element={<GradeSubjects />} />
+          <Route path="school-admin/upload-pdf" element={<UploadPdf />} />
+          <Route path="school-admin/upload-pdf/:gradeId" element={<QuestionBankDetails />} />
           <Route path="school-admin/question-bank" element={<QuestionBank />} />
-          <Route path="school-admin/question-bank/:gradeId" element={<QuestionBankDetails />} />
           <Route path="school-admin/classes" element={<Classes />} />
 
           {/* TEACHER */}

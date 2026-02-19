@@ -62,7 +62,7 @@ const QuestionBankDetails: React.FC = () => {
     }, [gradeId, currentPage]);
 
     const handleBack = () => {
-        navigate('/school-admin/question-bank');
+        navigate('/school-admin/upload-pdf');
     };
 
     const handleAddPdf = () => {
@@ -316,8 +316,8 @@ const QuestionBankDetails: React.FC = () => {
                                         key={pageNum}
                                         onClick={() => handlePageChange(pageNum)}
                                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNum
-                                                ? 'bg-indigo-600 text-white'
-                                                : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
                                             }`}
                                     >
                                         {pageNum}

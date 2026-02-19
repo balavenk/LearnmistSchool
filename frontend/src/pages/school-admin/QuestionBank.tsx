@@ -1,198 +1,306 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
-import UploadMaterialModal from '../../components/UploadMaterialModal';
 
 interface Grade {
     id: number;
     name: string;
 }
 
-interface PdfFile {
+interface Subject {
     id: number;
-    original_filename: string;
-    uploaded_at: string;
-    file_size: number;
-    file_status: string;
-    subject_name: string;
-    description?: string;
+    name: string;
 }
 
-interface PaginatedResponse {
-    items: PdfFile[];
-    total: number;
-    page: number;
-    page_size: number;
-    total_pages: number;
+interface Question {
+    id: number;
+    text: string;
+    points: number;
+    question_type: string;
+    difficulty_level: string;
 }
 
 const QuestionBank: React.FC = () => {
     const [grades, setGrades] = useState<Grade[]>([]);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [questions, setQuestions] = useState<Question[]>([]);
+
+    // Filters
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
-    const [materials, setMaterials] = useState<PdfFile[]>([]);
-    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
+    const [difficulty, setDifficulty] = useState<string>('');
+    const [searchText, setSearchText] = useState<string>('');
     const [loading, setLoading] = useState(false);
 
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalCount, setTotalCount] = useState(0);
-    const pageSize = 10;
+    // Pagination
+    const [totalQuestions, setTotalQuestions] = useState(0);
+
+    // Selection
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+    // Modal
+    const [showModal, setShowModal] = useState(false);
+    const [quizTitle, setQuizTitle] = useState('');
+    const [quizDesc, setQuizDesc] = useState('');
+    const [dueDate, setDueDate] = useState('');
+    const [creating, setCreating] = useState(false);
 
     const fetchGrades = async () => {
         try {
-            const res = await api.get<Grade[]>('/school-admin/grades/');
+            const res = await api.get('/school-admin/grades/');
             setGrades(res.data);
-            if (res.data.length > 0) {
-                setSelectedGradeId((prev) => (prev === '' ? res.data[0].id : prev));
-            }
         } catch (error) {
-            console.error('Failed to fetch grades', error);
+            console.error(error);
         }
     };
 
-    const fetchMaterials = async (gradeId: number, page: number = 1) => {
+    const fetchSubjects = async () => {
+        try {
+            const res = await api.get('/school-admin/subjects/');
+            setSubjects(res.data);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const fetchQuestions = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await api.get<PaginatedResponse>(
-                `/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
-            );
-            setMaterials(response.data.items);
-            setTotalPages(response.data.total_pages);
-            setTotalCount(response.data.total);
-            setCurrentPage(response.data.page);
+            const params: any = {
+                grade_id: selectedGradeId,
+                subject_id: selectedSubjectId,
+                // backend uses skip/limit if needed, but endpoint I added ignores them for now to match simplicity
+                // search: searchText
+            };
+            if (difficulty) params.difficulty = difficulty;
+            if (searchText) params.search = searchText;
+
+            const res = await api.get('/school-admin/questions/', { params });
+
+            // Assuming simple array for now matching the backend endpoint I wrote
+            if (Array.isArray(res.data)) {
+                setQuestions(res.data);
+                setTotalQuestions(res.data.length);
+            } else {
+                setQuestions(res.data.questions || res.data.items || []);
+                setTotalQuestions(res.data.total || 0);
+            }
         } catch (error) {
-            console.error('Failed to fetch materials', error);
-            setMaterials([]);
-            setTotalPages(1);
-            setTotalCount(0);
+            console.error(error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
 
     useEffect(() => {
         fetchGrades();
+        fetchSubjects();
     }, []);
 
     useEffect(() => {
-        if (selectedGradeId !== '') {
-            fetchMaterials(Number(selectedGradeId), currentPage);
+        if (!selectedGradeId) {
+            // Optional: reset subjects? No, they are global now.
+            // But we should reset selectedSubjectId if we want them to re-select
+            setSelectedSubjectId('');
         }
-    }, [selectedGradeId, currentPage]);
+    }, [selectedGradeId]);
 
-    const handleUploadSuccess = () => {
-        if (selectedGradeId !== '') {
-            setCurrentPage(1);
-            fetchMaterials(Number(selectedGradeId), 1);
+    useEffect(() => {
+        if (selectedGradeId && selectedSubjectId) {
+            fetchQuestions();
+        } else {
+            setQuestions([]);
         }
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, fetchQuestions]);
+
+    const toggleSelection = (id: number) => {
+        setSelectedIds(prev => prev.includes(id)
+            ? prev.filter(x => x !== id)
+            : [...prev, id]
+        );
     };
 
-    const handleDelete = async (id: number) => {
-        if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return;
-
+    const handleCreateQuiz = async () => {
+        setCreating(true);
         try {
-            await api.delete(`/upload/training-material/${id}`);
-            if (selectedGradeId !== '') {
-                fetchMaterials(Number(selectedGradeId), currentPage);
-            }
-        } catch (error: any) {
-            console.error("Delete failed", error);
-            alert(error.response?.data?.detail || "Failed to delete file");
+            const payload = {
+                title: quizTitle,
+                description: quizDesc,
+                due_date: dueDate ? new Date(dueDate).toISOString() : null,
+                grade_id: selectedGradeId,
+                subject_id: selectedSubjectId,
+                question_ids: selectedIds
+            };
+
+            await api.post('/school-admin/assignments/from-bank', payload);
+
+            alert('Quiz Created Successfully!');
+            setShowModal(false);
+            setQuizTitle('');
+            setQuizDesc('');
+            setSelectedIds([]);
+            // School admin might want to go to a general list or just stay here
+            // navigate('/school-admin/assignments'); // If such a page exists
+        } catch (error) {
+            console.error(error);
+            alert('Failed to create quiz');
+        } finally {
+            setCreating(false);
         }
     };
 
-    const handlePageChange = (newPage: number) => {
-        if (newPage >= 1 && newPage <= totalPages) {
-            setCurrentPage(newPage);
-        }
+    const getDifficultyStats = () => {
+        const easy = questions.filter(q => q.difficulty_level === 'Easy').length;
+        const medium = questions.filter(q => q.difficulty_level === 'Medium').length;
+        const hard = questions.filter(q => q.difficulty_level === 'Hard').length;
+        return { easy, medium, hard };
     };
+
+    const stats = getDifficultyStats();
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Question Bank</h1>
-                    <p className="text-slate-500 text-sm">Manage educational materials and train LLM across all grades.</p>
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Question Bank</h1>
+                        <p className="text-slate-600 text-sm">Browse the school library and create assignments</p>
+                    </div>
+
+                    {selectedIds.length > 0 && (
+                        <div className="flex items-center gap-4 bg-white p-4 rounded-xl shadow-md border-2 border-indigo-200">
+                            <div>
+                                <div className="text-xs text-slate-500 font-medium">Selected</div>
+                                <div className="text-xl font-bold text-indigo-600">{selectedIds.length}</div>
+                            </div>
+                            <button
+                                onClick={() => setShowModal(true)}
+                                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg hover:scale-105 transition-all flex items-center gap-2"
+                            >
+                                Create Quiz
+                            </button>
+                        </div>
+                    )}
                 </div>
-
-                <button
-                    onClick={() => setShowUploadModal(true)}
-                    disabled={selectedGradeId === ''}
-                    className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add PDF to train LLM
-                </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Select Grade to Manage</label>
-                <select
-                    value={selectedGradeId}
-                    onChange={(e) => {
-                        const value = e.target.value ? Number(e.target.value) : '';
-                        setSelectedGradeId(value);
-                        setCurrentPage(1);
-                    }}
-                    className="w-full md:w-80 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                    <option value="">Select grade...</option>
-                    {grades.map((grade) => (
-                        <option key={grade.id} value={grade.id}>{grade.name}</option>
-                    ))}
-                </select>
+            {questions.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white rounded-xl p-5 border-2 border-slate-200 shadow-sm">
+                        <div className="text-2xl font-bold text-slate-900">{totalQuestions}</div>
+                        <div className="text-xs text-slate-500 font-medium">Total Questions</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-5 border-2 border-green-200 shadow-sm">
+                        <div className="text-2xl font-bold text-green-700">{stats.easy}</div>
+                        <div className="text-xs text-green-500 font-medium">Easy</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-5 border-2 border-yellow-200 shadow-sm">
+                        <div className="text-2xl font-bold text-yellow-700">{stats.medium}</div>
+                        <div className="text-xs text-yellow-500 font-medium">Medium</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-5 border-2 border-red-200 shadow-sm">
+                        <div className="text-2xl font-bold text-red-700">{stats.hard}</div>
+                        <div className="text-xs text-red-500 font-medium">Hard</div>
+                    </div>
+                </div>
+            )}
+
+            <div className="bg-white p-6 rounded-2xl shadow-md border-2 border-slate-200">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Grade</label>
+                        <select
+                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white outline-none font-medium"
+                            value={selectedGradeId}
+                            onChange={(e) => setSelectedGradeId(Number(e.target.value) || '')}
+                        >
+                            <option value="">Select Grade</option>
+                            {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Subject</label>
+                        <select
+                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white outline-none font-medium disabled:bg-slate-50"
+                            value={selectedSubjectId}
+                            onChange={(e) => setSelectedSubjectId(Number(e.target.value) || '')}
+                            disabled={!selectedGradeId}
+                        >
+                            <option value="">Select Subject</option>
+                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Difficulty</label>
+                        <select
+                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white outline-none font-medium"
+                            value={difficulty}
+                            onChange={(e) => setDifficulty(e.target.value)}
+                        >
+                            <option value="">All Levels</option>
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Search</label>
+                        <input
+                            type="text"
+                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white outline-none font-medium"
+                            placeholder="Search questions..."
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                        />
+                    </div>
+                </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Subject</th>
-                            <th className="px-6 py-4">File Name</th>
-                            <th className="px-6 py-4">Description</th>
-                            <th className="px-6 py-4">Size</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4">Upload Date</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
+            <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="bg-slate-50 border-b-2 border-slate-200">
+                            <th className="p-4 w-16">
+                                <span className="sr-only">Select</span>
+                            </th>
+                            <th className="p-4 text-xs uppercase text-slate-700 font-bold">Question Text</th>
+                            <th className="p-4 w-32 text-xs uppercase text-slate-700 font-bold">Difficulty</th>
+                            <th className="p-4 w-24 text-xs uppercase text-slate-700 font-bold">Points</th>
+                            <th className="p-4 w-40 text-xs uppercase text-slate-700 font-bold">Type</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-200">
                         {loading ? (
-                            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
-                        ) : selectedGradeId === '' ? (
-                            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">Select a grade to view materials.</td></tr>
-                        ) : materials.length === 0 ? (
-                            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">No PDFs found for this grade.</td></tr>
+                            <tr><td colSpan={5} className="p-12 text-center text-slate-500 font-medium">Loading questions...</td></tr>
+                        ) : questions.length === 0 ? (
+                            <tr><td colSpan={5} className="p-12 text-center text-slate-500">Select Grade and Subject to view questions.</td></tr>
                         ) : (
-                            materials.map((pdf) => (
-                                <tr key={pdf.id} className="hover:bg-slate-50">
-                                    <td className="px-6 py-4 text-slate-900 font-medium">{pdf.subject_name}</td>
-                                    <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                                        </svg>
-                                        {pdf.original_filename}
+                            questions.map(q => (
+                                <tr key={q.id} className={`hover:bg-slate-50 ${selectedIds.includes(q.id) ? 'bg-indigo-50/50' : ''}`}>
+                                    <td className="p-4">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.includes(q.id)}
+                                            onChange={() => toggleSelection(q.id)}
+                                            className="w-5 h-5 cursor-pointer rounded border-slate-300 text-indigo-600"
+                                        />
                                     </td>
-                                    <td className="px-6 py-4 text-slate-500 max-w-xs truncate" title={pdf.description}>{pdf.description || '-'}</td>
-                                    <td className="px-6 py-4 text-slate-500">{(pdf.file_size / 1024).toFixed(1)} KB</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${pdf.file_status === 'Trained' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                    <td className="p-4 font-medium text-slate-800 text-sm">{q.text}</td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${q.difficulty_level === 'Easy' ? 'bg-green-100 text-green-700' :
+                                            q.difficulty_level === 'Hard' ? 'bg-red-100 text-red-700' :
+                                                'bg-yellow-100 text-yellow-700'
                                             }`}>
-                                            {pdf.file_status || 'Uploaded'}
+                                            {q.difficulty_level || 'N/A'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-slate-500">{new Date(pdf.uploaded_at).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button
-                                            onClick={() => handleDelete(pdf.id)}
-                                            className="text-slate-400 hover:text-red-600 transition-colors"
-                                            title="Delete File"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
+                                    <td className="p-4 font-bold text-slate-700 text-sm">{q.points}</td>
+                                    <td className="p-4">
+                                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-semibold">
+                                            {q.question_type}
+                                        </span>
                                     </td>
                                 </tr>
                             ))
@@ -201,37 +309,62 @@ const QuestionBank: React.FC = () => {
                 </table>
             </div>
 
-            {!loading && totalPages > 1 && (
-                <div className="flex items-center justify-between bg-white px-6 py-4 rounded-xl shadow-sm border border-slate-200">
-                    <div className="text-sm text-slate-500">
-                        Showing {materials.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} results
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Previous
-                        </button>
-                        <span className="text-sm text-slate-600">Page {currentPage} of {totalPages}</span>
-                        <button
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Next
-                        </button>
+            {showModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-indigo-600 to-purple-600"></div>
+                        <h2 className="text-2xl font-bold mb-1">Create Quiz</h2>
+                        <p className="text-sm text-slate-500 mb-6 font-medium">Selected {selectedIds.length} questions</p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase mb-1 block">Quiz Title</label>
+                                <input
+                                    type="text"
+                                    className="w-full p-3 border-2 border-slate-300 rounded-xl outline-none focus:border-indigo-500 font-medium"
+                                    value={quizTitle}
+                                    onChange={e => setQuizTitle(e.target.value)}
+                                    placeholder="Weekly Quiz"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase mb-1 block">Description</label>
+                                <textarea
+                                    className="w-full p-3 border-2 border-slate-300 rounded-xl outline-none focus:border-indigo-500 font-medium h-24"
+                                    value={quizDesc}
+                                    onChange={e => setQuizDesc(e.target.value)}
+                                    placeholder="Brief description..."
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-600 uppercase mb-1 block">Due Date</label>
+                                <input
+                                    type="datetime-local"
+                                    className="w-full p-3 border-2 border-slate-300 rounded-xl outline-none focus:border-indigo-500 font-medium"
+                                    value={dueDate}
+                                    onChange={e => setDueDate(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="pt-4 flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowModal(false)}
+                                    className="px-6 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCreateQuiz}
+                                    disabled={!quizTitle || creating}
+                                    className="px-8 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50"
+                                >
+                                    {creating ? 'Creating...' : 'Create Quiz'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
-
-            <UploadMaterialModal
-                isOpen={showUploadModal}
-                onClose={() => setShowUploadModal(false)}
-                onSuccess={handleUploadSuccess}
-                initialGradeId={Number(selectedGradeId)}
-            />
         </div>
     );
 };

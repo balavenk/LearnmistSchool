@@ -431,3 +431,95 @@ def update_grade_subjects(grade_id: int, subject_data: schemas.GradeSubjectUpdat
     db.commit()
     return grade.subjects
 
+
+# --- Question Bank Endpoints ---
+
+@router.get("/questions/", response_model=List[schemas.QuestionOut])
+def read_questions(
+    grade_id: Optional[int] = None,
+    subject_id: Optional[int] = None,
+    difficulty: Optional[str] = None,
+    search: Optional[str] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_school_admin)
+):
+    """
+    Get all questions for the current school with optional filters.
+    Available to School Admins.
+    """
+    query = db.query(models.Question).join(models.Assignment, models.Question.assignment_id == models.Assignment.id)
+    
+    # Filter by School
+    query = query.filter(models.Question.school_id == current_user.school_id)
+    
+    # Exclude derived questions (only show originals)
+    query = query.filter(models.Question.parent_question_id == None)
+    
+    # Optional Filters
+    if grade_id:
+        query = query.filter(models.Question.class_id == grade_id) # In this schema class_id maps to grade for assignments
+    if subject_id:
+        query = query.filter(models.Question.subject_id == subject_id)
+    if difficulty:
+        query = query.filter(models.Question.difficulty_level == difficulty)
+    if search:
+        search_fmt = f"%{search}%"
+        query = query.filter(models.Question.text.ilike(search_fmt))
+        
+    return query.all()
+
+@router.post("/assignments/from-bank", response_model=schemas.AssignmentOut)
+def create_assignment_from_bank(
+    data: schemas.AssignmentFromBankCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_school_admin)
+):
+    # School Admins can create assignments for any grade/subject in their school
+    # Using the same logic as teacher but for admin scope
+    
+    # 1. Create Assignment
+    new_assignment = models.Assignment(
+        title=data.title,
+        description=data.description,
+        due_date=data.due_date,
+        status=models.AssignmentStatus.DRAFT,
+        teacher_id=current_user.id, # Admin is the creator
+        class_id=data.grade_id or data.class_id,
+        subject_id=data.subject_id
+    )
+    db.add(new_assignment)
+    db.commit()
+    db.refresh(new_assignment)
+    
+    # 2. Clone Questions
+    original_questions = db.query(models.Question).filter(
+        models.Question.id.in_(data.question_ids),
+        models.Question.school_id == current_user.school_id
+    ).all()
+    
+    for q in original_questions:
+        new_q = models.Question(
+            text=q.text,
+            points=q.points,
+            question_type=q.question_type,
+            difficulty_level=q.difficulty_level,
+            assignment_id=new_assignment.id,
+            school_id=current_user.school_id,
+            subject_id=data.subject_id,
+            class_id=data.grade_id or data.class_id,
+            parent_question_id=q.id
+        )
+        db.add(new_q)
+        db.commit()
+        db.refresh(new_q)
+        
+        for opt in q.options:
+            new_opt = models.QuestionOption(
+                text=opt.text,
+                is_correct=opt.is_correct,
+                question_id=new_q.id
+            )
+            db.add(new_opt)
+            
+    db.commit()
+    return new_assignment
