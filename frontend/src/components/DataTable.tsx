@@ -29,7 +29,7 @@ export interface DataTableProps<T> {
 function DataTableInner<T>({
   data,
   columns,
-  sorting = [],
+  sorting,
   onSortingChange,
   manualSorting = false,
   isLoading = false,
@@ -81,9 +81,8 @@ function DataTableInner<T>({
             <div
               key={index}
               onClick={() => onRowClick?.(table.getRowModel().rows[index])}
-              className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${
-                onRowClick ? 'cursor-pointer hover:shadow-md' : ''
-              } transition-shadow ${rowClassName ? rowClassName(table.getRowModel().rows[index]) : ''}`}
+              className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 ${onRowClick ? 'cursor-pointer hover:shadow-md' : ''
+                } transition-shadow ${rowClassName ? rowClassName(table.getRowModel().rows[index]) : ''}`}
             >
               {mobileCardRender(item)}
             </div>
@@ -149,9 +148,8 @@ function DataTableInner<T>({
               <tr
                 key={row.id}
                 onClick={() => onRowClick?.(row)}
-                className={`hover:bg-gray-50 transition-colors ${
-                  onRowClick ? 'cursor-pointer' : ''
-                } ${rowClassName ? rowClassName(row) : ''}`}
+                className={`hover:bg-gray-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''
+                  } ${rowClassName ? rowClassName(row) : ''}`}
               >
                 {row.getVisibleCells().map(cell => (
                   <td

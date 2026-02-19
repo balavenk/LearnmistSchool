@@ -56,14 +56,12 @@ const SuperAdminDashboard: React.FC = () => {
         header: 'Status',
         cell: ({ row }) => (
           <span
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
-              row.original.active ? "bg-green-100 text-green-700 border border-green-200" : "bg-red-100 text-red-700 border border-red-200"
-            }`}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${row.original.active ? "bg-green-100 text-green-700 border border-green-200" : "bg-red-100 text-red-700 border border-red-200"
+              }`}
           >
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                row.original.active ? "bg-green-500" : "bg-red-500"
-              }`}
+              className={`w-1.5 h-1.5 rounded-full ${row.original.active ? "bg-green-500" : "bg-red-500"
+                }`}
             ></span>
             {row.original.active ? "Active" : "Inactive"}
           </span>
@@ -101,7 +99,7 @@ const SuperAdminDashboard: React.FC = () => {
         }
       }
     };
-    
+
     fetchStats();
 
     return () => {
@@ -119,16 +117,18 @@ const SuperAdminDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Gradient Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div >
-          <h1 className="capitalize text-2xl font-bold mb-2">
+      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
+        <div>
+          <h1 className="capitalize text-2xl font-bold mb-1 md:mb-2">
             Welcome {userName}
           </h1>
-         
+          <p className="text-indigo-100 text-sm md:text-base opacity-90">
+            Have a great day managing the platform!
+          </p>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-white-500">Today</p>
-          <p className="text-lg font-semibold text-white-700">
+        <div className="w-full md:w-auto bg-white/10 md:bg-transparent rounded-xl p-3 md:p-0 backdrop-blur-sm md:backdrop-blur-none flex items-center justify-between md:block">
+          <p className="text-sm text-indigo-100 md:text-indigo-100 mb-0 md:mb-1 inline md:block mr-2 md:mr-0">Today</p>
+          <p className="text-lg font-bold text-white">
             {new Date().toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -139,12 +139,12 @@ const SuperAdminDashboard: React.FC = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
         {/* Card 1 - Schools */}
-        <div className="bg-white rounded-2xl shadow-md border-2 border-indigo-100 hover:shadow-lg transition-all duration-200 overflow-hidden">
-          <div className="p-6">
+        <div className="bg-white rounded-2xl shadow-md border-2 border-indigo-100 hover:shadow-lg transition-all duration-200 overflow-hidden group">
+          <div className="p-5 md:p-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="bg-indigo-100 rounded-xl p-3">
+              <div className="bg-indigo-100 rounded-xl p-3 group-hover:scale-110 transition-transform duration-200">
                 <svg
                   className="w-6 h-6 text-indigo-600"
                   fill="none"
@@ -165,12 +165,12 @@ const SuperAdminDashboard: React.FC = () => {
                 </h3>
               </div>
             </div>
-            <p className="text-4xl font-bold text-indigo-600 mb-1">
+            <p className="text-3xl md:text-4xl font-bold text-indigo-600 mb-1">
               {stats.total_schools}
             </p>
             <p className="text-xs text-slate-500">Registered in system</p>
           </div>
-          <div className="bg-indigo-50 px-6 py-2">
+          <div className="bg-indigo-50 px-5 md:px-6 py-2">
             <p className="text-xs text-indigo-600 font-medium">
               📊 All Institutions
             </p>
@@ -178,10 +178,10 @@ const SuperAdminDashboard: React.FC = () => {
         </div>
 
         {/* Card 2 - Active Users */}
-        <div className="bg-white rounded-2xl shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-200 overflow-hidden">
-          <div className="p-6">
+        <div className="bg-white rounded-2xl shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-200 overflow-hidden group">
+          <div className="p-5 md:p-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="bg-green-100 rounded-xl p-3">
+              <div className="bg-green-100 rounded-xl p-3 group-hover:scale-110 transition-transform duration-200">
                 <svg
                   className="w-6 h-6 text-green-600"
                   fill="none"
@@ -202,12 +202,12 @@ const SuperAdminDashboard: React.FC = () => {
                 </h3>
               </div>
             </div>
-            <p className="text-4xl font-bold text-green-600 mb-1">
+            <p className="text-3xl md:text-4xl font-bold text-green-600 mb-1">
               {stats.active_users.toLocaleString()}
             </p>
             <p className="text-xs text-slate-500">Students & Staff</p>
           </div>
-          <div className="bg-green-50 px-6 py-2">
+          <div className="bg-green-50 px-5 md:px-6 py-2">
             <p className="text-xs text-green-600 font-medium">
               👥 Platform Users
             </p>
@@ -215,10 +215,10 @@ const SuperAdminDashboard: React.FC = () => {
         </div>
 
         {/* Card 3 - Quizzes */}
-        <div className="bg-white rounded-2xl shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-200 overflow-hidden">
-          <div className="p-6">
+        <div className="bg-white rounded-2xl shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-200 overflow-hidden group">
+          <div className="p-5 md:p-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="bg-blue-100 rounded-xl p-3">
+              <div className="bg-blue-100 rounded-xl p-3 group-hover:scale-110 transition-transform duration-200">
                 <svg
                   className="w-6 h-6 text-blue-600"
                   fill="none"
@@ -239,21 +239,21 @@ const SuperAdminDashboard: React.FC = () => {
                 </h3>
               </div>
             </div>
-            <p className="text-4xl font-bold text-blue-600 mb-1">
+            <p className="text-3xl md:text-4xl font-bold text-blue-600 mb-1">
               {stats.total_quizzes}
             </p>
             <p className="text-xs text-slate-500">Questions-based</p>
           </div>
-          <div className="bg-blue-50 px-6 py-2">
+          <div className="bg-blue-50 px-5 md:px-6 py-2">
             <p className="text-xs text-blue-600 font-medium">📝 Assessments</p>
           </div>
         </div>
 
         {/* Card 4 - Projects */}
-        <div className="bg-white rounded-2xl shadow-md border-2 border-purple-100 hover:shadow-lg transition-all duration-200 overflow-hidden">
-          <div className="p-6">
+        <div className="bg-white rounded-2xl shadow-md border-2 border-purple-100 hover:shadow-lg transition-all duration-200 overflow-hidden group">
+          <div className="p-5 md:p-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="bg-purple-100 rounded-xl p-3">
+              <div className="bg-purple-100 rounded-xl p-3 group-hover:scale-110 transition-transform duration-200">
                 <svg
                   className="w-6 h-6 text-purple-600"
                   fill="none"
@@ -274,21 +274,21 @@ const SuperAdminDashboard: React.FC = () => {
                 </h3>
               </div>
             </div>
-            <p className="text-4xl font-bold text-purple-600 mb-1">
+            <p className="text-3xl md:text-4xl font-bold text-purple-600 mb-1">
               {stats.total_projects}
             </p>
             <p className="text-xs text-slate-500">Assignments</p>
           </div>
-          <div className="bg-purple-50 px-6 py-2">
+          <div className="bg-purple-50 px-5 md:px-6 py-2">
             <p className="text-xs text-purple-600 font-medium">📚 Work Items</p>
           </div>
         </div>
 
         {/* Card 5 - System Status */}
-        <div className="bg-white rounded-2xl shadow-md border-2 border-emerald-100 hover:shadow-lg transition-all duration-200 overflow-hidden">
-          <div className="p-6">
+        <div className="bg-white rounded-2xl shadow-md border-2 border-emerald-100 hover:shadow-lg transition-all duration-200 overflow-hidden group">
+          <div className="p-5 md:p-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="bg-emerald-100 rounded-xl p-3">
+              <div className="bg-emerald-100 rounded-xl p-3 group-hover:scale-110 transition-transform duration-200">
                 <svg
                   className="w-6 h-6 text-emerald-600"
                   fill="none"
@@ -310,14 +310,17 @@ const SuperAdminDashboard: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="animate-pulse h-3 w-3 rounded-full bg-emerald-500"></span>
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
               <span className="text-2xl font-bold text-emerald-600">
                 Online
               </span>
             </div>
             <p className="text-xs text-slate-500">All systems operational</p>
           </div>
-          <div className="bg-emerald-50 px-6 py-2">
+          <div className="bg-emerald-50 px-5 md:px-6 py-2">
             <p className="text-xs text-emerald-600 font-medium">
               ✓ Healthy Status
             </p>
@@ -353,6 +356,52 @@ const SuperAdminDashboard: React.FC = () => {
           data={stats.recent_schools}
           isLoading={loading}
           emptyMessage="No schools found. Schools will appear here once added."
+          mobileCardRender={(school) => (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-indigo-100 rounded-lg p-2">
+                    <svg
+                      className="w-5 h-5 text-indigo-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                      />
+                    </svg>
+                  </div>
+                  <span className="font-semibold text-slate-900">
+                    {school.name}
+                  </span>
+                </div>
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${school.active
+                    ? "bg-green-100 text-green-700 border border-green-200"
+                    : "bg-red-100 text-red-700 border border-red-200"
+                    }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${school.active ? "bg-green-500" : "bg-red-500"
+                      }`}
+                  ></span>
+                  {school.active ? "Active" : "Inactive"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-slate-600 pl-1">
+                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="truncate">{school.address || "No address provided"}</span>
+              </div>
+            </div>
+          )}
         />
       </div>
     </div>
