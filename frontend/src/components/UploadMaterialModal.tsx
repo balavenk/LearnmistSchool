@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Trash2 } from 'lucide-react';
 import api from '../api/axios';
 
 interface Subject {
@@ -268,8 +269,22 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
                             />
                             <label htmlFor="file-upload" className="cursor-pointer">
                                 {file ? (
-                                    <div className="text-sm text-indigo-600 font-medium">
-                                        {file.name}
+                                    <div className="flex items-center justify-center gap-2 text-sm text-indigo-600 font-medium">
+                                        <span>{file.name}</span>
+                                        <button
+                                            type="button"
+                                            className="ml-2 text-slate-400 hover:text-red-600 focus:outline-none"
+                                            title="Remove file"
+                                            onClick={e => {
+                                                e.stopPropagation();
+                                                setFile(null);
+                                                // Also reset the file input value
+                                                const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                                                if (fileInput) fileInput.value = '';
+                                            }}
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
                                 ) : (
                                     <div className="space-y-1">
