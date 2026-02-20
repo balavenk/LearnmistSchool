@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-hot-toast';
+import { isValidInput } from '../../utils/inputValidation';
 
 // Interfaces matching Backend Schemas
 interface ClassData {
@@ -270,11 +271,20 @@ const Classes: React.FC = () => {
                                 <input
                                     type="text"
                                     value={newClassName}
-                                    onChange={(e) => setNewClassName(e.target.value)}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (isValidInput(value)) {
+                                            setNewClassName(value);
+                                        }
+                                    }}
                                     required
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                     placeholder="e.g. 10-A"
                                 />
+                                {/* Optionally show a warning */}
+                                {!isValidInput(newClassName) && newClassName.length > 0 && (
+                                    <div className="text-xs text-red-500 mt-1">Special characters are not allowed.</div>
+                                )}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -296,11 +306,20 @@ const Classes: React.FC = () => {
                                     <input
                                         type="text"
                                         value={newSection}
-                                        onChange={(e) => setNewSection(e.target.value)}
+                                         onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (isValidInput(value)) {
+                                                setNewSection(value);
+                                            }
+                                         }}
                                         required
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                         placeholder="e.g. A"
                                     />
+                                      {/* Optionally show a warning */}
+                                    {!isValidInput(newSection) && newSection.length > 0 && (
+                                        <div className="text-xs text-red-500 mt-1">Special characters are not allowed.</div>
+                                    )}
                                 </div>
                             </div>
                             <div>

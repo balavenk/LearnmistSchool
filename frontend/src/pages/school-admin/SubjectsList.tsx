@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-hot-toast';
+import { isValidInput } from '../../utils/inputValidation';
 
 interface Subject {
     id: number;
@@ -108,8 +109,18 @@ const SubjectsList: React.FC = () => {
                     placeholder="Search subjects..."
                     className="w-full pl-4 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
                     value={searchTerm}
-                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                    onChange={(e) => { 
+                        const value = e.target.value;
+                        if(isValidInput(value)) {
+                            setSearchTerm(value);
+                            setCurrentPage(1); // Reset to first page on search
+                        }
+                     }}
                 />
+                    {/* Optionally show a warning */}
+                    {!isValidInput(searchTerm) && searchTerm.length > 0 && (
+                        <div className="text-xs text-red-500 mt-1">Special characters are not allowed.</div>
+                    )}  
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -161,8 +172,8 @@ const SubjectsList: React.FC = () => {
                     <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
                         <h2 className="text-xl font-bold mb-4">Add Subject</h2>
                         <form onSubmit={handleCreate} className="space-y-4">
-                            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Subject Name (e.g. Math)" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
-                            <input value={newCode} onChange={e => setNewCode(e.target.value)} placeholder="Code (e.g. MATH101)" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
+                            <input value={newName} onChange={e =>{ if(isValidInput(e.target.value)) setNewName(e.target.value); }} placeholder="Subject Name (e.g. Math)" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
+                            <input value={newCode} onChange={e => { if(isValidInput(e.target.value)) setNewCode(e.target.value); }} placeholder="Code (e.g. MATH101)" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
                             <div className="flex gap-2 pt-4">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg">Cancel</button>
                                 <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg">Add</button>

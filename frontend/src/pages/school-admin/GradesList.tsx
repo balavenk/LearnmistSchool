@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-hot-toast';
+import { isValidInput } from '../../utils/inputValidation';
 
 interface Grade {
     id: number;
@@ -199,11 +200,20 @@ const GradesList: React.FC = () => {
                                 <label className="block text-xs font-medium text-slate-500 mb-1">Grade Name</label>
                                 <input
                                     value={newGradeName}
-                                    onChange={e => setNewGradeName(e.target.value)}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (isValidInput(value)) {
+                                            setNewGradeName(value);
+                                        }       
+                                    }} 
                                     placeholder="e.g. Grade 1"
                                     required
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
                                 />
+                                {/* Optionally show a warning */}
+                                {!isValidInput(newGradeName) && newGradeName.length > 0 && (
+                                    <div className="text-xs text-red-500 mt-1">Special characters are not allowed.</div>
+                                )}
                             </div>
                             <div className="flex gap-2 pt-2">
                                 <button type="button" onClick={() => setIsAddGradeModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">Cancel</button>
@@ -228,11 +238,20 @@ const GradesList: React.FC = () => {
                             <form onSubmit={handleAddSection} className="flex gap-2">
                                 <input
                                     value={newSectionName}
-                                    onChange={e => setNewSectionName(e.target.value)}
+                                    onChange={e => {
+                                        const value = e.target.value;
+                                        if (isValidInput(value)) {
+                                            setNewSectionName(value);
+                                        }
+                                    }}
                                     placeholder="New Section (e.g. A, B)"
                                     required
                                     className="flex-1 px-4 py-2 border rounded-lg outline-none focus:border-indigo-500 text-sm"
                                 />
+                                    {/* Optionally show a warning */}   
+                                {!isValidInput(newSectionName) && newSectionName.length > 0 && (
+                                    <div className="text-xs text-red-500 mt-1">Special characters are not allowed.</div>
+                                )}
                                 <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 whitespace-nowrap">
                                     + Add Section
                                 </button>
