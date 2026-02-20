@@ -4,24 +4,35 @@ import Sidebar from './Sidebar';
 
 // Mock function to get role from token (since we are mocking, we can just read from localStorage directly or passing it down)
 // For this layout, we'll assume the role is stored in localStorage along with the token for simplicity in this mock phase.
-const getRole = () => {
-    return localStorage.getItem('role') || 'STUDENT';
-};
+
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-    const role = getRole();
-    const schoolName = localStorage.getItem('schoolName') || '';
+    const role = localStorage.getItem('role') || ''; // Get role from localStorage (mocking authentication)
+    const token = localStorage.getItem('token');
     const navigate = useNavigate();
+
+    const schoolName = localStorage.getItem('schoolName') || '';
+    
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const username = localStorage.getItem('username') || 'User';
     const userInitial = username[0].toUpperCase();
+
+    useEffect(() => {
+        if (!role || !token) {
+            navigate('/login', { replace: true });
+        }
+    }, [role, token, navigate]);
+
+    if (!role || !token) {
+        return null; // Prevent rendering if not authenticated
+    }
 
     // Close dropdown when clicking outside
     useEffect(() => {
