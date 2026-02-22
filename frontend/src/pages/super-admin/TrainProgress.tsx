@@ -13,11 +13,13 @@ const TrainProgress: React.FC = () => {
     const ws = useRef<WebSocket | null>(null);
 
     useEffect(() => {
-        // Initialize WebSocket
-        // Connect to same host as API but ws protocol
-        // Assuming API is proxied via vite or absolute URL
-        // In local dev main.py runs on localhost:8000
-        const wsUrl = `ws://localhost:8000/upload/ws/train/${fileId}`;
+        // Build WebSocket URL dynamically for production/dev
+        let baseApiUrl = import.meta.env.VITE_API_URL || window.location.origin;
+        // Remove trailing slash if present
+        if (baseApiUrl.endsWith('/')) baseApiUrl = baseApiUrl.slice(0, -1);
+        // Convert http(s) to ws(s)
+        let wsBase = baseApiUrl.replace(/^http/, 'ws');
+        const wsUrl = `${wsBase}/upload/ws/train/${fileId}`;
 
         const socket = new WebSocket(wsUrl);
         ws.current = socket;

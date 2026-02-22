@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
 import { Smile, Zap, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -54,9 +54,7 @@ const QuestionBank: React.FC = () => {
     const fetchGrades = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:8000/teacher/grades/', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get('/teacher/grades/');
             setGrades(res.data);
         } catch (error) {
             console.error(error);
@@ -66,9 +64,7 @@ const QuestionBank: React.FC = () => {
     const fetchSubjects = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:8000/teacher/subjects/', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get('/teacher/subjects/');
             setSubjects(res.data);
         } catch (error) {
             console.error(error);
@@ -90,10 +86,7 @@ const QuestionBank: React.FC = () => {
 
             console.log('Fetching questions with params:', params); // Debug log
 
-            const res = await axios.get('http://localhost:8000/teacher/questions/', {
-                headers: { Authorization: `Bearer ${token}` },
-                params
-            });
+            const res = await api.get('/teacher/questions/', { params });
 
             console.log('API Response:', res.data); // Debug: Check actual response structure
             console.log('Response type:', Array.isArray(res.data) ? 'Array' : 'Object');
@@ -177,18 +170,18 @@ const QuestionBank: React.FC = () => {
         setCreating(true);
         try {
             const token = localStorage.getItem('token');
+
             const payload = {
                 title: quizTitle,
                 description: quizDesc,
                 due_date: dueDate ? new Date(dueDate).toISOString() : null,
                 grade_id: selectedGradeId, // Assign to the filtered grade
                 subject_id: selectedSubjectId, // Use selected subject
-                question_ids: selectedIds
+                question_ids: selectedIds,
+                status: 'DRAFT' // Ensure quiz is created as draft
             };
 
-            await axios.post('http://localhost:8000/teacher/assignments/from-bank', payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.post('/teacher/assignments/from-bank', payload);
 
             toast.success('Quiz Created Successfully!');
             setShowModal(false);
