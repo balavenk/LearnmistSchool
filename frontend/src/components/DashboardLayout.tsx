@@ -15,7 +15,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     const token = localStorage.getItem('token');
     const navigate = useNavigate();
 
-    const schoolName = localStorage.getItem('schoolName') || '';
+    // schoolName is available if needed: localStorage.getItem('schoolName')
     
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);

@@ -7,7 +7,7 @@ const Settings: React.FC = () => {
     const [classes, setClasses] = useState<any[]>([]);
 
     const [schoolId, setSchoolId] = useState<number | null>(null);
-    const [schoolName, setSchoolName] = useState<string>(''); // Optional display
+    // schoolName display available if needed
 
     const [selectedGrade, setSelectedGrade] = useState<number | ''>('');
     const [selectedClass, setSelectedClass] = useState<number | ''>('');

@@ -8,4 +8,4 @@ storage/
 *.db
 qdrant_db/
 
-app.tar.gz
+*.gz

@@ -321,10 +321,25 @@ async def generate_quiz_questions(
         if progress_callback:
             await progress_callback("Generating questions with OpenAI...", {"step": "llm_request", "prompt_preview": prompt[:200] + "..."})
 
+        # Choose system prompt based on whether PDF context is being used
+        if use_pdf_context:
+            system_prompt = (
+                "You must generate questions ONLY from the provided book content.\n"
+                "Use exclusively the information contained in the supplied context.\n\n"
+                "Do NOT use prior knowledge.\n"
+                "Do NOT add external facts.\n"
+                "Do NOT infer beyond what is explicitly written.\n"
+                "If the answer cannot be found in the provided text, respond with:\n"
+                "\"Insufficient information in provided material.\"\n\n"
+                "Output valid JSON only."
+            )
+        else:
+            system_prompt = "You are a helpful educational assistant. Output valid JSON only."
+
         completion = await client_openai.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a helpful educational assistant. Output valid JSON only."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             response_format={ "type": "json_object" }
