@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -38,9 +38,10 @@ app = FastAPI(
 
 # CORS Configuration
 origins = [
-    "http://localhost:5173", # Frontend
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://localhost:3000",
-    "*" # Allow all for dev
+    "http://127.0.0.1:3000",
 ]
 
 app.add_middleware(
@@ -79,39 +80,59 @@ print(f"DEBUG: frontend_dist resolved to: {frontend_dist}")
 if frontend_dist:
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
 
-# Root Handler (Always registered to avoid 404)
+# Root Handler
 @app.get("/")
 async def serve_root():
-    print("DEBUG: Handling root request")
-    
     # Force check for index.html
     if frontend_dist:
         index_path = os.path.join(frontend_dist, "index.html")
         if os.path.exists(index_path):
-            print(f"DEBUG: Serving index.html from {index_path}")
             return FileResponse(index_path)
-        print(f"ERROR: index.html not found at {index_path}")
-        return {"error": "index.html missing in dist", "path": index_path}
-    
-    # Fallback message that is NOT the confused user message
-    return {"error": "Frontend build directory not found. Please check deployment.", "checked_paths": [relative_dist, docker_dist]}
+        logger.error(f"index.html not found at {index_path}")
+        return {"error": "index.html missing", "path": index_path}
+    return {"error": "Frontend build not found"}
 
-# Catch-all (Always registered)
-@app.get("/{full_path:path}")
-async def serve_react_app(full_path: str):
-    # Skip API routes completely - don't raise 404, just don't handle them
-    # This allows FastAPI to process API endpoints and WebSocket connections properly
-    api_prefixes = ["api", "docs", "redoc", "openapi.json", "super-admin", "school-admin", "teacher", "student", "upload", "auth", "ws"]
-    if any(full_path.startswith(prefix) for prefix in api_prefixes):
-        # Return nothing - let FastAPI's routing handle it naturally
-        # If no route matches, FastAPI will return its default 404
-        from fastapi import Response
-        return Response(status_code=404, content="Not Found")
-    
-    # Serve frontend for all other routes
+# Root Handler
+@app.get("/")
+async def serve_root():
     if frontend_dist:
-        return FileResponse(os.path.join(frontend_dist, "index.html"))
-    return {"error": "Frontend build not found", "path": full_path}
+        index_path = os.path.join(frontend_dist, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        logger.error(f"index.html not found: {index_path}")
+    return {"error": "Frontend build not found"}
+
+# SPA Support: Handle unknown routes by serving index.html
+# This avoids intercepting WebSocket handshakes which are technically GET requests
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+@app.exception_handler(StarletteHTTPException)
+async def spa_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        full_path = request.url.path.lstrip("/")
+        
+        # API and System Prefixes that should TRULY 404
+        api_prefixes = ["api/", "docs", "redoc", "openapi.json", "super-admin/", "school-admin/", "teacher/", "student/", "upload/", "auth/", "ws/", "individual/"]
+        
+        if any(full_path.startswith(prefix) for prefix in api_prefixes):
+            logger.debug(f"True 404 for API path: {full_path}")
+            return Response(status_code=404, content="Not Found")
+        
+        # Check if it's a websocket upgrade (although Starlette usually handles this before 404)
+        if request.headers.get("upgrade") == "websocket":
+            logger.debug(f"Catching potential WS upgrade in 404 handler for {full_path}")
+            # If we reached here, it means no WS route matched either.
+            return Response(status_code=404, content="WebSocket Route Not Found")
+
+        # Serve frontend for UI routes
+        if frontend_dist:
+            index_path = os.path.join(frontend_dist, "index.html")
+            if os.path.exists(index_path):
+                return FileResponse(index_path)
+    
+    # Fallback to default handler for other errors or if index.html missing
+    from fastapi.exception_handlers import http_exception_handler
+    return await http_exception_handler(request, exc)
 
 
 

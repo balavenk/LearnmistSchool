@@ -2,7 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
+import logging
 from .. import database, models, schemas, auth
+from pydantic import BaseModel
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/individual",
@@ -70,7 +73,9 @@ def register_individual(user_data: schemas.UserCreate, name: str, db: Session = 
 def read_my_quizzes(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_individual_user)):
     # Individual users "own" assignments they created.
     # We use teacher_id to track ownership even though they are role=INDIVIDUAL.
-    return db.query(models.Assignment).filter(models.Assignment.teacher_id == current_user.id).all()
+    quizzes = db.query(models.Assignment).filter(models.Assignment.teacher_id == current_user.id).all()
+    logger.info("[read_my_quizzes] user=%s (id=%s) — returning %d quizzes", current_user.username, current_user.id, len(quizzes))
+    return quizzes
 
 # New Schema for creation locally to handle extra fields without changing global schema yet if strictly typed
 # Or just use kwargs if we are lenient. But Pydantic is better.
@@ -78,7 +83,7 @@ def read_my_quizzes(db: Session = Depends(database.get_db), current_user: models
 # No, better to extend AssignmentCreate in strict way? 
 # For now, we'll accept specific body.
 # Actually, the user wants "Subject" name text.
-from pydantic import BaseModel
+
 class IndividualQuizCreate(BaseModel):
     title: str
     description: Optional[str] = None
@@ -92,56 +97,64 @@ class IndividualQuizCreate(BaseModel):
 
 @router.post("/quizzes", response_model=schemas.Assignment)
 def create_personal_quiz(quiz_data: IndividualQuizCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_individual_user)):
+    logger.info("[create_personal_quiz] user=%s (id=%s) payload: title=%r subject=%r exam_type=%r q_count=%s difficulty=%r",
+                current_user.username, current_user.id,
+                quiz_data.title, quiz_data.subject_name, quiz_data.exam_type,
+                quiz_data.question_count, quiz_data.difficulty_level)
+
     # 1. Handle Subject
-    # Check if subject exists in user's school
-    # current_user.school_id should be set (e.g. "Individual" school)
-    
     school_id = current_user.school_id
     if not school_id:
         # Fallback if somehow null, search for "Individual" school
         ind_school = db.query(models.School).filter(models.School.name == "Individual").first()
         if ind_school:
             school_id = ind_school.id
-    
+        logger.warning("[create_personal_quiz] user=%s had no school_id — fallback school_id=%s", current_user.username, school_id)
+
     subject = None
     if school_id:
         subject = db.query(models.Subject).filter(
             models.Subject.name == quiz_data.subject_name,
             models.Subject.school_id == school_id
         ).first()
-        
+
         if not subject:
-            # Create new subject
+            logger.info("[create_personal_quiz] Subject %r not found — creating new one for school_id=%s", quiz_data.subject_name, school_id)
             subject = models.Subject(name=quiz_data.subject_name, school_id=school_id)
             db.add(subject)
             db.commit()
             db.refresh(subject)
-    
+            logger.info("[create_personal_quiz] Created subject id=%s name=%r", subject.id, subject.name)
+        else:
+            logger.info("[create_personal_quiz] Found existing subject id=%s name=%r", subject.id, subject.name)
+    else:
+        logger.error("[create_personal_quiz] user=%s — could not resolve school_id, subject will be None", current_user.username)
+
     # 2. Create Assignment
-    new_assignment = models.Assignment(
-        title=quiz_data.title,
-        description=quiz_data.description,
-        due_date=quiz_data.due_date,
-        status=models.AssignmentStatus.DRAFT, # Start as draft for self
-        teacher_id=current_user.id, # Owner
-        class_id=None, # Personal
-        subject_id=subject.id if subject else None,
-        
-        # New Fields
-        exam_type=quiz_data.exam_type,
-        question_count=quiz_data.question_count,
-        difficulty_level=quiz_data.difficulty_level,
-        question_type=quiz_data.question_type
-    )
-    db.add(new_assignment)
-    db.commit()
-    db.refresh(new_assignment)
-    
-    # TODO: If we store exam_type, difficulty etc, we need columns. 
-    # For now, we proceed as creating the container. 
-    # If the user expects generation, that would be a separate step or we'd trigger it here.
-    
-    return new_assignment
+    try:
+        new_assignment = models.Assignment(
+            title=quiz_data.title,
+            description=quiz_data.description,
+            due_date=quiz_data.due_date,
+            status=models.AssignmentStatus.DRAFT,
+            teacher_id=current_user.id,
+            class_id=None,
+            subject_id=subject.id if subject else None,
+            exam_type=quiz_data.exam_type,
+            question_count=quiz_data.question_count,
+            difficulty_level=quiz_data.difficulty_level,
+            question_type=quiz_data.question_type
+        )
+        db.add(new_assignment)
+        db.commit()
+        db.refresh(new_assignment)
+        logger.info("[create_personal_quiz] SUCCESS — created assignment id=%s title=%r for user=%s",
+                    new_assignment.id, new_assignment.title, current_user.username)
+        return new_assignment
+    except Exception as exc:
+        db.rollback()
+        logger.error("[create_personal_quiz] DB ERROR creating assignment for user=%s: %s", current_user.username, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create quiz: {exc}")
 
 @router.get("/subjects", response_model=List[schemas.Subject])
 def read_individual_subjects(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_individual_user)):

@@ -66,25 +66,25 @@ if (-not $vmStatus) {
 Write-Host "Compressing and uploading application files..."
 # detailed exclusion for tar on windows might be tricky, let's try standard exclusion
 # Remove old archive to ensure fresh build
-if (Test-Path "app.tar.gz") { Remove-Item "app.tar.gz" }
+if (Test-Path "deploy_app_v2.tar.gz") { Remove-Item "deploy_app_v2.tar.gz" }
 
 # Include Dockerfile in the archive
-tar --exclude="node_modules" --exclude="venv" --exclude=".git" --exclude="__pycache__" --exclude="*.pyc" -czf app.tar.gz backend frontend docker-compose.yml Dockerfile
+tar -czf deploy_app_v2.tar.gz --exclude node_modules --exclude venv --exclude .git --exclude __pycache__ --exclude "*.pyc" backend frontend docker-compose.yml Dockerfile
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Tar packaging failed! Check if files are locked."
     exit 1
 }
 
-if (-not (Test-Path "app.tar.gz")) {
-    Write-Error "app.tar.gz was not created."
+if (-not (Test-Path "deploy_app_v2.tar.gz")) {
+    Write-Error "deploy_app_v2.tar.gz was not created."
     exit 1
 }
 
 # Check SSH readiness (loop a few times if new VM)
 Write-Host "Uploading files (this may take a moment)..."
 # Using explicit filename in target to avoid folder expansion issues
-Invoke-Expression "$gcloudCmd compute scp app.tar.gz ${vmName}:app.tar.gz --zone=$zone --quiet"
+Invoke-Expression "$gcloudCmd compute scp deploy_app_v2.tar.gz ${vmName}:deploy_app_v2.tar.gz --zone=$zone --quiet"
 
 # 4. Firewall
 Write-Host "Ensuring HTTP firewall rule exists..."
@@ -98,29 +98,7 @@ try {
 # 5. Remote Execution
 Write-Host "Executing remote deployment..." -ForegroundColor Cyan
 
-$remoteCommands = '
-    # Stop existing containers using current dir context if possible, or force kill all (safest for full reset)
-    # We try down first
-    if [ -d "app" ]; then cd app && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$(pwd) -w=$(pwd) docker/compose:1.29.2 down || true && cd ..; fi &&
-    
-    # Wipe directory to ensure no stale files (like old docker-compose.yml)
-    rm -rf app &&
-    mkdir -p app && 
-    tar -xzf app.tar.gz -C app && 
-    cd app &&
-    # Clean up any potential bad pycache
-    find . -name "__pycache__" -type d -exec rm -rf {} + &&
-    find . -name "*.pyc" -delete &&
-    # Ensure .env exists or warn
-    if [ ! -f backend/.env ]; then echo "WARNING: backend/.env not found!"; fi &&
-    # Fix permissions if needed
-    chmod +x backend/main.py || true &&
-    # Docker Compose Up via Wrapper (required for COS)
-    # We use docker/compose image because docker-compose binary is not on host
-    # We use $(pwd) which generates the path on the Linux VM.
-    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$(pwd) -w=$(pwd) docker/compose:1.29.2 down || true &&
-    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$(pwd) -w=$(pwd) docker/compose:1.29.2 up -d --build --remove-orphans
-'
+    $remoteCommands = 'rm -rf app && mkdir -p app && tar -xzf deploy_app_v2.tar.gz -C app && cd app && find . -name "__pycache__" -type d -exec rm -rf {} + && find . -name "*.pyc" -delete && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$(pwd) -w=$(pwd) docker/compose:1.29.2 down || true && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$(pwd) -w=$(pwd) docker/compose:1.29.2 up -d --build --remove-orphans'
 
 # Use --command to run via SSH
 # We use Try/Catch to handle potential SSH connection issues (e.g. key propagation delay)

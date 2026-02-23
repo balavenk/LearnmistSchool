@@ -39,11 +39,15 @@ const MyQuizzes: React.FC = () => {
 
     const fetchQuizzes = async () => {
         setIsLoading(true);
+        console.log('[MyQuizzes] Fetching quizzes...');
         try {
             const res = await api.get('/individual/quizzes');
+            console.log('[MyQuizzes] Quizzes loaded:', res.data.length, res.data);
             setQuizzes(res.data);
-        } catch (err) {
-            console.error("Failed to fetch quizzes", err);
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const detail = err?.response?.data?.detail || err?.message;
+            console.error(`[MyQuizzes] FAILED to fetch quizzes — status: ${status}`, detail, err?.response?.data);
         } finally {
             setIsLoading(false);
         }
@@ -61,9 +65,14 @@ const MyQuizzes: React.FC = () => {
 
     const fetchSubjects = async () => {
         try {
+            console.log('[MyQuizzes] Fetching subjects...');
             const res = await api.get('/individual/subjects');
+            console.log('[MyQuizzes] Subjects loaded:', res.data);
             setExistingSubjects(res.data);
-        } catch (err) { console.error("Failed subjects", err); }
+        } catch (err: any) {
+            const detail = err?.response?.data?.detail || err?.message;
+            console.error('[MyQuizzes] FAILED to fetch subjects:', detail, err?.response?.data);
+        }
     };
 
     // Filter subjects on type (used for datalist suggestions)
@@ -77,24 +86,29 @@ const MyQuizzes: React.FC = () => {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        const payload = {
+            title,
+            description,
+            subject_name: subjectName,
+            exam_type: examType,
+            question_count: Number(questionCount),
+            difficulty_level: difficulty,
+            question_type: questionType,
+            due_date: dueDate ? new Date(dueDate).toISOString() : null,
+            use_pdf_context: usePdfContext
+        };
+        console.log('[MyQuizzes] CREATE QUIZ — sending payload:', JSON.stringify(payload, null, 2));
         try {
-            await api.post('/individual/quizzes', {
-                title,
-                description,
-                subject_name: subjectName,
-                exam_type: examType,
-                question_count: Number(questionCount),
-                difficulty_level: difficulty,
-                question_type: questionType,
-                due_date: dueDate ? new Date(dueDate).toISOString() : null,
-                use_pdf_context: usePdfContext
-            });
+            const res = await api.post('/individual/quizzes', payload);
+            console.log('[MyQuizzes] CREATE QUIZ — success! New quiz ID:', res.data?.id, res.data);
             setShowCreateModal(false);
             resetForm();
             fetchQuizzes();
-        } catch (err) {
-            console.error("Create failed", err);
-            alert("Failed to create quiz");
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const detail = err?.response?.data?.detail || err?.message;
+            console.error(`[MyQuizzes] CREATE QUIZ — FAILED! Status: ${status}`, detail, err?.response?.data);
+            alert(`Failed to create quiz (${status ?? 'network error'}): ${detail}`);
         }
     };
 

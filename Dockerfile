@@ -36,4 +36,4 @@ EXPOSE 8000
 
 # Run command (Use PORT env var for Cloud Run support)
 # Run command (Use PORT env var for Cloud Run support)
-CMD uvicorn main:app --host 0.0.0.0 --port 8080
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
