@@ -4,6 +4,8 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 from .. import database, models, schemas, auth
+from pydantic import BaseModel
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +85,7 @@ def read_my_quizzes(db: Session = Depends(database.get_db), current_user: models
 # No, better to extend AssignmentCreate in strict way? 
 # For now, we'll accept specific body.
 # Actually, the user wants "Subject" name text.
-from pydantic import BaseModel
+
 class IndividualQuizCreate(BaseModel):
     title: str
     description: Optional[str] = None

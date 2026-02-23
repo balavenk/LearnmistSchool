@@ -164,8 +164,8 @@ const TrainProgress: React.FC = () => {
                     onClick={() => navigate(returnPath)}
                     disabled={!completed}
                     className={`inline-flex items-center gap-2 px-8 py-3 text-sm font-bold rounded-xl transition-all shadow-md ${completed
-                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 hover:shadow-lg hover:scale-105'
-                            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 hover:shadow-lg hover:scale-105'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                         }`}
                 >
                     {completed ? (
