@@ -31,13 +31,21 @@ def get_engine(max_retries=60, delay=2):
             retries += 1
     raise Exception("Could not connect to database after several retries")
 
-engine = get_engine()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+_engine = None
+SessionLocal = None
+
+def get_session_local():
+    global _engine, SessionLocal
+    if _engine is None:
+        _engine = get_engine()
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+    return SessionLocal()
+
 
 Base = declarative_base()
 
 def get_db():
-    db = SessionLocal()
+    db = get_session_local()
     try:
         yield db
     finally:

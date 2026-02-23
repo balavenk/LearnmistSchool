@@ -8,6 +8,22 @@ services:
       - "8000:8080"
     environment:
       - PORT=8080
-      # Database is internal SQLite, matching Dockerfile default
-      - DATABASE_URL=sqlite:///./learnmistschool.db
+      - DATABASE_URL=postgresql://mist_user:mist_pass@db:5432/learnmistschool
+    depends_on:
+      - db
     restart: always
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=mist_user
+      - POSTGRES_PASSWORD=mist_pass
+      - POSTGRES_DB=learnmistschool
+    ports:
+      - "5440:5432"
+    restart: always
+
+volumes:
+  postgres_data:
