@@ -13,16 +13,17 @@ const TrainProgress: React.FC = () => {
     const ws = useRef<WebSocket | null>(null);
 
     useEffect(() => {
-        // Initialize WebSocket
-        // Connect to same host as API but ws protocol
-        // Assuming API is proxied via vite or absolute URL
-        // In local dev main.py runs on localhost:8000
-        const wsUrl = `ws://localhost:8000/upload/ws/train/${fileId}`;
+        // Connect to same host as page (production) or localhost:8000 (dev)
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = import.meta.env.PROD ? window.location.host : '127.0.0.1:8000';
+        const wsUrl = `${protocol}//${host}/upload/ws/train/${fileId}`;
 
+        console.log('[TrainProgress] Connecting WebSocket to:', wsUrl);
         const socket = new WebSocket(wsUrl);
         ws.current = socket;
 
         socket.onopen = () => {
+            console.log('[TrainProgress] WebSocket connected.');
             addLog("Connected to training server...");
         };
 
@@ -49,12 +50,13 @@ const TrainProgress: React.FC = () => {
         };
 
         socket.onerror = (error) => {
-            console.error("WebSocket Error:", error);
-            addLog("Error: Connection failed.");
+            console.error('[TrainProgress] WebSocket Error:', error);
+            addLog("Error: Connection failed. Check browser console for details.");
         };
 
-        socket.onclose = () => {
-            addLog("Connection closed.");
+        socket.onclose = (event) => {
+            console.log('[TrainProgress] WebSocket closed. Code:', event.code, 'Reason:', event.reason);
+            addLog(`Connection closed (code: ${event.code}).`);
         };
 
         return () => {
@@ -97,7 +99,7 @@ const TrainProgress: React.FC = () => {
                 </div>
                 {/* Progress Bar */}
                 <div className="mt-6 bg-white/20 rounded-full h-4 overflow-hidden backdrop-blur-sm">
-                    <div 
+                    <div
                         className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-500 ease-out flex items-center justify-end pr-2"
                         style={{ width: `${progress}%` }}
                     >
@@ -126,8 +128,8 @@ const TrainProgress: React.FC = () => {
                 </div>
                 <div className="bg-slate-950 text-slate-100 p-6 h-[500px] overflow-y-auto font-mono text-sm leading-relaxed">
                     {logs.map((log, i) => (
-                        <div 
-                            key={i} 
+                        <div
+                            key={i}
                             className="mb-2 pb-2 border-b border-slate-800/50 last:border-0 hover:bg-slate-900/50 px-2 py-1 rounded transition-colors"
                         >
                             {log}
@@ -161,11 +163,10 @@ const TrainProgress: React.FC = () => {
                 <button
                     onClick={() => navigate(returnPath)}
                     disabled={!completed}
-                    className={`inline-flex items-center gap-2 px-8 py-3 text-sm font-bold rounded-xl transition-all shadow-md ${
-                        completed 
-                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 hover:shadow-lg hover:scale-105' 
+                    className={`inline-flex items-center gap-2 px-8 py-3 text-sm font-bold rounded-xl transition-all shadow-md ${completed
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 hover:shadow-lg hover:scale-105'
                             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
+                        }`}
                 >
                     {completed ? (
                         <>

@@ -4,7 +4,7 @@
 # App runs via Systemd (learnmist.service) using uvicorn on port 8000.
 
 $PROJECT_ID  = "project-7b2578b2-0b43-448e-80c"
-$VM_NAME     = "learnmist-server"
+$VM_NAME     = "learnmist-prod"
 $ZONE        = "us-central1-a"
 $PACK        = "deploy_pack.tar.gz"
 

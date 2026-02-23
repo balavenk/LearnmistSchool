@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Smile, Zap, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PAGINATION_CONFIG from '../../config/pagination';
+import api from '../../api/axios';
 
 interface Grade {
     id: number;
@@ -53,32 +53,29 @@ const QuestionBank: React.FC = () => {
 
     const fetchGrades = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:8000/teacher/grades/', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            console.log('[QuestionBank] Fetching grades...');
+            const res = await api.get('/teacher/grades/');
+            console.log('[QuestionBank] Grades loaded:', res.data.length);
             setGrades(res.data);
         } catch (error) {
-            console.error(error);
+            console.error('[QuestionBank] Failed to fetch grades:', error);
         }
     };
 
     const fetchSubjects = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:8000/teacher/subjects/', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            console.log('[QuestionBank] Fetching subjects...');
+            const res = await api.get('/teacher/subjects/');
+            console.log('[QuestionBank] Subjects loaded:', res.data.length);
             setSubjects(res.data);
         } catch (error) {
-            console.error(error);
+            console.error('[QuestionBank] Failed to fetch subjects:', error);
         }
     };
 
     const fetchQuestions = useCallback(async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
             const params: any = {
                 grade_id: selectedGradeId,
                 subject_id: selectedSubjectId,
@@ -88,12 +85,9 @@ const QuestionBank: React.FC = () => {
             if (difficulty) params.difficulty = difficulty;
             if (searchText) params.search = searchText;
 
-            console.log('Fetching questions with params:', params); // Debug log
+            console.log('[QuestionBank] Fetching questions with params:', params);
 
-            const res = await axios.get('http://localhost:8000/teacher/questions/', {
-                headers: { Authorization: `Bearer ${token}` },
-                params
-            });
+            const res = await api.get('/teacher/questions/', { params });
 
             console.log('API Response:', res.data); // Debug: Check actual response structure
             console.log('Response type:', Array.isArray(res.data) ? 'Array' : 'Object');
@@ -175,30 +169,29 @@ const QuestionBank: React.FC = () => {
 
     const handleCreateQuiz = async () => {
         setCreating(true);
+        const payload = {
+            title: quizTitle,
+            description: quizDesc,
+            due_date: dueDate ? new Date(dueDate).toISOString() : null,
+            grade_id: selectedGradeId,
+            subject_id: selectedSubjectId,
+            question_ids: selectedIds
+        };
+        console.log('[QuestionBank] CREATE QUIZ — sending payload:', JSON.stringify(payload, null, 2));
         try {
-            const token = localStorage.getItem('token');
-            const payload = {
-                title: quizTitle,
-                description: quizDesc,
-                due_date: dueDate ? new Date(dueDate).toISOString() : null,
-                grade_id: selectedGradeId, // Assign to the filtered grade
-                subject_id: selectedSubjectId, // Use selected subject
-                question_ids: selectedIds
-            };
-
-            await axios.post('http://localhost:8000/teacher/assignments/from-bank', payload, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
+            const res = await api.post('/teacher/assignments/from-bank', payload);
+            console.log('[QuestionBank] CREATE QUIZ — success! Response:', res.data);
             toast.success('Quiz Created Successfully!');
             setShowModal(false);
             setQuizTitle('');
             setQuizDesc('');
             setSelectedIds([]);
-            navigate('/teacher/assignments'); // Redirect to assignments list
-        } catch (error) {
-            console.error(error);
-            toast.error('Failed to create quiz');
+            navigate('/teacher/assignments');
+        } catch (error: any) {
+            const status = error?.response?.status;
+            const detail = error?.response?.data?.detail || error?.message;
+            console.error(`[QuestionBank] CREATE QUIZ — FAILED! Status: ${status}`, detail, error?.response?.data);
+            toast.error(`Failed to create quiz (${status ?? 'network error'}): ${detail}`);
         } finally {
             setCreating(false);
         }
@@ -517,8 +510,8 @@ const QuestionBank: React.FC = () => {
                                         key={i}
                                         onClick={() => setCurrentPage(pageNum)}
                                         className={`w-10 h-10 rounded-lg font-bold transition-all ${currentPage === pageNum
-                                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md transform scale-110'
-                                                : 'border-2 border-slate-300 text-slate-700 hover:bg-slate-50'
+                                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md transform scale-110'
+                                            : 'border-2 border-slate-300 text-slate-700 hover:bg-slate-50'
                                             }`}
                                     >
                                         {pageNum}
