@@ -103,79 +103,44 @@ const TeacherAssignments: React.FC = () => {
     };
 
     const [isGenerating, setIsGenerating] = useState(false);
-    const [generationLogs, setGenerationLogs] = useState<string[]>([]);
 
     const handleAIGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log("🚀 [AI GEN] Generate Quiz button clicked");
         setIsGenerating(true);
-        setGenerationLogs(["Initializing connection..."]);
 
-        const clientId = Date.now().toString();
-
-        // Dynamic WS URL (Production vs Local)
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = import.meta.env.PROD ? window.location.host : '127.0.0.1:8000';
-        const wsUrl = `${protocol}//${host}/ws/generate-quiz/${clientId}`;
-
-        const ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-            setGenerationLogs(prev => [...prev, "Connected to server.", "Sending generation request..."]);
-            ws.send(JSON.stringify({
-                action: "generate",
-                params: {
-                    topic: aiTopic,
-                    grade_level: aiGradeLevel,
-                    difficulty: aiDifficulty,
-                    question_count: aiQuestionCount,
-                    question_type: aiQuestionType,
-                    due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
-                    subject_id: Number(aiSubjectId),
-                    grade_id: Number(aiGradeId),
-                    teacher_id: Number(localStorage.getItem('userId')) || 1,
-                    use_pdf_context: aiUsePdfContext
-                }
-            }));
+        const payload = {
+            topic: aiTopic,
+            grade_level: aiGradeLevel,
+            difficulty: aiDifficulty,
+            question_count: aiQuestionCount,
+            question_type: aiQuestionType,
+            due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
+            subject_id: Number(aiSubjectId),
+            grade_id: Number(aiGradeId),
+            use_pdf_context: aiUsePdfContext
         };
 
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === "info") {
-                setGenerationLogs(prev => [...prev, `[INFO] ${data.message}`]);
-            } else if (data.type === "progress") {
-                const step = data.details.step;
-                let msg = `[${step.toUpperCase()}] ${data.status}`;
-                if (data.details.prompt_preview) {
-                    msg += `\nPAYLOAD:\n${data.details.prompt_preview}`;
-                }
-                if (data.details.raw_content_preview) {
-                    msg += `\nRESPONSE:\n${data.details.raw_content_preview}`;
-                }
-                setGenerationLogs(prev => [...prev, msg]);
-            } else if (data.type === "completed") {
-                setGenerationLogs(prev => [...prev, `[SUCCESS] ${data.message}`]);
-                setTimeout(() => {
-                    fetchData();
-                    closeAIModal();
-                    setIsGenerating(false);
-                    toast.success("AI Draft generated successfully!");
-                }, 2000);
-                ws.close();
-            } else if (data.type === "error") {
-                setGenerationLogs(prev => [...prev, `[ERROR] ${data.message}`]);
-                setIsGenerating(false); // keep modal open to see error
-            }
-        };
+        console.log("🌐 [AI GEN] Calling API /teacher/assignments/ai-generate with payload:", payload);
 
-        ws.onerror = (error) => {
-            console.error("WebSocket error:", error);
-            setGenerationLogs(prev => [...prev, "[ERROR] WebSocket connection failed."]);
+        try {
+            const response = await api.post('/teacher/assignments/ai-generate', payload);
+            console.log("✅ [AI GEN] API Call Successful. Data:", response.data);
+
+            toast.success("AI Draft generated successfully!");
+
+            console.log("🔄 [AI GEN] Refreshing assignment list...");
+            fetchData();
+
+            console.log("✨ [AI GEN] Generation Complete. Closing modal.");
+            setTimeout(() => {
+                closeAIModal();
+            }, 1000);
+        } catch (error: any) {
+            console.error("❌ [AI GEN] Failed", error.response?.data || error.message);
+            toast.error(error.response?.data?.detail || "Failed to generate AI quiz.");
             setIsGenerating(false);
-        };
-
-        ws.onclose = () => {
-            console.log("WebSocket closed");
-        };
+        }
     };
 
     // ... (rest of methods)
@@ -224,7 +189,6 @@ const TeacherAssignments: React.FC = () => {
         setAiGradeId('');
         setAiUsePdfContext(false);
         setIsGenerating(false);
-        setGenerationLogs([]);
     };
 
     // ... helper functions ...
@@ -301,8 +265,8 @@ const TeacherAssignments: React.FC = () => {
                         key={status}
                         onClick={() => setFilter(status)}
                         className={`flex-1 py-2.5 px-4 text-sm font-semibold rounded-lg transition-all duration-200 relative flex items-center justify-center gap-2 ${filter === status
-                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md transform scale-105'
-                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md transform scale-105'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                             }`}
                     >
                         {status === 'Draft' && (
@@ -349,8 +313,8 @@ const TeacherAssignments: React.FC = () => {
 
                         <div className="flex justify-between items-start mb-4 relative z-10">
                             <span className={`px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1 ${assignment.status === 'PUBLISHED'
-                                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                                    : 'bg-gradient-to-r from-gray-400 to-slate-400 text-white'
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                                : 'bg-gradient-to-r from-gray-400 to-slate-400 text-white'
                                 }`}>
                                 {assignment.status === 'PUBLISHED' ? (
                                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -589,29 +553,25 @@ const TeacherAssignments: React.FC = () => {
                         </div>
 
                         {isGenerating ? (
-                            <div className="relative z-10">
-                                <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-5 font-mono text-sm text-green-400 h-96 overflow-y-auto shadow-2xl flex flex-col border border-slate-700">
-                                    <div className="mb-3 flex items-center justify-between text-slate-300 border-b border-slate-700 pb-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                            <span className="font-semibold">Live Generation Log</span>
-                                        </div>
-                                        <div className="flex gap-1">
-                                            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                            <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                        </div>
-                                    </div>
-                                    {generationLogs.map((log, i) => (
-                                        <div key={i} className="mb-1.5 whitespace-pre-wrap leading-relaxed animate-fadeIn">{log}</div>
-                                    ))}
-                                    <div className="mt-auto pt-3 text-center">
-                                        <div className="inline-flex items-center gap-2 text-slate-400">
-                                            <div className="w-2 h-2 bg-indigo-400 rounded-full animate-ping"></div>
-                                            <span className="animate-pulse font-semibold">AI is working...</span>
-                                        </div>
+                            <div className="relative z-10 flex flex-col items-center justify-center py-12">
+                                <div className="mb-8 relative">
+                                    {/* Spinner */}
+                                    <div className="w-24 h-24 border-4 border-slate-100 border-t-purple-600 rounded-full animate-spin"></div>
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <svg className="w-10 h-10 text-purple-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
                                     </div>
                                 </div>
+                                <h3 className="text-xl font-bold text-slate-900 mb-2">Generating Your Quiz</h3>
+                                <p className="text-slate-500 text-center max-w-xs mb-6">
+                                    Our AI is crafting specialized questions for <strong>{aiTopic}</strong>. This usually takes 20-40 seconds.
+                                </p>
+                                <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 rounded-full text-sm font-medium animate-pulse border border-purple-100">
+                                    <div className="w-2 h-2 bg-purple-600 rounded-full animate-ping"></div>
+                                    AI Brainstorming...
+                                </div>
+                                <p className="mt-8 text-xs text-slate-400">Check the browser console for detailed status.</p>
                             </div>
                         ) : (
                             <form onSubmit={handleAIGenerate} className="space-y-5">

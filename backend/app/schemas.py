@@ -229,6 +229,16 @@ class AssignmentCreate(AssignmentBase):
     assigned_to_class_id: Optional[int] = None  # Legacy support, maps to class_id
     subject_id: Optional[int] = None
 
+class AssignmentAICreate(BaseModel):
+    topic: str
+    grade_level: str
+    difficulty: str
+    question_count: int
+    subject_id: int
+    grade_id: int
+    due_date: Optional[datetime] = None
+    use_pdf_context: Optional[bool] = False
+
 class Assignment(AssignmentBase):
     id: int
     teacher_id: int

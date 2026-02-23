@@ -183,9 +183,10 @@ async def generate_quiz_questions(
     If use_pdf_context is False, skips RAG and generates from general knowledge.
     """
     openai_api_key = os.getenv("OPENAI_API_KEY")
+    print(f"DEBUG: OPENAI_API_KEY found: {bool(openai_api_key)}")
 
     if not openai_api_key:
-        print("Missing OPENAI_API_KEY")
+        print("DEBUG: Missing OPENAI_API_KEY, trying load_dotenv")
         # Try loading explicitly
         from dotenv import load_dotenv
         load_dotenv()
@@ -345,6 +346,7 @@ async def generate_quiz_questions(
             response_format={ "type": "json_object" }
         )
         content = completion.choices[0].message.content
+        print(f"DEBUG: Raw response from OpenAI: {content[:1000]}")
         
         if progress_callback:
              await progress_callback("Received response from OpenAI.", {"step": "llm_response", "raw_content_preview": content[:200] + "..."})
