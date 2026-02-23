@@ -8,7 +8,7 @@ if (-not (Test-Path "backend\venv")) {
     exit 1
 }
 
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location backend; & .\venv\Scripts\Activate.ps1; uvicorn app.main:app --reload"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location backend; C:\Python310\Scripts\uvicorn.exe app.main:app --reload"
 
 # 2. Start Frontend
 Write-Host "Launching Frontend in a new window..."

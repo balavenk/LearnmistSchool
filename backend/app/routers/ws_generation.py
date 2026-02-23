@@ -6,6 +6,9 @@ from app import database
 from app import models
 from app.services import rag_service
 from app.connection_manager import manager
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     tags=["websocket"]
@@ -14,26 +17,44 @@ router = APIRouter(
 @router.websocket("/ws/generate-quiz/{client_id}")
 async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Session = Depends(database.get_db)):
     await manager.connect(websocket, client_id)
+    logger.info(f"[WS] Client connected: {client_id}")
     try:
         while True:
             # Wait for "start_generation" message
             data = await websocket.receive_text()
             message = json.loads(data)
+            logger.info(f"[WS] Received action: {message.get('action')} from {client_id}")
             
             if message.get("action") == "generate":
                 params = message.get("params", {})
+                logger.info(f"[WS] Params: {params}")
                 
-                # Extract params
+                # Extract params with safety
                 topic = params.get("topic")
                 grade_level = params.get("grade_level")
                 difficulty = params.get("difficulty")
                 question_count = int(params.get("question_count", 5))
                 question_type = params.get("question_type", "Mixed")
-                subject_id = int(params.get("subject_id"))
-                # Support both class_id and grade_id (migrating to grade_id)
-                grade_id = params.get("grade_id") or params.get("class_id")
-                grade_id = int(grade_id) if grade_id else None
-                teacher_id = int(params.get("teacher_id")) # Or from session/token if we did auth
+                
+                try:
+                    subject_id_val = params.get("subject_id")
+                    if subject_id_val is None:
+                        raise ValueError("Missing subject_id")
+                    subject_id = int(subject_id_val)
+                    
+                    # Support both class_id and grade_id (migrating to grade_id)
+                    grade_id_val = params.get("grade_id") or params.get("class_id")
+                    grade_id = int(grade_id_val) if grade_id_val else None
+                    
+                    teacher_id_val = params.get("teacher_id")
+                    if teacher_id_val is None:
+                        raise ValueError("Missing teacher_id")
+                    teacher_id = int(teacher_id_val)
+                except (ValueError, TypeError) as e:
+                    logger.error(f"[WS] Param validation failed: {e}")
+                    await manager.send_json({"type": "error", "message": f"Invalid params: {str(e)}"}, client_id)
+                    continue
+
                 use_pdf_context = params.get("use_pdf_context", False)
                 
                 # 1. Get Subject Name and Teacher Info (for School ID)
@@ -45,96 +66,110 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                 
                 # Progress Callback Wrapper
                 async def progress_callback(status: str, details: dict):
+                    logger.info(f"[WS] Progress: {status}")
                     await manager.send_json({
                         "type": "progress",
                         "status": status,
                         "details": details
                     }, client_id)
-                    # Small delay to let UI breathe if needed?
-                    # await asyncio.sleep(0.1)
 
                 await manager.send_json({"type": "info", "message": f"Starting generation for {topic} ({subject_name})..."}, client_id)
                 
                 # 2. Call RAG
-                generated_questions = await rag_service.generate_quiz_questions(
-                    topic=topic,
-                    subject_name=subject_name,
-                    grade_level=grade_level,
-                    difficulty=difficulty,
-                    count=question_count,
-                    question_type=question_type,
-                    use_pdf_context=use_pdf_context,
-                    progress_callback=progress_callback
-                )
+                try:
+                    generated_questions = await rag_service.generate_quiz_questions(
+                        topic=topic,
+                        subject_name=subject_name,
+                        grade_level=grade_level,
+                        difficulty=difficulty,
+                        count=question_count,
+                        question_type=question_type,
+                        use_pdf_context=use_pdf_context,
+                        progress_callback=progress_callback
+                    )
+                except Exception as e:
+                    logger.exception(f"[WS] RAG generation crashed: {e}")
+                    await manager.send_json({"type": "error", "message": f"AI Engine Error: {str(e)}"}, client_id)
+                    continue
                 
                 if generated_questions:
+                    logger.info(f"[WS] Generated {len(generated_questions)} questions. Saving...")
                     # 3. Create Assignment in DB
                     title = f"Quiz: {topic}"
                     description = f"A {difficulty} level quiz about {topic}. Generated by AI."
                     
-                    new_assignment = models.Assignment(
-                        title=title,
-                        description=description,
-                        status=models.AssignmentStatus.DRAFT,
-                        teacher_id=teacher_id,
-                        subject_id=subject_id,
-                        class_id=grade_id,  # Frontend sends grade_id, map to class_id for backward compatibility
-                        due_date=datetime.utcnow() # Default
-                    )
-                    db.add(new_assignment)
-                    db.commit()
-                    db.refresh(new_assignment)
-                    
-                    # 4. Create Questions
-                    for q_data in generated_questions:
-                        q_type_str = q_data.get("question_type", "MULTIPLE_CHOICE")
-                        try:
-                            q_type = models.QuestionType(q_type_str)
-                        except ValueError:
-                            q_type = models.QuestionType.MULTIPLE_CHOICE
-                            
-                        new_q = models.Question(
-                            text=q_data.get("text", "Question Text"),
-                            points=q_data.get("points", 5),
-                            question_type=q_type,
-                            assignment_id=new_assignment.id,
-                            school_id=school_id,
+                    try:
+                        new_assignment = models.Assignment(
+                            title=title,
+                            description=description,
+                            status=models.AssignmentStatus.DRAFT,
+                            teacher_id=teacher_id,
                             subject_id=subject_id,
                             class_id=grade_id,  # Frontend sends grade_id, map to class_id for backward compatibility
-                            difficulty_level=difficulty
+                            due_date=datetime.utcnow() # Default
                         )
-                        db.add(new_q)
+                        db.add(new_assignment)
                         db.commit()
-                        db.refresh(new_q)
+                        db.refresh(new_assignment)
                         
-                        for opt in q_data.get("options", []):
-                            new_opt = models.QuestionOption(
-                                text=opt.get("text", ""),
-                                is_correct=opt.get("is_correct", False),
-                                question_id=new_q.id
+                        # 4. Create Questions
+                        for q_data in generated_questions:
+                            q_type_str = q_data.get("question_type", "MULTIPLE_CHOICE")
+                            try:
+                                q_type = models.QuestionType(q_type_str)
+                            except ValueError:
+                                q_type = models.QuestionType.MULTIPLE_CHOICE
+                                
+                            new_q = models.Question(
+                                text=q_data.get("text", "Question Text"),
+                                points=q_data.get("points", 5),
+                                question_type=q_type,
+                                assignment_id=new_assignment.id,
+                                school_id=school_id,
+                                subject_id=subject_id,
+                                class_id=grade_id,  # Frontend sends grade_id, map to class_id for backward compatibility
+                                difficulty_level=difficulty
                             )
-                            db.add(new_opt)
-                    
-                    db.commit()
-                    
-                    # Send result
-                    await manager.send_json({
-                        "type": "completed", 
-                        "message": "Quiz generated successfully!",
-                        "assignment_id": new_assignment.id
-                    }, client_id)
+                            db.add(new_q)
+                            db.commit()
+                            db.refresh(new_q)
+                            
+                            for opt in q_data.get("options", []):
+                                new_opt = models.QuestionOption(
+                                    text=opt.get("text", ""),
+                                    is_correct=opt.get("is_correct", False),
+                                    question_id=new_q.id
+                                )
+                                db.add(new_opt)
+                        
+                        db.commit()
+                        logger.info(f"[WS] Generation complete. Assignment ID: {new_assignment.id}")
+                        
+                        # Send result
+                        await manager.send_json({
+                            "type": "completed", 
+                            "message": "Quiz generated successfully!",
+                            "assignment_id": new_assignment.id
+                        }, client_id)
+                    except Exception as e:
+                        logger.exception(f"[WS] DB Save error: {e}")
+                        db.rollback()
+                        await manager.send_json({"type": "error", "message": f"Fail to save to database: {str(e)}"}, client_id)
                 else:
+                    logger.warning("[WS] RAG returned no questions")
                     await manager.send_json({
                         "type": "error", 
-                        "message": "Failed to generate questions."
+                        "message": "Failed to generate questions. AI returned no data."
                     }, client_id)
             
     except WebSocketDisconnect:
+        logger.info(f"[WS] Disconnect: {client_id}")
         manager.disconnect(client_id)
     except Exception as e:  # WebSocket context, broad catch for server errors
-        print(f"WS Error: {e}")
+        logger.error(f"[WS] Server Error: {e}", exc_info=True)
         try:
             await manager.send_json({"type": "error", "message": f"Server Error: {str(e)}"}, client_id)
         except Exception:
             pass
         manager.disconnect(client_id)
+
