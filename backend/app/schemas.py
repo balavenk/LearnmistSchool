@@ -155,7 +155,7 @@ class Grade(GradeBase):
     id: int
     school_id: int
     subjects: List['Subject'] = []
-    
+    student_count: Optional[int] = 0
     class Config:
         from_attributes = True
 

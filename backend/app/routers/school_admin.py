@@ -201,7 +201,16 @@ def read_grades(db: Session = Depends(database.get_db), current_user: models.Use
     query = db.query(models.Grade)
     if current_user.role != models.UserRole.SUPER_ADMIN:
         query = query.filter(models.Grade.school_id == current_user.school_id)
-    return query.all()
+    grades = query.all()
+
+    # For each grade, count students
+    result = []
+    for grade in grades:
+        student_count = db.query(models.Student).filter(models.Student.grade_id == grade.id, models.Student.active == True).count()
+        # Attach student_count attribute
+        grade.student_count = student_count
+        result.append(grade)
+    return result
 
 @router.put("/classes/{class_id}/teacher/{teacher_id}")
 def assign_class_teacher(class_id: int, teacher_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
