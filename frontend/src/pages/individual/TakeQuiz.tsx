@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 interface QuestionOption {
@@ -41,7 +42,7 @@ const TakeQuiz: React.FC<TakeQuizProps> = ({ assignmentId, onClose, onSubmitSucc
                 setAssignment(response.data);
             } catch (error) {
                 console.error("Failed to load quiz", error);
-                alert("Failed to load quiz. It might not be available.");
+                toast.error("Failed to load quiz. It might not be available.");
                 onClose();
             } finally {
                 setLoading(false);
@@ -76,7 +77,8 @@ const TakeQuiz: React.FC<TakeQuizProps> = ({ assignmentId, onClose, onSubmitSucc
 
     const handleSubmit = async () => {
         if (!isComplete()) return;
-        if (!window.confirm("Are you sure you want to finish the test? You cannot change answers after submitting.")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
+        // Users should be careful when clicking Submit button
 
         setSubmitting(true);
         try {
@@ -94,11 +96,11 @@ const TakeQuiz: React.FC<TakeQuizProps> = ({ assignmentId, onClose, onSubmitSucc
                 answers: formattedAnswers
             });
 
-            alert("Quiz submitted successfully!");
+            toast.success("Quiz submitted successfully!");
             onSubmitSuccess();
         } catch (error) {
             console.error("Failed to submit quiz", error);
-            alert("Failed to submit quiz.");
+            toast.error("Failed to submit quiz.");
         } finally {
             setSubmitting(false);
         }

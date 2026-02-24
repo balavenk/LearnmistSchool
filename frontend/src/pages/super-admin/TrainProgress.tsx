@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { getWebSocketUrl } from '../../config/api';
 
 const TrainProgress: React.FC = () => {
     const { fileId } = useParams<{ fileId: string }>();

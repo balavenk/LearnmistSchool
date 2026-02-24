@@ -41,6 +41,7 @@ const TeacherAssignments: React.FC = () => {
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [newDueDate, setNewDueDate] = useState('');
+    const [includeFromPDF, setIncludeFromPDF] = useState(false);
 
     // Form State (AI)
     const [aiTopic, setAiTopic] = useState('');
@@ -67,7 +68,7 @@ const TeacherAssignments: React.FC = () => {
             setGrades(gradesRes.data);
             setSubjects(subjectsRes.data);
         } catch (error) {
-            console.error("Failed to fetch teacher data", error);
+            toast.error("Failed to load assignments. Please refresh the page or contact support.");
         } finally {
             setLoading(false);
         }
@@ -90,15 +91,15 @@ const TeacherAssignments: React.FC = () => {
                 description: newDesc,
                 due_date: newDueDate ? new Date(newDueDate).toISOString() : null,
                 status: 'PUBLISHED',
-                grade_id: Number(selectedGradeId),
-                subject_id: Number(selectedSubjectId)
+                grade_id: selectedGradeId ? Number(selectedGradeId) : null,
+                subject_id: selectedSubjectId ? Number(selectedSubjectId) : null,
+                include_from_pdf: includeFromPDF
             });
             fetchData();
             closeModal();
             toast.success("Assignment created successfully!");
-        } catch (error) {
-            console.error("Failed to create assignment", error);
-            toast.error("Failed to create assignment.");
+        } catch (error: any) {
+           toast.error(error.response?.data?.detail || "Failed to create assignment. Please try again.");
         }
     };
 
@@ -106,7 +107,6 @@ const TeacherAssignments: React.FC = () => {
 
     const handleAIGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("🚀 [AI GEN] Generate Quiz button clicked");
         setIsGenerating(true);
 
         const payload = {
@@ -120,8 +120,6 @@ const TeacherAssignments: React.FC = () => {
             grade_id: Number(aiGradeId),
             use_pdf_context: aiUsePdfContext
         };
-
-        console.log("🌐 [AI GEN] Calling API /teacher/assignments/ai-generate with payload:", payload);
 
         try {
             const response = await api.post('/teacher/assignments/ai-generate', payload);
@@ -146,9 +144,10 @@ const TeacherAssignments: React.FC = () => {
     // ... (rest of methods)
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this assignment?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/teacher/assignments/${id}`);
+            toast.success('Assignment deleted successfully');
             fetchData();
         } catch (error) {
             console.error("Failed to delete", error);
@@ -157,7 +156,7 @@ const TeacherAssignments: React.FC = () => {
     };
 
     const handlePublish = async (id: number) => {
-        if (!confirm("Are you sure you want to publish this quiz? Students will be able to see it immediately.")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking  
         try {
             await api.put(`/teacher/assignments/${id}/publish`);
             fetchData();
@@ -175,6 +174,7 @@ const TeacherAssignments: React.FC = () => {
         setSelectedSubjectId('');
         setSelectedGradeId('');
         setNewDueDate('');
+        setIncludeFromPDF(false);
     };
 
     const closeAIModal = () => {
@@ -456,6 +456,31 @@ const TeacherAssignments: React.FC = () => {
                                 </label>
                                 <textarea required rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Describe the assignment..." className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none transition-all" />
                             </div>
+                            {/* PDF Checkbox */}
+                            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={includeFromPDF}
+                                        onChange={(e) => setIncludeFromPDF(e.target.checked)}
+                                        className="w-5 h-5 rounded-lg border-2 border-amber-400 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 cursor-pointer transition-all mt-0.5 group-hover:border-amber-500"
+                                    />
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                            </svg>
+                                            <span className="text-sm font-bold text-amber-900">Include from Uploaded PDF/Book</span>
+                                        </div>
+                                        <p className="text-xs text-amber-700 leading-relaxed">
+                                            {includeFromPDF 
+                                                ? '✓ Assignment will use questions only from uploaded PDF materials' 
+                                                : '○ Assignment will use open source questions'}
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
@@ -506,6 +531,8 @@ const TeacherAssignments: React.FC = () => {
                                     ))}
                                 </select>
                             </div>
+
+                            
                             <div className="flex gap-3 pt-6 border-t-2 border-slate-100 mt-6">
                                 <button type="button" onClick={closeModal} className="flex-1 px-6 py-3 border-2 border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-all flex items-center justify-center gap-2">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

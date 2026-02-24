@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import UploadMaterialModal from '../../components/UploadMaterialModal';
 
@@ -43,9 +44,11 @@ const TeacherUploadPdf: React.FC = () => {
             setGrades(res.data);
             if (res.data.length > 0) {
                 setSelectedGradeId((prev) => (prev === '' ? res.data[0].id : prev));
+            } else {
+                toast('No grades found. Please contact your administrator to assign you to a grade.', { icon: '⚠️' });
             }
         } catch (error) {
-            console.error('Failed to fetch grades', error);
+            toast.error('Failed to load grades. Please check if you have been assigned to any grades.');
         }
     };
 
@@ -60,7 +63,7 @@ const TeacherUploadPdf: React.FC = () => {
             setTotalCount(response.data.total);
             setCurrentPage(response.data.page);
         } catch (error) {
-            console.error('Failed to fetch uploaded materials', error);
+            toast.error('Failed to load materials. You may not have access to this grade or there was a server error.');
             setMaterials([]);
             setTotalPages(1);
             setTotalCount(0);
@@ -76,20 +79,32 @@ const TeacherUploadPdf: React.FC = () => {
     useEffect(() => {
         if (selectedGradeId !== '') {
             fetchMaterials(Number(selectedGradeId), currentPage);
+        } else {
+            toast('Please select a grade first', { icon: '⚠️' });
         }
     }, [selectedGradeId, currentPage]);
+
 
     const handleUploadSuccess = () => {
         if (selectedGradeId !== '') {
             setCurrentPage(1);
             fetchMaterials(Number(selectedGradeId), 1);
         }
+        setShowUploadModal(false);
     };
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
             setCurrentPage(newPage);
         }
+    };
+
+    const handleOpenModal = () => {
+        if (selectedGradeId === '') { 
+            toast('Please select a grade first', { icon: '⚠️' });
+            return;
+        }
+        setShowUploadModal(true);
     };
 
     return (
@@ -101,7 +116,9 @@ const TeacherUploadPdf: React.FC = () => {
                 </div>
 
                 <button
-                    onClick={() => setShowUploadModal(true)}
+                    onClick={(e) => {
+                        handleOpenModal();
+                    }}
                     disabled={selectedGradeId === ''}
                     className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -197,7 +214,9 @@ const TeacherUploadPdf: React.FC = () => {
 
             <UploadMaterialModal
                 isOpen={showUploadModal}
-                onClose={() => setShowUploadModal(false)}
+                onClose={() => {
+                    setShowUploadModal(false);
+                }}
                 onSuccess={handleUploadSuccess}
                 initialGradeId={Number(selectedGradeId)}
             />

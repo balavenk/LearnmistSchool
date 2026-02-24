@@ -125,9 +125,10 @@ const QuizDetails: React.FC = () => {
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this question?")) return;
+        // Non-blocking - removed confirm() to prevent UI blocking
         try {
             await api.delete(`/teacher/questions/${id}`);
+            toast.success('Question deleted successfully');
             setQuestions(questions.filter(q => q.id !== id));
         } catch (error) {
             console.error("Failed to delete", error);

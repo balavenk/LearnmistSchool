@@ -1,10 +1,13 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, PlusCircle, Users, BookOpen, XCircle, Info } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'react-hot-toast';
 import { isValidInput } from '../../utils/inputValidation';
 import { useNavigate } from 'react-router-dom';
+import type { ColumnDef } from '@tanstack/react-table';
+import axios from 'axios';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 
 interface Grade {
     id: number;
@@ -39,18 +42,44 @@ const GradesList: React.FC = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchGrades = async () => {
+            try {
+                setLoading(true);
+                const res = await api.get('/school-admin/grades/', { signal: abortController.signal });
+                if (isMounted) {
+                    setGrades(res.data);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) {
+                    console.error("Failed to fetch grades", error);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
         fetchGrades();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
-    const fetchGrades = async () => {
+    // Refetch function for use after mutations
+    const refetchGrades = async () => {
         try {
-            setLoading(true);
             const res = await api.get('/school-admin/grades/');
             setGrades(res.data);
-        } catch (error) {
-            console.error("Failed to fetch grades", error);
-        } finally {
-            setLoading(false);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch grades", error);
         }
     };
 
@@ -67,7 +96,7 @@ const GradesList: React.FC = () => {
         e.preventDefault();
         try {
             await api.post('/school-admin/grades/', { name: newGradeName });
-            fetchGrades();
+            refetchGrades();
             setIsAddGradeModalOpen(false);
             setNewGradeName('');
         } catch (error) {
@@ -108,9 +137,10 @@ const GradesList: React.FC = () => {
     };
 
     const handleDeleteSection = async (classId: number) => {
-        if (!confirm("Are you sure you want to delete this section?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/school-admin/classes/${classId}`);
+            toast.success('Section deleted successfully');
             if (selectedGrade) fetchSections(selectedGrade.id);
         } catch (error) {
             console.error("Failed to delete section", error);
@@ -120,12 +150,51 @@ const GradesList: React.FC = () => {
 
     const filtered = useMemo(() => {
         return grades.filter(g =>
-            g.name.toLowerCase().includes(searchTerm.toLowerCase())
+            g?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) ?? false
         );
     }, [grades, searchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    
+    const paginated = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        return filtered.slice(start, end);
+    }, [filtered, currentPage]);
+
+    // DataTable Columns
+    const columns = useMemo<ColumnDef<Grade>[]>(
+        () => [
+            {
+                accessorKey: 'name',
+                header: 'Grade Name',
+                cell: ({ row }) => (
+                    <span className="font-medium text-slate-900">{row.original.name}</span>
+                ),
+            },
+            {
+                id: 'actions',
+                header: 'Actions',
+                cell: ({ row }) => (
+                    <div className="flex items-center justify-end gap-2">
+                        <button
+                            onClick={() => openSectionsModal(row.original)}
+                            className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 border border-indigo-200 rounded-full hover:bg-indigo-50"
+                        >
+                            Manage Sections
+                        </button>
+                        <button
+                            onClick={() => window.location.href = `/school-admin/grades/${row.original.id}/subjects`}
+                            className="text-emerald-600 hover:text-emerald-800 font-medium text-xs px-3 py-1 border border-emerald-200 rounded-full hover:bg-emerald-50"
+                        >
+                            Subjects
+                        </button>
+                    </div>
+                ),
+            },
+        ],
+        []
+    );
 
     // Skeleton loader
     const SkeletonRow = () => (
@@ -199,66 +268,24 @@ const GradesList: React.FC = () => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
-                <table className="w-full text-left text-sm min-w-[400px]">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Grade Name</th>
-                            <th className="px-6 py-4">Student Count</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            Array.from({ length: 4 }).map((_, idx) => <SkeletonRow key={idx} />)
-                        ) : paginated.length > 0 ? (
-                            paginated.map(grade => (
-                                <tr key={grade.id} className="hover:bg-slate-50 transition">
-                                    <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-2">
-                                        {grade.name}
-                                        <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full ml-2" title="Grade ID">ID: {grade.id}</span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full flex items-center gap-1" title="Student count">
-                                            <Users className="w-4 h-4" />
-                                            {grade.student_count ?? '--'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right flex gap-2 justify-end">
-                                        <button
-                                            onClick={() => openSectionsModal(grade)}
-                                            className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 border border-indigo-200 rounded-full hover:bg-indigo-50 flex items-center gap-1"
-                                            title="Manage sections"
-                                        >
-                                            <Info className="w-4 h-4 mr-1" />
-                                            Sections
-                                        </button>
-                                        <button
-                                            onClick={() => navigate(`/school-admin/grades/${grade.id}/subjects`)}
-                                            className="text-emerald-600 hover:text-emerald-800 font-medium text-xs px-3 py-1 border border-emerald-200 rounded-full hover:bg-emerald-50 flex items-center gap-1"
-                                            title="View subjects"
-                                        >
-                                            <BookOpen className="w-4 h-4 mr-1" />
-                                            Subjects
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr><td colSpan={3}><EmptyState /></td></tr>
-                        )}
-                    </tbody>
-                </table>
-                {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm">
-                        <span className="text-slate-500">Page {currentPage} of {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border rounded-lg bg-slate-50 hover:bg-slate-100 disabled:opacity-50">Prev</button>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border rounded-lg bg-slate-50 hover:bg-slate-100 disabled:opacity-50">Next</button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {/* DataTable */}
+            <DataTable
+                columns={columns}
+                data={paginated}
+                isLoading={loading}
+                emptyMessage="No grades found."
+            />
+
+            {/* Pagination */}
+            {!loading && filtered.length > 0 && totalPages > 1 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    totalItems={filtered.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                />
+            )}
 
             {/* Add Grade Modal */}
             {isAddGradeModalOpen && (

@@ -72,6 +72,7 @@ def create_student(student: schemas.StudentCreate, db: Session = Depends(databas
 
 @router.get("/students/", response_model=schemas.PaginatedResponse[schemas.Student])
 def read_students(
+    grade_id: int = None,
     class_id: int = None,
     page: int = 1,
     page_size: int = None,
@@ -107,6 +108,11 @@ def read_students(
         models.Student.class_id.in_(visible_class_ids)
     )
     
+    # Filter by grade_id if provided
+    if grade_id:
+        query = query.filter(models.Student.grade_id == grade_id)
+    
+    # Filter by class_id if provided
     if class_id:
         if class_id not in visible_class_ids:
                 return schemas.PaginatedResponse(
