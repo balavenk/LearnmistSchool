@@ -197,7 +197,7 @@ class Assignment(Base):
     __tablename__ = "assignments"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200))
+    title = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     due_date = Column(DateTime, nullable=True)
     status = Column(Enum(AssignmentStatus), default=AssignmentStatus.DRAFT)
