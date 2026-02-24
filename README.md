@@ -93,3 +93,16 @@ The seed script creates the following default users (Password: `password123`):
 - **School Admin**: `schooladmin`
 - **Teacher**: `teacher1`
 - **Student**: `student1`
+
+## Backend Steps
+ python -m venv venv
+ - on Windows
+ .\venv\Scripts\activate
+
+ On macOS/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+alembic upgrade head
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
