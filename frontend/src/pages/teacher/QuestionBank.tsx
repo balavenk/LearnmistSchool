@@ -53,8 +53,9 @@ const QuestionBank: React.FC = () => {
 
     const fetchGrades = async () => {
         try {
-            const token = localStorage.getItem('token');
+            console.log('[QuestionBank] Fetching grades...');
             const res = await api.get('/teacher/grades/');
+            console.log('[QuestionBank] Grades loaded:', res.data.length);
             setGrades(res.data);
         } catch (error) {
             console.error('[QuestionBank] Failed to fetch grades:', error);
@@ -63,8 +64,9 @@ const QuestionBank: React.FC = () => {
 
     const fetchSubjects = async () => {
         try {
-            const token = localStorage.getItem('token');
+            console.log('[QuestionBank] Fetching subjects...');
             const res = await api.get('/teacher/subjects/');
+            console.log('[QuestionBank] Subjects loaded:', res.data.length);
             setSubjects(res.data);
         } catch (error) {
             console.error('[QuestionBank] Failed to fetch subjects:', error);
