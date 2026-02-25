@@ -11,7 +11,8 @@ interface Subject {
     id: number;
     name: string;
     code: string;
-    status: 'Active' | 'Inactive';
+    active: boolean;
+    school_id?: number;
 }
 
 // Removed mock data
@@ -42,7 +43,8 @@ const SubjectsList: React.FC = () => {
                         id: s.id,
                         name: s.name,
                         code: s.code || 'N/A',
-                        status: 'Active'
+                        active: s.active,
+                        school_id: s.school_id
                     }));
                     setSubjects(data);
                 }
@@ -74,7 +76,8 @@ const SubjectsList: React.FC = () => {
                 id: s.id,
                 name: s.name,
                 code: s.code || 'N/A',
-                status: 'Active'
+                active: s.active,
+                school_id: s.school_id
             }));
             setSubjects(data);
         } catch (error: any) {
@@ -116,13 +119,13 @@ const SubjectsList: React.FC = () => {
                 ),
             },
             {
-                accessorKey: 'status',
+                accessorKey: 'active',
                 header: 'Status',
                 cell: ({ row }) => (
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        row.original.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        row.original.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
-                        {row.original.status}
+                        {row.original.active ? 'Active' : 'Inactive'}
                     </span>
                 ),
             },
@@ -132,12 +135,12 @@ const SubjectsList: React.FC = () => {
                 cell: ({ row }) => (
                     <div className="flex justify-end gap-3 items-center">
                         <button
-                            onClick={() => toggleStatus(row.original.id)}
+                            onClick={() => toggleStatus(row.original.id, row.original.active)}
                             className={`text-xs font-medium ${
-                                row.original.status === 'Active' ? 'text-red-600' : 'text-green-600'
+                                row.original.active ? 'text-red-600' : 'text-green-600'
                             }`}
                         >
-                            {row.original.status === 'Active' ? 'Deactivate' : 'Activate'}
+                            {row.original.active ? 'Deactivate' : 'Activate'}
                         </button>
                         <button
                             onClick={() => handleDelete(row.original.id)}
@@ -181,8 +184,15 @@ const SubjectsList: React.FC = () => {
         }
     };
 
-    const toggleStatus = (id: number) => {
-        setSubjects(subjects.map(s => s.id === id ? { ...s, status: s.status === 'Active' ? 'Inactive' : 'Active' } : s));
+    const toggleStatus = async (id: number, currentStatus: boolean) => {
+        try {
+            const newStatus = !currentStatus;
+            await api.patch(`/school-admin/subjects/${id}/status`, { active: newStatus });
+            await refetchSubjects();
+            toast.success(`Subject ${newStatus ? 'activated' : 'deactivated'} successfully`);
+        } catch (error) {
+            toast.error("Failed to update subject status");
+        }
     };
 
     return (

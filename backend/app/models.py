@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from sqlalchemy import Column, Index, Integer, String, Boolean, ForeignKey, Enum, DateTime, Text, Table
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -118,8 +119,8 @@ class Subject(Base):
     school = relationship("School", back_populates="subjects")
     assignments = relationship("TeacherAssignment", back_populates="subject")
     grades = relationship("Grade", secondary=grade_subjects, back_populates="subjects")
-    active = Column(Boolean, default=True)
-    
+    active = Column(Boolean, nullable=False, default=True)
+
 class Grade(Base):
     __tablename__ = "grades"
 

@@ -1,3 +1,4 @@
+from fastapi import Body
 from fastapi import APIRouter, Depends, HTTPException
 import logging
 
@@ -388,6 +389,24 @@ def read_questions(
         query = query.filter(models.Question.text.ilike(search_fmt))
         
     return query.all()
+
+@router.put("/assignments/{assignment_id}/due-date", response_model=schemas.Assignment)
+def update_assignment_due_date(
+    assignment_id: int,
+    due_date: datetime = Body(..., embed=True),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    assignment = db.query(models.Assignment).filter(
+        models.Assignment.id == assignment_id,
+        models.Assignment.teacher_id == current_user.id
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    assignment.due_date = due_date
+    db.commit()
+    db.refresh(assignment)
+    return assignment
 
 @router.delete("/assignments/{assignment_id}")
 def delete_assignment(assignment_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
