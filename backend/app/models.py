@@ -118,7 +118,8 @@ class Subject(Base):
     school = relationship("School", back_populates="subjects")
     assignments = relationship("TeacherAssignment", back_populates="subject")
     grades = relationship("Grade", secondary=grade_subjects, back_populates="subjects")
-
+    active = Column(Boolean, default=True)
+    
 class Grade(Base):
     __tablename__ = "grades"
 
