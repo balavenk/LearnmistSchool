@@ -15,8 +15,8 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
-# Create tables
-models.Base.metadata.create_all(bind=database.engine)
+# Create tables (Moved to startup event or handle via Alembic)
+# models.Base.metadata.create_all(bind=database.engine)
 
 # Seed database (optional - comment out if not needed)
 # try:

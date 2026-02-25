@@ -7,6 +7,8 @@ from .. import database, models, schemas, auth
 from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/individual",
     tags=["individual"],
