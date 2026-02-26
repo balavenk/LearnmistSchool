@@ -9,6 +9,9 @@ interface Student {
     name: string;
     grade_id: number;
     class_id: number | null;
+    assigned_count?: number;
+    completed_count?: number;
+    graded_count?: number;
 }
 
 interface PaginatedStudents {
@@ -328,8 +331,8 @@ const Students: React.FC = () => {
                         <button
                             onClick={() => setViewMode('table')}
                             className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${viewMode === 'table'
-                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
-                                    : 'text-slate-600 hover:bg-slate-50'
+                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                                : 'text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,8 +343,8 @@ const Students: React.FC = () => {
                         <button
                             onClick={() => setViewMode('cards')}
                             className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${viewMode === 'cards'
-                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
-                                    : 'text-slate-600 hover:bg-slate-50'
+                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                                : 'text-slate-600 hover:bg-slate-50'
                                 }`}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -483,6 +486,9 @@ const Students: React.FC = () => {
                                         )}
                                     </div>
                                 </th>
+                                <th className="px-6 py-4 text-center font-bold">Assigned</th>
+                                <th className="px-6 py-4 text-center font-bold">Completed</th>
+                                <th className="px-6 py-4 text-center font-bold">Graded</th>
                                 <th className="px-6 py-4 text-center">Actions</th>
                             </tr>
                         </thead>
@@ -519,6 +525,15 @@ const Students: React.FC = () => {
                                             </svg>
                                             {getClassName(student.class_id)}
                                         </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className="font-bold text-slate-700">{student.assigned_count || 0}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className="font-bold text-emerald-600">{student.completed_count || 0}</span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className="font-bold text-purple-600">{student.graded_count || 0}</span>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-center gap-2">
@@ -659,6 +674,22 @@ const Students: React.FC = () => {
                                     <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
                                         {getClassName(student.class_id)}
                                     </span>
+                                </div>
+                            </div>
+
+                            {/* Analytics Grid */}
+                            <div className="grid grid-cols-3 gap-2 mb-5">
+                                <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100 hover:border-slate-300 transition-colors">
+                                    <div className="text-xl font-black text-slate-700">{student.assigned_count || 0}</div>
+                                    <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Assigned</div>
+                                </div>
+                                <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100 hover:border-emerald-300 transition-colors">
+                                    <div className="text-xl font-black text-emerald-600">{student.completed_count || 0}</div>
+                                    <div className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">Completed</div>
+                                </div>
+                                <div className="bg-purple-50 rounded-xl p-3 text-center border border-purple-100 hover:border-purple-300 transition-colors">
+                                    <div className="text-xl font-black text-purple-600">{student.graded_count || 0}</div>
+                                    <div className="text-[10px] uppercase font-bold text-purple-600 tracking-wider">Graded</div>
                                 </div>
                             </div>
 

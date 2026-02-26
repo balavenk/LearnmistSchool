@@ -515,7 +515,11 @@ def create_assignment_from_bank(
         status=models.AssignmentStatus.DRAFT,
         teacher_id=current_user.id, # Admin is the creator
         class_id=data.grade_id or data.class_id,
-        subject_id=data.subject_id
+        subject_id=data.subject_id,
+        exam_type="Quiz",
+        question_count=len(data.question_ids) if data.question_ids else 0,
+        difficulty_level="Medium",
+        question_type="Mixed"
     )
     db.add(new_assignment)
     db.commit()

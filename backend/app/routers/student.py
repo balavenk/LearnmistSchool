@@ -114,6 +114,57 @@ def read_my_assignments(db: Session = Depends(database.get_db), student: models.
         models.Assignment.status == models.AssignmentStatus.PUBLISHED
     ).all()
 
+
+@router.get("/assignments/overview", response_model=List[schemas.StudentAssignmentOverviewItem])
+def read_assignments_overview(db: Session = Depends(database.get_db), student: models.Student = Depends(get_current_student_profile)):
+    if not student.class_id:
+        return []
+
+    # Get all published assignments for the student's class
+    assignments = db.query(models.Assignment).filter(
+        models.Assignment.class_id == student.class_id,
+        models.Assignment.status == models.AssignmentStatus.PUBLISHED
+    ).order_by(models.Assignment.due_date.desc()).all()
+
+    # Get all submissions for this student
+    submissions = db.query(models.Submission).filter(
+        models.Submission.student_id == student.id
+    ).all()
+    sub_map = {s.assignment_id: s for s in submissions}
+
+    overview = []
+    for a in assignments:
+        subject_name = a.subject.name if a.subject else "General"
+        teacher_name = a.teacher.username if a.teacher else "Unknown"
+
+        a_out = schemas.AssignmentOut(
+            id=a.id,
+            title=a.title,
+            description=a.description,
+            due_date=a.due_date,
+            status=a.status,
+            teacher_id=a.teacher_id,
+            class_id=a.class_id,
+            subject_id=a.subject_id,
+            subject_name=subject_name,
+            teacher_name=teacher_name,
+            exam_type=a.exam_type,
+            question_count=a.question_count,
+            difficulty_level=a.difficulty_level,
+            question_type=a.question_type,
+        )
+
+        has_questions = len(a.questions) > 0 if a.questions else False
+        sub = sub_map.get(a.id)
+
+        overview.append(schemas.StudentAssignmentOverviewItem(
+            assignment=a_out,
+            submission=sub,
+            has_questions=has_questions
+        ))
+
+    return overview
+
 @router.get("/assignments/{assignment_id}/take", response_model=schemas.AssignmentDetail)
 def take_assignment(assignment_id: int, db: Session = Depends(database.get_db), student: models.Student = Depends(get_current_student_profile)):
     # Check if student is in the class
