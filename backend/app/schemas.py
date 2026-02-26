@@ -215,6 +215,11 @@ class Student(StudentBase):
     class Config:
         from_attributes = True
 
+class StudentWithMetrics(Student):
+    assigned_count: int = 0
+    completed_count: int = 0
+    graded_count: int = 0
+
 class AssignmentBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -406,6 +411,22 @@ class DashboardStats(BaseModel):
     total_students: int
     total_classes: int
     classes: List[ClassStats]
+
+class GradingOverviewItem(BaseModel):
+    assignment: Assignment
+    submission: Optional[SubmissionDetail] = None
+    has_questions: bool = False
+    
+    class Config:
+        from_attributes = True
+
+class StudentAssignmentOverviewItem(BaseModel):
+    assignment: AssignmentOut
+    submission: Optional[Submission] = None
+    has_questions: bool = False
+    
+    class Config:
+        from_attributes = True
 
 class SchoolAdminStats(BaseModel):
     total_students: int

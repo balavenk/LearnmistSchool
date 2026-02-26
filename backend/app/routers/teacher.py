@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 import logging
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime
 from app import database
@@ -100,7 +101,7 @@ def create_student(student: schemas.StudentCreate, db: Session = Depends(databas
     db.refresh(new_student)
     return new_student
 
-@router.get("/students/", response_model=schemas.PaginatedResponse[schemas.Student])
+@router.get("/students/", response_model=schemas.PaginatedResponse[schemas.StudentWithMetrics])
 def read_students(
     class_id: int = None,
     page: int = 1,
@@ -162,8 +163,69 @@ def read_students(
     # Get paginated results
     students = query.offset(offset).limit(page_size).all()
     
+    if not students:
+        return schemas.PaginatedResponse(
+            items=[],
+            total=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages
+        )
+
+    student_ids = [s.id for s in students]
+    class_ids = list(set([s.class_id for s in students if s.class_id]))
+
+    # 1. Assigned count (per class_id)
+    class_assignments = db.query(
+        models.Assignment.class_id, func.count(models.Assignment.id)
+    ).filter(
+        models.Assignment.teacher_id == current_user.id,
+        models.Assignment.status == models.AssignmentStatus.PUBLISHED,
+        models.Assignment.class_id.in_(class_ids)
+    ).group_by(models.Assignment.class_id).all()
+    class_assignment_map = {c_id: count for c_id, count in class_assignments}
+
+    # 2. Submissions count per student
+    submissions = db.query(
+        models.Submission.student_id,
+        models.Submission.status,
+        func.count(models.Submission.id)
+    ).join(models.Assignment).filter(
+        models.Submission.student_id.in_(student_ids),
+        models.Assignment.teacher_id == current_user.id
+    ).group_by(models.Submission.student_id, models.Submission.status).all()
+    
+    sub_map = {}
+    for sid, status, count in submissions:
+        if sid not in sub_map:
+            sub_map[sid] = {"completed": 0, "graded": 0}
+        if status == models.SubmissionStatus.SUBMITTED:
+            sub_map[sid]["completed"] += count
+        elif status == models.SubmissionStatus.GRADED:
+            sub_map[sid]["graded"] += count
+            sub_map[sid]["completed"] += count
+
+    student_metrics = []
+    for s in students:
+        s_dict = {
+            "id": s.id,
+            "name": s.name,
+            "active": s.active,
+            "school_id": s.school_id,
+            "grade_id": s.grade_id,
+            "class_id": s.class_id,
+            "username": s.username,
+            "user_id": s.user_id,
+            "last_login": s.last_login,
+            "email": s.email,
+            "assigned_count": class_assignment_map.get(s.class_id, 0),
+            "completed_count": sub_map.get(s.id, {}).get("completed", 0),
+            "graded_count": sub_map.get(s.id, {}).get("graded", 0)
+        }
+        student_metrics.append(schemas.StudentWithMetrics(**s_dict))
+    
     return schemas.PaginatedResponse(
-        items=students,
+        items=student_metrics,
         total=total_count,
         page=page,
         page_size=page_size,
@@ -211,7 +273,11 @@ def create_assignment(assignment: schemas.AssignmentCreate, db: Session = Depend
         teacher_id=current_user.id,
         grade_id=assignment.grade_id or (class_or_grade_id if not assignment.assigned_to_class_id else None),
         class_id=assignment.assigned_to_class_id or (class_or_grade_id if not assignment.grade_id else None),
-        subject_id=assignment.subject_id
+        subject_id=assignment.subject_id,
+        exam_type=assignment.exam_type or "Quiz",
+        question_count=assignment.question_count or 0,
+        difficulty_level=assignment.difficulty_level or "Medium",
+        question_type=assignment.question_type or "Mixed"
     )
     db.add(new_assignment)
     db.commit()
@@ -273,7 +339,11 @@ async def generate_ai_assignment(
         due_date=req.due_date,
         subject_id=req.subject_id,
         grade_id=req.grade_id,
-        class_id=None # Default to grade-level, can be refined later if needed
+        class_id=None, # Default to grade-level, can be refined later if needed
+        exam_type="Quiz",
+        question_count=req.question_count or 0,
+        difficulty_level=req.difficulty or "Medium",
+        question_type=getattr(req, 'question_type', "Mixed") or "Mixed"
     )
     db.add(new_assignment)
     db.commit()
@@ -335,7 +405,11 @@ def create_assignment_from_bank(
         teacher_id=current_user.id,
         grade_id=data.grade_id,
         class_id=data.class_id,
-        subject_id=data.subject_id
+        subject_id=data.subject_id,
+        exam_type="Quiz",
+        question_count=len(data.question_ids) if data.question_ids else 0,
+        difficulty_level="Medium",
+        question_type="Mixed"
     )
     db.add(new_assignment)
     db.commit()
@@ -683,6 +757,43 @@ def read_student_pending_submissions(student_id: int, db: Session = Depends(data
         models.Assignment.teacher_id == current_user.id
     ).all()
     return submissions
+
+@router.get("/students/{student_id}/grading-overview", response_model=List[schemas.GradingOverviewItem])
+def read_student_grading_overview(student_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+    # Verify student exists and belongs to teacher's view scope
+    student = db.query(models.Student).filter(models.Student.id == student_id, models.Student.school_id == current_user.school_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    # Get all published assignments created by this teacher that are assigned to this student's class
+    assignments = db.query(models.Assignment).filter(
+        models.Assignment.teacher_id == current_user.id,
+        models.Assignment.status == models.AssignmentStatus.PUBLISHED,
+        models.Assignment.class_id == student.class_id
+    ).all()
+
+    # Get all submissions for this student for these assignments
+    assignment_ids = [a.id for a in assignments]
+    submissions = db.query(models.Submission).filter(
+        models.Submission.student_id == student_id,
+        models.Submission.assignment_id.in_(assignment_ids) if assignment_ids else False
+    ).all()
+    
+    # Pre-fetch questions to know if it's a quiz or project
+    # We can do this efficiently or just check the relationship
+    
+    submission_map = {s.assignment_id: s for s in submissions}
+    
+    overview_items = []
+    for assignment in assignments:
+        has_questions = len(assignment.questions) > 0
+        overview_items.append(schemas.GradingOverviewItem(
+            assignment=assignment,
+            submission=submission_map.get(assignment.id),
+            has_questions=has_questions
+        ))
+        
+    return overview_items
 
 @router.get("/submissions/{submission_id}/details", response_model=schemas.SubmissionDetail)
 def read_submission_details(submission_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):

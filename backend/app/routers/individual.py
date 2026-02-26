@@ -140,10 +140,10 @@ def create_personal_quiz(quiz_data: IndividualQuizCreate, db: Session = Depends(
             teacher_id=current_user.id,
             class_id=None,
             subject_id=subject.id if subject else None,
-            exam_type=quiz_data.exam_type,
-            question_count=quiz_data.question_count,
-            difficulty_level=quiz_data.difficulty_level,
-            question_type=quiz_data.question_type
+            exam_type=quiz_data.exam_type or "Quiz",
+            question_count=quiz_data.question_count or 0,
+            difficulty_level=quiz_data.difficulty_level or "Medium",
+            question_type=quiz_data.question_type or "Mixed"
         )
         db.add(new_assignment)
         db.commit()
