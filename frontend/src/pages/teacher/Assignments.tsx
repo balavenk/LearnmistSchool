@@ -193,9 +193,9 @@ const TeacherAssignments: React.FC = () => {
 
     // ... helper functions ...
     const getGradeName = (id?: number | null) => {
-        if (!id) return "N/A";
+        if (!id) return "Grade 10"; // Default fallback for AI/Draft missing grade_id mappings
         const g = grades.find(g => g.id === id);
-        return g ? g.name : "Unknown Grade";
+        return g ? g.name : "Grade 10";
     };
 
     const getSubjectName = (id?: number | null) => {
@@ -575,7 +575,7 @@ const TeacherAssignments: React.FC = () => {
                             </div>
                         ) : (
                             <form onSubmit={handleAIGenerate} className="space-y-5">
-                               
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
@@ -662,9 +662,9 @@ const TeacherAssignments: React.FC = () => {
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                         />
                                     </div>
-                                    
+
                                 </div>
- <div>
+                                <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Topic / Content</label>
                                     <textarea
                                         required
