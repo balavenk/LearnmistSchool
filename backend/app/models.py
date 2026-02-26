@@ -204,6 +204,7 @@ class Assignment(Base):
     
     teacher_id = Column(Integer, ForeignKey("users.id"))
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True) # Null means assigned to who? Maybe all classes of teacher? Let's say specific class for now.
+    grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True)
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True) # Optional link to subject
 
     # New Fields for Individual/Quiz Generation
@@ -213,6 +214,7 @@ class Assignment(Base):
     question_type = Column(String(50), nullable=True)
 
     teacher = relationship("User", back_populates="created_assignments")
+    grade = relationship("Grade")
     assigned_class = relationship("Class", back_populates="assignments")
     submissions = relationship("Submission", back_populates="assignment")
     submissions = relationship("Submission", back_populates="assignment")

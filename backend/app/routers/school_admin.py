@@ -63,12 +63,31 @@ def create_teacher(user: schemas.UserCreate, db: Session = Depends(database.get_
     db.refresh(new_user)
     return new_user
 
-@router.get("/teachers/", response_model=List[schemas.User])
+@router.get("/teachers/", response_model=List[schemas.UserWithGrades])
 def read_teachers(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
-    return db.query(models.User).filter(
+    teachers = db.query(models.User).filter(
         models.User.school_id == current_user.school_id,
         models.User.role == models.UserRole.TEACHER
     ).all()
+    
+    results = []
+    for t in teachers:
+        # Get unique grade names for this teacher
+        grade_names = db.query(models.Grade.name).join(
+            models.TeacherAssignment, models.TeacherAssignment.grade_id == models.Grade.id
+        ).filter(
+            models.TeacherAssignment.teacher_id == t.id
+        ).distinct().all()
+        
+        # Flatten the list of tuples
+        grades_list = [g[0] for g in grade_names]
+        
+        # Map to schema
+        teacher_data = schemas.UserWithGrades.model_validate(t)
+        teacher_data.assigned_grades = grades_list
+        results.append(teacher_data)
+        
+    return results
 
 @router.patch("/teachers/{teacher_id}/status", response_model=schemas.User)
 def update_teacher_status(

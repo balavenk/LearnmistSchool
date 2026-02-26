@@ -5,11 +5,10 @@ import api from '../../api/axios';
 
 interface Teacher {
     id: number;
-    username: string; // Changed name to username
+    username: string;
     email: string;
-    // subject: string; // Not in User model
-    status: 'Active' | 'Inactive'; // Mapped from active boolean
-    // assignedGrades: string[]; // Not in User model
+    status: 'Active' | 'Inactive';
+    assigned_grades: string[];
 }
 
 const TeachersList: React.FC = () => {
@@ -38,7 +37,8 @@ const TeachersList: React.FC = () => {
                 id: t.id,
                 username: t.username,
                 email: t.email || "",
-                status: t.active ? 'Active' : 'Inactive'
+                status: t.active ? 'Active' : 'Inactive',
+                assigned_grades: t.assigned_grades || []
             }));
             setTeachers(data);
         } catch (error) {
@@ -123,6 +123,7 @@ const TeachersList: React.FC = () => {
                         <tr>
                             <th className="px-6 py-4">Username</th>
                             <th className="px-6 py-4">Email</th>
+                            <th className="px-6 py-4">Grade</th>
                             <th className="px-6 py-4">Status</th>
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
@@ -134,6 +135,19 @@ const TeachersList: React.FC = () => {
                             <tr key={teacher.id} className="hover:bg-slate-50">
                                 <td className="px-6 py-4 font-medium text-slate-900">{teacher.username}</td>
                                 <td className="px-6 py-4 text-slate-500">{teacher.email}</td>
+                                <td className="px-6 py-4">
+                                    {teacher.assigned_grades.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {teacher.assigned_grades.map((grade, idx) => (
+                                                <span key={idx} className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-medium border border-indigo-100">
+                                                    {grade}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <span className="text-slate-400 italic text-xs">No Grade Assigned</span>
+                                    )}
+                                </td>
                                 <td className="px-6 py-4">
                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${teacher.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                         {teacher.status}
@@ -153,7 +167,7 @@ const TeachersList: React.FC = () => {
                                 </td>
                             </tr>
                         ))}
-                        {!loading && paginated.length === 0 && <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No teachers found.</td></tr>}
+                        {!loading && paginated.length === 0 && <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No teachers found.</td></tr>}
                     </tbody>
                 </table>
                 {totalPages > 1 && (

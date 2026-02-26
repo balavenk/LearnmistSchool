@@ -8,11 +8,14 @@ interface Assignment {
     id: number;
     title: string;
     description: string;
-    subject_id?: number | null; // Backend uses IDs
+    subject_id?: number | null;
     grade_id?: number | null;
+    class_id?: number | null;
+    grade_name?: string;
+    subject_name?: string;
     due_date?: string;
-    status: 'PUBLISHED' | 'DRAFT'; // Matches Enum in backend (mapped in UI)
-    assignedTo?: string; // Derived for UI
+    status: 'PUBLISHED' | 'DRAFT';
+    assignedTo?: string;
 }
 
 interface GradeOption {
@@ -24,6 +27,137 @@ interface SubjectOption {
     id: number;
     name: string;
 }
+
+// Performance Optimized Sub-components
+interface AssignmentCardProps {
+    assignment: Assignment;
+    getSubjectName: (assignment: Assignment) => string;
+    getSubjectColor: (id?: number | null) => string;
+    getGradeName: (assignment: Assignment) => string;
+    openEditModal: (assignment: Assignment) => void;
+    handlePublish: (id: number) => void;
+    handleDelete: (id: number) => void;
+}
+
+const AssignmentCard = React.memo(({
+    assignment,
+    getSubjectName,
+    getSubjectColor,
+    getGradeName,
+    openEditModal,
+    handlePublish,
+    handleDelete
+}: AssignmentCardProps) => {
+    return (
+        <div className="group bg-white rounded-2xl shadow-md border-2 border-slate-200 hover:border-indigo-300 p-6 hover:shadow-xl transition-all duration-300 relative overflow-hidden transform hover:-translate-y-1">
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full blur-2xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 -mr-16 -mt-16"></div>
+
+            {assignment.title.includes('AI') && (
+                <div className="absolute top-0 right-0 p-3">
+                    <div className="bg-gradient-to-br from-purple-500 to-indigo-500 text-white rounded-lg px-2 py-1 text-xs font-bold shadow-lg flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        AI
+                    </div>
+                </div>
+            )}
+
+            <div className="flex justify-between items-start mb-4 relative z-10">
+                <span className={`px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1 ${assignment.status === 'PUBLISHED'
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
+                    : 'bg-gradient-to-r from-gray-400 to-slate-400 text-white'
+                    }`}>
+                    {assignment.status === 'PUBLISHED' ? (
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                    ) : (
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                    )}
+                    {assignment.status}
+                </span>
+                <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${getSubjectColor(assignment.subject_id)}`}>
+                    {getSubjectName(assignment)}
+                </span>
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900 mb-2 relative z-10 group-hover:text-indigo-600 transition-colors">{assignment.title}</h3>
+            <p className="text-slate-600 text-sm mb-4 line-clamp-2 relative z-10 leading-relaxed">{assignment.description}</p>
+
+            <div className="space-y-2 relative z-10 mb-4">
+                <div
+                    onClick={() => assignment.status === 'DRAFT' && openEditModal(assignment)}
+                    className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 transition-all duration-200 ${assignment.status === 'DRAFT'
+                        ? 'bg-indigo-50 text-indigo-700 cursor-pointer hover:bg-indigo-100 hover:shadow-sm border border-transparent hover:border-indigo-200 group/date'
+                        : 'text-slate-600 bg-slate-50'
+                        }`}
+                    title={assignment.status === 'DRAFT' ? 'Click to edit due date' : ''}
+                >
+                    <svg className={`w-4 h-4 ${assignment.status === 'DRAFT' ? 'text-indigo-600' : 'text-indigo-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="font-medium">Due:</span>
+                    <span className={`font-semibold ${assignment.status === 'DRAFT' ? 'text-indigo-900 group-hover/date:underline' : 'text-slate-700'}`}>
+                        {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No deadline'}
+                    </span>
+                    {assignment.status === 'DRAFT' && (
+                        <svg className="w-3 h-3 ml-auto opacity-0 group-hover/date:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                    )}
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
+                    <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <span className="font-medium">Grade:</span>
+                    <span className="text-slate-700 font-semibold">{getGradeName(assignment)}</span>
+                </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t-2 border-slate-100 flex flex-col gap-2 relative z-10">
+                <Link
+                    to={`/teacher/assignments/${assignment.id}/questions`}
+                    className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    Manage Questions
+                    <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </Link>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    {assignment.status === 'DRAFT' && (
+                        <button
+                            onClick={() => handlePublish(assignment.id)}
+                            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Publish
+                        </button>
+                    )}
+                    <button
+                        onClick={() => handleDelete(assignment.id)}
+                        className="flex-1 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+});
 
 const TeacherAssignments: React.FC = () => {
     const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -50,12 +184,17 @@ const TeacherAssignments: React.FC = () => {
     const [aiQuestionType, setAiQuestionType] = useState('Multiple Choice');
     const [aiDueDate, setAiDueDate] = useState('');
     const [aiSubjectId, setAiSubjectId] = useState<number | ''>('');
-    const [aiGradeId, setAiGradeId] = useState<number | ''>();
+    const [aiGradeId, setAiGradeId] = useState<number | ''>('');
     const [aiUsePdfContext, setAiUsePdfContext] = useState(false);
+
+    // Edit State
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+    const [editDueDate, setEditDueDate] = useState('');
 
 
     // Fetch Data
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         try {
             setLoading(true);
             const [assignmentsRes, gradesRes, subjectsRes] = await Promise.all([
@@ -71,11 +210,11 @@ const TeacherAssignments: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     const filteredAssignments = useMemo(() => {
         if (filter === 'All') return assignments;
@@ -90,8 +229,8 @@ const TeacherAssignments: React.FC = () => {
                 description: newDesc,
                 due_date: newDueDate ? new Date(newDueDate).toISOString() : null,
                 status: 'PUBLISHED',
-                grade_id: Number(selectedGradeId),
-                subject_id: Number(selectedSubjectId)
+                grade_id: selectedGradeId !== '' ? Number(selectedGradeId) : null,
+                subject_id: selectedSubjectId !== '' ? Number(selectedSubjectId) : null
             });
             fetchData();
             closeModal();
@@ -108,6 +247,12 @@ const TeacherAssignments: React.FC = () => {
         e.preventDefault();
         console.log("🚀 [AI GEN] Generate Quiz button clicked");
         setIsGenerating(true);
+
+        if (aiSubjectId === '' || aiGradeId === '') {
+            toast.error("Please select a subject and grade first.");
+            setIsGenerating(false);
+            return;
+        }
 
         const payload = {
             topic: aiTopic,
@@ -143,9 +288,43 @@ const TeacherAssignments: React.FC = () => {
         }
     };
 
+    const handleUpdateDueDate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingAssignment) return;
+
+        try {
+            await api.patch(`/teacher/assignments/${editingAssignment.id}`, {
+                due_date: editDueDate ? new Date(editDueDate).toISOString() : null
+            });
+            toast.success("Assignment updated successfully!");
+            fetchData();
+            closeEditModal();
+        } catch (error) {
+            console.error("Failed to update assignment", error);
+            toast.error("Failed to update assignment.");
+        }
+    };
+
+    const openEditModal = React.useCallback((assignment: Assignment) => {
+        setEditingAssignment(assignment);
+        // Format YYYY-MM-DD for input[type=date]
+        if (assignment.due_date) {
+            setEditDueDate(new Date(assignment.due_date).toISOString().split('T')[0]);
+        } else {
+            setEditDueDate('');
+        }
+        setIsEditModalOpen(true);
+    }, []);
+
+    const closeEditModal = () => {
+        setIsEditModalOpen(false);
+        setEditingAssignment(null);
+        setEditDueDate('');
+    };
+
     // ... (rest of methods)
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = React.useCallback(async (id: number) => {
         if (!confirm("Are you sure you want to delete this assignment?")) return;
         try {
             await api.delete(`/teacher/assignments/${id}`);
@@ -154,9 +333,9 @@ const TeacherAssignments: React.FC = () => {
             console.error("Failed to delete", error);
             toast.error("Failed to delete assignment.");
         }
-    };
+    }, [fetchData]);
 
-    const handlePublish = async (id: number) => {
+    const handlePublish = React.useCallback(async (id: number) => {
         if (!confirm("Are you sure you want to publish this quiz? Students will be able to see it immediately.")) return;
         try {
             await api.put(`/teacher/assignments/${id}/publish`);
@@ -166,7 +345,7 @@ const TeacherAssignments: React.FC = () => {
             console.error("Failed to publish", error);
             toast.error("Failed to publish quiz.");
         }
-    };
+    }, [fetchData]);
 
     const closeModal = () => {
         setIsModalOpen(false);
@@ -191,17 +370,36 @@ const TeacherAssignments: React.FC = () => {
         setIsGenerating(false);
     };
 
-    // ... helper functions ...
-    const getGradeName = (id?: number | null) => {
+    // Memoized Lookups for O(1) performance
+    const gradesMap = useMemo(() => {
+        const map: Record<number, string> = {};
+        grades.forEach(g => { map[g.id] = g.name; });
+        return map;
+    }, [grades]);
+
+    const subjectsMap = useMemo(() => {
+        const map: Record<number, string> = {};
+        subjects.forEach(s => { map[s.id] = s.name; });
+        return map;
+    }, [subjects]);
+
+    const statusCounts = useMemo(() => ({
+        Draft: assignments.filter(a => a.status === 'DRAFT').length,
+        Published: assignments.filter(a => a.status === 'PUBLISHED').length,
+        All: assignments.length
+    }), [assignments]);
+
+    const getGradeName = (assignment: Assignment) => {
+        if (assignment.grade_name && assignment.grade_name !== "N/A") return assignment.grade_name;
+        const id = assignment.grade_id || assignment.class_id;
         if (!id) return "N/A";
-        const g = grades.find(g => g.id === id);
-        return g ? g.name : "Unknown Grade";
+        return gradesMap[id] || `Grade #${id}`;
     };
 
-    const getSubjectName = (id?: number | null) => {
-        if (!id) return "General";
-        const s = subjects.find(s => s.id === id);
-        return s ? s.name : "Unknown Subject";
+    const getSubjectName = (assignment: Assignment) => {
+        if (assignment.subject_name && assignment.subject_name !== "General") return assignment.subject_name;
+        if (!assignment.subject_id) return "General";
+        return subjectsMap[assignment.subject_id] || "Unknown Subject";
     };
 
     const getSubjectColor = (id?: number | null) => {
@@ -214,11 +412,6 @@ const TeacherAssignments: React.FC = () => {
             'bg-teal-50 text-teal-700 border-teal-200'
         ];
         return id ? colors[id % colors.length] : 'bg-gray-50 text-gray-700 border-gray-200';
-    };
-
-    const getStatusCount = (status: string) => {
-        if (status === 'All') return assignments.length;
-        return assignments.filter(a => a.status === status.toUpperCase()).length;
     };
 
     return (
@@ -287,7 +480,7 @@ const TeacherAssignments: React.FC = () => {
                         <span>{status}</span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${filter === status ? 'bg-white/20' : 'bg-slate-200 text-slate-700'
                             }`}>
-                            {getStatusCount(status)}
+                            {statusCounts[status as keyof typeof statusCounts]}
                         </span>
                     </button>
                 ))}
@@ -296,99 +489,16 @@ const TeacherAssignments: React.FC = () => {
             {/* Enhanced Assignments Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredAssignments.map((assignment) => (
-                    <div key={assignment.id} className="group bg-white rounded-2xl shadow-md border-2 border-slate-200 hover:border-indigo-300 p-6 hover:shadow-xl transition-all duration-300 relative overflow-hidden transform hover:-translate-y-1">
-                        {/* Background decoration */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full blur-2xl opacity-0 group-hover:opacity-50 transition-opacity duration-300 -mr-16 -mt-16"></div>
-
-                        {assignment.title.includes('AI') && (
-                            <div className="absolute top-0 right-0 p-3">
-                                <div className="bg-gradient-to-br from-purple-500 to-indigo-500 text-white rounded-lg px-2 py-1 text-xs font-bold shadow-lg flex items-center gap-1">
-                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                    </svg>
-                                    AI
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="flex justify-between items-start mb-4 relative z-10">
-                            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1 ${assignment.status === 'PUBLISHED'
-                                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                                : 'bg-gradient-to-r from-gray-400 to-slate-400 text-white'
-                                }`}>
-                                {assignment.status === 'PUBLISHED' ? (
-                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                    </svg>
-                                ) : (
-                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                    </svg>
-                                )}
-                                {assignment.status}
-                            </span>
-                            <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${getSubjectColor(assignment.subject_id)}`}>
-                                {getSubjectName(assignment.subject_id)}
-                            </span>
-                        </div>
-
-                        <h3 className="text-xl font-bold text-slate-900 mb-2 relative z-10 group-hover:text-indigo-600 transition-colors">{assignment.title}</h3>
-                        <p className="text-slate-600 text-sm mb-4 line-clamp-2 relative z-10 leading-relaxed">{assignment.description}</p>
-
-                        <div className="space-y-2 relative z-10 mb-4">
-                            <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
-                                <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <span className="font-medium">Due:</span>
-                                <span className="text-slate-700 font-semibold">{assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No deadline'}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
-                                <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                                <span className="font-medium">Grade:</span>
-                                <span className="text-slate-700 font-semibold">{getGradeName(assignment.grade_id)}</span>
-                            </div>
-                        </div>
-
-                        <div className="mt-4 pt-4 border-t-2 border-slate-100 flex flex-col gap-2 relative z-10">
-                            <Link
-                                to={`/teacher/assignments/${assignment.id}/questions`}
-                                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                                Manage Questions
-                                <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                            </Link>
-                            <div className="flex gap-2">
-                                {assignment.status === 'DRAFT' && (
-                                    <button
-                                        onClick={() => handlePublish(assignment.id)}
-                                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        Publish
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => handleDelete(assignment.id)}
-                                    className="flex-1 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <AssignmentCard
+                        key={assignment.id}
+                        assignment={assignment}
+                        getSubjectName={getSubjectName}
+                        getSubjectColor={getSubjectColor}
+                        getGradeName={getGradeName}
+                        openEditModal={openEditModal}
+                        handlePublish={handlePublish}
+                        handleDelete={handleDelete}
+                    />
                 ))}
                 {!loading && filteredAssignments.length === 0 && (
                     <div className="col-span-full py-16">
@@ -575,14 +685,25 @@ const TeacherAssignments: React.FC = () => {
                             </div>
                         ) : (
                             <form onSubmit={handleAIGenerate} className="space-y-5">
-                               
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
                                         <select
                                             required
                                             value={aiSubjectId}
-                                            onChange={(e) => setAiSubjectId(Number(e.target.value))}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                const subId = val === "" ? "" : Number(val);
+                                                setAiSubjectId(subId);
+                                                const subject = subjects.find(s => s.id === subId);
+                                                const grade = grades.find(g => g.id === aiGradeId);
+                                                if (subject && grade) {
+                                                    setAiTopic(`${subject.name} - ${grade.name}`);
+                                                } else if (subject) {
+                                                    setAiTopic(subject.name);
+                                                }
+                                            }}
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                         >
                                             <option value="">Select Subject</option>
@@ -597,11 +718,20 @@ const TeacherAssignments: React.FC = () => {
                                             required
                                             value={aiGradeId}
                                             onChange={(e) => {
-                                                const id = Number(e.target.value);
+                                                const val = e.target.value;
+                                                const id = val === "" ? "" : Number(val);
                                                 setAiGradeId(id);
                                                 // Auto-update grade level based on selected grade
                                                 const grade = grades.find(g => g.id === id);
-                                                if (grade) setAiGradeLevel(grade.name);
+                                                if (grade) {
+                                                    setAiGradeLevel(grade.name);
+                                                    const subject = subjects.find(s => s.id === aiSubjectId);
+                                                    if (subject) {
+                                                        setAiTopic(`${subject.name} - ${grade.name}`);
+                                                    } else {
+                                                        setAiTopic(grade.name);
+                                                    }
+                                                }
                                             }}
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                         >
@@ -662,9 +792,9 @@ const TeacherAssignments: React.FC = () => {
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                         />
                                     </div>
-                                    
+
                                 </div>
- <div>
+                                <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Topic / Content</label>
                                     <textarea
                                         required
@@ -716,6 +846,55 @@ const TeacherAssignments: React.FC = () => {
                                 </div>
                             </form>
                         )}
+                    </div>
+                </div>
+            )}
+            {/* Edit Due Date Modal */}
+            {isEditModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto animate-fadeIn">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-8 relative overflow-hidden transform animate-slideUp">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full blur-3xl opacity-50 -mr-16 -mt-16"></div>
+
+                        <div className="flex justify-between items-center mb-6 relative z-10">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-indigo-500 to-purple-500 p-2 rounded-lg">
+                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-xl font-bold text-slate-900">Edit Due Date</h2>
+                            </div>
+                            <button onClick={closeEditModal} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-lg transition-colors">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleUpdateDueDate} className="space-y-6 relative z-10">
+                            <div>
+                                <p className="text-sm text-slate-500 mb-4">
+                                    Update the deadline for <strong>{editingAssignment?.title}</strong>.
+                                </p>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">New Due Date</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={editDueDate}
+                                    onChange={(e) => setEditDueDate(e.target.value)}
+                                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                                <button type="button" onClick={closeEditModal} className="flex-1 px-4 py-2.5 border-2 border-slate-200 rounded-xl text-slate-600 font-semibold hover:bg-slate-50 transition-all">
+                                    Cancel
+                                </button>
+                                <button type="submit" className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-md hover:bg-indigo-700 transition-all">
+                                    Save Changes
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

@@ -128,6 +128,9 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
+class UserWithGrades(User):
+    assigned_grades: List[str] = []
+
 class UserStatusUpdate(BaseModel):
     active: bool
 
@@ -223,6 +226,7 @@ class AssignmentBase(BaseModel):
     question_count: Optional[int] = None
     difficulty_level: Optional[str] = None
     question_type: Optional[str] = None
+    grade_id: Optional[int] = None
 
 class AssignmentCreate(AssignmentBase):
     grade_id: Optional[int] = None  # Assign to a grade (frontend sends this)
@@ -236,6 +240,7 @@ class AssignmentAICreate(BaseModel):
     question_count: int
     subject_id: int
     grade_id: int
+    question_type: Optional[str] = "Mixed"
     due_date: Optional[datetime] = None
     use_pdf_context: Optional[bool] = False
 
@@ -243,15 +248,24 @@ class Assignment(AssignmentBase):
     id: int
     teacher_id: int
     class_id: Optional[int]
+    grade_id: Optional[int] = None
     subject_id: Optional[int] = None
     
     class Config:
         from_attributes = True
 
+class AssignmentUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    grade_id: Optional[int] = None
+    subject_id: Optional[int] = None
+
 class AssignmentOut(Assignment):
     subject_name: Optional[str] = "General"
+    grade_name: Optional[str] = "N/A"
     teacher_name: Optional[str] = "Unknown"
-    created_at: Optional[datetime] = None # Assuming we might add this to model or map it
+    created_at: Optional[datetime] = None
     submission_id: Optional[int] = None
 
 class QuestionOptionBase(BaseModel):
