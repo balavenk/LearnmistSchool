@@ -41,7 +41,7 @@ const MyQuizzes: React.FC = () => {
         setIsLoading(true);
         console.log('[MyQuizzes] Fetching quizzes...');
         try {
-            const res = await api.get('/individual/quizzes');
+            const res = await api.get('/api/individual/quizzes');
             console.log('[MyQuizzes] Quizzes loaded:', res.data.length, res.data);
             setQuizzes(res.data);
         } catch (err: any) {
@@ -66,7 +66,7 @@ const MyQuizzes: React.FC = () => {
     const fetchSubjects = async () => {
         try {
             console.log('[MyQuizzes] Fetching subjects...');
-            const res = await api.get('/individual/subjects');
+            const res = await api.get('/api/individual/subjects');
             console.log('[MyQuizzes] Subjects loaded:', res.data);
             setExistingSubjects(res.data);
         } catch (err: any) {
@@ -99,7 +99,7 @@ const MyQuizzes: React.FC = () => {
         };
         console.log('[MyQuizzes] CREATE QUIZ — sending payload:', JSON.stringify(payload, null, 2));
         try {
-            const res = await api.post('/individual/quizzes', payload);
+            const res = await api.post('/api/individual/quizzes', payload);
             console.log('[MyQuizzes] CREATE QUIZ — success! New quiz ID:', res.data?.id, res.data);
             setShowCreateModal(false);
             resetForm();

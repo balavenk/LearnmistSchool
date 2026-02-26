@@ -53,9 +53,9 @@ const Classes: React.FC = () => {
         try {
             setLoading(true);
             const [classesRes, gradesRes, teachersRes] = await Promise.all([
-                api.get('/school-admin/classes/'),
-                api.get('/school-admin/grades/'),
-                api.get('/school-admin/teachers/')
+                api.get('/api/school-admin/classes/'),
+                api.get('/api/school-admin/grades/'),
+                api.get('/api/school-admin/teachers/')
             ]);
             setClasses(classesRes.data);
             setGrades(gradesRes.data);
@@ -98,7 +98,7 @@ const Classes: React.FC = () => {
     const handleCreateClass = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post('/school-admin/classes/', {
+            await api.post('/api/school-admin/classes/', {
                 name: newClassName,
                 section: newSection,
                 grade_id: Number(selectedGradeId),
@@ -118,7 +118,7 @@ const Classes: React.FC = () => {
         if (!assignClassId || !assignTeacherId) return;
         try {
             // PUT /classes/{class_id}/teacher/{teacher_id}
-            await api.put(`/school-admin/classes/${assignClassId}/teacher/${assignTeacherId}`);
+            await api.put(`/api/school-admin/classes/${assignClassId}/teacher/${assignTeacherId}`);
             fetchData();
             closeAssignModal();
             toast.success("Teacher assigned successfully!");

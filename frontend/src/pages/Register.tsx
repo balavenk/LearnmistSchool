@@ -26,7 +26,7 @@ const Register: React.FC = () => {
 
         try {
             // Register logic
-            await api.post('/individual/register',
+            await api.post('/api/individual/register',
                 {
                     username,
                     email,

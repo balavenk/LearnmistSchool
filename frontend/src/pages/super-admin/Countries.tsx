@@ -21,7 +21,7 @@ const Countries: React.FC = () => {
     const fetchCountries = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/super-admin/master/countries');
+            const response = await api.get('/api/super-admin/master/countries');
             setCountries(response.data);
         } catch (error) {
             console.error("Failed to fetch countries", error);
@@ -51,7 +51,7 @@ const Countries: React.FC = () => {
     const handleDelete = async (id: number) => {
         if (!window.confirm("Are you sure you want to delete this country?")) return;
         try {
-            await api.delete(`/super-admin/master/countries/${id}`);
+            await api.delete(`/api/super-admin/master/countries/${id}`);
             fetchCountries();
             toast.success("Country deleted successfully");
         } catch (error: any) {
@@ -64,11 +64,11 @@ const Countries: React.FC = () => {
         e.preventDefault();
         try {
             if (modalMode === 'add') {
-                await api.post('/super-admin/master/countries', formData);
+                await api.post('/api/super-admin/master/countries', formData);
                 toast.success("Country created successfully");
             } else {
                 if (!currentCountry) return;
-                await api.put(`/super-admin/master/countries/${currentCountry.id}`, formData);
+                await api.put(`/api/super-admin/master/countries/${currentCountry.id}`, formData);
                 toast.success("Country updated successfully");
             }
             setIsModalOpen(false);

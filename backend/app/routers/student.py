@@ -5,7 +5,7 @@ from datetime import datetime
 from .. import database, models, schemas, auth
 
 router = APIRouter(
-    prefix="/student",
+    prefix="/api/student",
     tags=["student"],
     responses={404: {"description": "Not found"}},
 )

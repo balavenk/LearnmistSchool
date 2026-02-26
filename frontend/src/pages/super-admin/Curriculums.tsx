@@ -29,8 +29,8 @@ const Curriculums: React.FC = () => {
         try {
             setLoading(true);
             const [currRes, countryRes] = await Promise.all([
-                api.get('/super-admin/master/curriculums'),
-                api.get('/super-admin/master/countries')
+                api.get('/api/super-admin/master/curriculums'),
+                api.get('/api/super-admin/master/countries')
             ]);
             setCurriculums(currRes.data);
             setCountries(countryRes.data);
@@ -62,7 +62,7 @@ const Curriculums: React.FC = () => {
     const handleDelete = async (id: number) => {
         if (!window.confirm("Are you sure you want to delete this curriculum?")) return;
         try {
-            await api.delete(`/super-admin/master/curriculums/${id}`);
+            await api.delete(`/api/super-admin/master/curriculums/${id}`);
             fetchData();
             toast.success("Curriculum deleted successfully");
         } catch (error: any) {
@@ -80,11 +80,11 @@ const Curriculums: React.FC = () => {
             };
 
             if (modalMode === 'add') {
-                await api.post('/super-admin/master/curriculums', payload);
+                await api.post('/api/super-admin/master/curriculums', payload);
                 toast.success("Curriculum created successfully");
             } else {
                 if (!currentId) return;
-                await api.put(`/super-admin/master/curriculums/${currentId}`, payload);
+                await api.put(`/api/super-admin/master/curriculums/${currentId}`, payload);
                 toast.success("Curriculum updated successfully");
             }
             setIsModalOpen(false);

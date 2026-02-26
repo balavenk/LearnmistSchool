@@ -194,7 +194,7 @@ const Students: React.FC = () => {
             let currentPageSize = pageSize;
 
             // Fetch settings to get backend pagination config
-            const settingsRes = await api.get('/teacher/settings');
+            const settingsRes = await api.get('/api/teacher/settings');
             if (settingsRes.data.pagination?.default_page_size) {
                 currentPageSize = settingsRes.data.pagination.default_page_size;
                 setPageSize(currentPageSize);
@@ -202,9 +202,9 @@ const Students: React.FC = () => {
 
             // Now fetch data with correct page size
             const [studentsRes, gradesRes, classesRes] = await Promise.all([
-                api.get<PaginatedStudents>(`/teacher/students/?page=${page}&page_size=${currentPageSize}`),
-                api.get('/teacher/grades/'),
-                api.get('/teacher/classes/')
+                api.get<PaginatedStudents>(`/api/teacher/students/?page=${page}&page_size=${currentPageSize}`),
+                api.get('/api/teacher/grades/'),
+                api.get('/api/teacher/classes/')
             ]);
 
             // Update students from paginated response
@@ -237,7 +237,7 @@ const Students: React.FC = () => {
     const handleCreateStudent = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post('/teacher/students/', {
+            await api.post('/api/teacher/students/', {
                 name: newName,
                 email: newEmail || null,
                 grade_id: Number(selectedGradeId),

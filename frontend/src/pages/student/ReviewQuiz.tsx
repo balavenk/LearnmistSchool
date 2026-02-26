@@ -65,7 +65,7 @@ const ReviewQuiz: React.FC<ReviewQuizProps> = ({ submissionId, onClose }) => {
                 // Wait, lines 89-100 in student.py manually construct the dict without submission_id.
                 // checking student.py ...
 
-                const response = await api.get(`/student/submissions/${submissionId}`);
+                const response = await api.get(`/api/student/submissions/${submissionId}`);
                 setSubmission(response.data);
             } catch (error) {
                 console.error("Failed to load review", error);

@@ -33,7 +33,7 @@ const TeachersList: React.FC = () => {
     const fetchTeachers = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/school-admin/teachers/');
+            const response = await api.get('/api/school-admin/teachers/');
             const data = response.data.map((t: any) => ({
                 id: t.id,
                 username: t.username,
@@ -66,7 +66,7 @@ const TeachersList: React.FC = () => {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post('/school-admin/teachers/', {
+            await api.post('/api/school-admin/teachers/', {
                 username: newUsername,
                 email: newEmail,
                 password: 'password123', // Default password
@@ -86,7 +86,7 @@ const TeachersList: React.FC = () => {
     const toggleStatus = async (id: number, currentStatus: string) => {
         try {
             const newActive = currentStatus !== 'Active';
-            await api.patch(`/school-admin/teachers/${id}/status`, { active: newActive });
+            await api.patch(`/api/school-admin/teachers/${id}/status`, { active: newActive });
             toast.success(`Teacher ${newActive ? 'activated' : 'deactivated'} successfully`);
             fetchTeachers();
         } catch (error) {

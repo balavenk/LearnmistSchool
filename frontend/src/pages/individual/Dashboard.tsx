@@ -14,7 +14,7 @@ const Dashboard: React.FC = () => {
         // Fetch stats if available, or just mock for now/use list length
         const fetchStats = async () => {
             try {
-                const res = await api.get('/individual/quizzes');
+                const res = await api.get('/api/individual/quizzes');
                 setStats(s => ({ ...s, totalQuizzes: res.data.length }));
             } catch (err) {
                 console.error(err);

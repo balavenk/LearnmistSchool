@@ -37,7 +37,7 @@ const TakeQuiz: React.FC<TakeQuizProps> = ({ assignmentId, onClose, onSubmitSucc
     useEffect(() => {
         const fetchQuiz = async () => {
             try {
-                const response = await api.get(`/student/assignments/${assignmentId}/take`);
+                const response = await api.get(`/api/student/assignments/${assignmentId}/take`);
                 setAssignment(response.data);
             } catch (error) {
                 console.error("Failed to load quiz", error);
@@ -89,7 +89,7 @@ const TakeQuiz: React.FC<TakeQuizProps> = ({ assignmentId, onClose, onSubmitSucc
                 text_answer: ans.text
             }));
 
-            await api.post('/student/submissions/', {
+            await api.post('/api/student/submissions/', {
                 assignment_id: assignmentId,
                 answers: formattedAnswers
             });

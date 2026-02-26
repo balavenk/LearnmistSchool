@@ -19,7 +19,7 @@ const TrainFileDetails: React.FC = () => {
 
     const fetchFileDetails = async () => {
         try {
-            const response = await api.get(`/upload/training-material/id/${fileId}`);
+            const response = await api.get(`/api/upload/training-material/id/${fileId}`);
             setFile(response.data);
             if (response.data.file_metadata) {
                 try {
@@ -67,7 +67,7 @@ const TrainFileDetails: React.FC = () => {
         metaObject['model'] = model;
 
         try {
-            await api.post(`/upload/training-material/${fileId}/train`, {
+            await api.post(`/api/upload/training-material/${fileId}/train`, {
                 file_status: 'Processing', // Set to Processing initially
                 file_metadata: JSON.stringify(metaObject)
             });

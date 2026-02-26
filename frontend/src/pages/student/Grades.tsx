@@ -16,7 +16,7 @@ const StudentGrades: React.FC = () => {
     useEffect(() => {
         const fetchGrades = async () => {
             try {
-                const response = await api.get('/student/grades');
+                const response = await api.get('/api/student/grades');
                 setStats(response.data);
             } catch (error) {
                 console.error("Failed to fetch grades", error);

@@ -4,7 +4,7 @@ from typing import List, Optional
 from .. import database, models, schemas, auth
 
 router = APIRouter(
-    prefix="/school-admin",
+    prefix="/api/school-admin",
     tags=["school-admin"],
     responses={404: {"description": "Not found"}},
 )
@@ -48,6 +48,9 @@ def create_teacher(user: schemas.UserCreate, db: Session = Depends(database.get_
     existing_user = db.query(models.User).filter(models.User.username == user.username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already registered")
+    existing_email = db.query(models.User).filter(models.User.email == user.email).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = auth.get_password_hash(user.password)
     new_user = models.User(
@@ -325,11 +328,12 @@ def create_student(student_data: schemas.StudentCreate, db: Session = Depends(da
     while db.query(models.User).filter(models.User.username == username).first():
         username = f"{base_username}{counter}"
         counter += 1
-        
+    existing_email = db.query(models.User).filter(models.User.email == student_data.email).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email already registered")
     # 3. Create User
     # Default password 'password123'
     hashed_password = auth.get_password_hash("password123")
-    
     new_user = models.User(
         username=username,
         email=student_data.email, # Saved in User table
@@ -356,7 +360,32 @@ def create_student(student_data: schemas.StudentCreate, db: Session = Depends(da
     db.refresh(new_student)
     
     return new_student
+# Deactivate/reactivate student
+@router.patch("/students/{student_id}/status", response_model=schemas.Student)
+def update_student_status(student_id: int, status_data: schemas.UserStatusUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    student = db.query(models.Student).filter(
+        models.Student.id == student_id,
+        models.Student.school_id == current_user.school_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    student.active = status_data.active
+    db.commit()
+    db.refresh(student)
+    return student
 
+# Delete student (frontend must show alert before calling)
+@router.delete("/students/{student_id}")
+def delete_student(student_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    student = db.query(models.Student).filter(
+        models.Student.id == student_id,
+        models.Student.school_id == current_user.school_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    db.delete(student)
+    db.commit()
+    return {"message": "Student deleted successfully"}
 # --- Teacher Assignments ---
 
 @router.get("/teachers/{teacher_id}/assignments", response_model=List[schemas.TeacherAssignment])

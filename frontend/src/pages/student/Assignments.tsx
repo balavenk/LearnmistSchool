@@ -24,7 +24,7 @@ const StudentAssignments: React.FC = () => {
     const fetchAssignments = async () => {
         try {
             setLoading(true);
-            const endpoint = activeTab === 'open' ? '/student/assignments/open' : '/student/assignments/completed';
+            const endpoint = activeTab === 'open' ? '/api/student/assignments/open' : '/api/student/assignments/completed';
             const response = await api.get(endpoint);
             setAssignments(response.data);
         } catch (error) {

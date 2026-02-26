@@ -4,7 +4,7 @@ from typing import List
 from .. import database, models, schemas, auth
 
 router = APIRouter(
-    prefix="/super-admin",
+    prefix="/api/super-admin",
     tags=["super-admin"],
     responses={404: {"description": "Not found"}},
 )

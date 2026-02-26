@@ -8,7 +8,7 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/individual",
+    prefix="/api/individual",
     tags=["individual"],
     responses={404: {"description": "Not found"}},
 )

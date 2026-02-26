@@ -59,9 +59,9 @@ const TeacherAssignments: React.FC = () => {
         try {
             setLoading(true);
             const [assignmentsRes, gradesRes, subjectsRes] = await Promise.all([
-                api.get('/teacher/assignments/'),
-                api.get('/teacher/grades/'),
-                api.get('/teacher/subjects/')
+                api.get('/api/teacher/assignments/'),
+                api.get('/api/teacher/grades/'),
+                api.get('/api/teacher/subjects/')
             ]);
             setAssignments(assignmentsRes.data);
             setGrades(gradesRes.data);
@@ -85,7 +85,7 @@ const TeacherAssignments: React.FC = () => {
     const handleCreateAssignment = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post('/teacher/assignments/', {
+            await api.post('/api/teacher/assignments/', {
                 title: newTitle,
                 description: newDesc,
                 due_date: newDueDate ? new Date(newDueDate).toISOString() : null,
@@ -124,7 +124,7 @@ const TeacherAssignments: React.FC = () => {
         console.log("🌐 [AI GEN] Calling API /teacher/assignments/ai-generate with payload:", payload);
 
         try {
-            const response = await api.post('/teacher/assignments/ai-generate', payload);
+            const response = await api.post('/api/teacher/assignments/ai-generate', payload);
             console.log("✅ [AI GEN] API Call Successful. Data:", response.data);
 
             toast.success("AI Draft generated successfully!");
@@ -148,7 +148,7 @@ const TeacherAssignments: React.FC = () => {
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure you want to delete this assignment?")) return;
         try {
-            await api.delete(`/teacher/assignments/${id}`);
+            await api.delete(`/api/teacher/assignments/${id}`);
             fetchData();
         } catch (error) {
             console.error("Failed to delete", error);
@@ -159,7 +159,7 @@ const TeacherAssignments: React.FC = () => {
     const handlePublish = async (id: number) => {
         if (!confirm("Are you sure you want to publish this quiz? Students will be able to see it immediately.")) return;
         try {
-            await api.put(`/teacher/assignments/${id}/publish`);
+            await api.put(`/api/teacher/assignments/${id}/publish`);
             fetchData();
             toast.success("Quiz published successfully!");
         } catch (error) {

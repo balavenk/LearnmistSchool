@@ -28,7 +28,7 @@ const SubjectsList: React.FC = () => {
     const fetchSubjects = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/school-admin/subjects/');
+            const response = await api.get('/api/school-admin/subjects/');
             // Backend returns {id, name, code, school_id}.
             // Map to frontend interface
             const data = response.data.map((s: any) => ({
@@ -62,7 +62,7 @@ const SubjectsList: React.FC = () => {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post('/school-admin/subjects/', {
+            await api.post('/api/school-admin/subjects/', {
                 name: newName,
                 code: newCode
             });
@@ -79,7 +79,7 @@ const SubjectsList: React.FC = () => {
     const handleDelete = async (id: number) => {
         if (!window.confirm("Are you sure you want to delete this subject?")) return;
         try {
-            await api.delete(`/school-admin/subjects/${id}`);
+            await api.delete(`/api/school-admin/subjects/${id}`);
             fetchSubjects();
         } catch (error: any) {
             console.error("Delete failed", error);

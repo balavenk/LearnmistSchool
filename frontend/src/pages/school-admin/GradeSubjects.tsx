@@ -35,11 +35,11 @@ const GradeSubjects: React.FC = () => {
         setLoading(true);
         try {
             // Fetch All Subjects
-            const subjectsRes = await api.get('/school-admin/subjects/');
+            const subjectsRes = await api.get('/api/school-admin/subjects/');
             setAllSubjects(subjectsRes.data);
 
             // Fetch Grade Subjects
-            const gradeRes = await api.get(`/school-admin/grades/${gradeId}/subjects`);
+            const gradeRes = await api.get(`/api/school-admin/grades/${gradeId}/subjects`);
             // Assuming this endpoint returns list of subjects associated with the grade
             const currentSubjects: Subject[] = gradeRes.data;
 
@@ -49,7 +49,7 @@ const GradeSubjects: React.FC = () => {
             // Since we don't have a direct "get grade" endpoint in the snippets viewed, 
             // I'll fetch lists and filter (not efficient but checking snippets).
             // Actually, I can fetch grades list and find.
-            const gradesRes = await api.get('/school-admin/grades/');
+            const gradesRes = await api.get('/api/school-admin/grades/');
             const foundGrade = gradesRes.data.find((g: any) => g.id === parseInt(gradeId!));
 
             setGrade({ ...foundGrade, subjects: currentSubjects });
@@ -74,7 +74,7 @@ const GradeSubjects: React.FC = () => {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await api.post(`/school-admin/grades/${gradeId}/subjects`, {
+            await api.post(`/api/school-admin/grades/${gradeId}/subjects`, {
                 subject_ids: selectedSubjectIds
             });
             toast.success("Subjects linked successfully!");

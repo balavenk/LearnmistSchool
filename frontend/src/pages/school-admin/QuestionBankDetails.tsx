@@ -43,7 +43,7 @@ const QuestionBankDetails: React.FC = () => {
         setLoading(true);
         try {
             const response = await api.get<PaginatedResponse>(
-                `/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
+                `/api/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
             );
             setPdfs(response.data.items);
             setTotalPages(response.data.total_pages);
@@ -75,7 +75,7 @@ const QuestionBankDetails: React.FC = () => {
         if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return;
 
         try {
-            await api.delete(`/upload/training-material/${id}`);
+            await api.delete(`/api/upload/training-material/${id}`);
             // Refetch current page to sync with server
             fetchMaterials(currentPage);
         } catch (error: any) {

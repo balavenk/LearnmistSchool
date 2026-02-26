@@ -54,7 +54,7 @@ const QuestionBank: React.FC = () => {
     const fetchGrades = async () => {
         try {
             console.log('[QuestionBank] Fetching grades...');
-            const res = await api.get('/teacher/grades/');
+            const res = await api.get('/api/teacher/grades/');
             console.log('[QuestionBank] Grades loaded:', res.data.length);
             setGrades(res.data);
         } catch (error) {
@@ -65,7 +65,7 @@ const QuestionBank: React.FC = () => {
     const fetchSubjects = async () => {
         try {
             console.log('[QuestionBank] Fetching subjects...');
-            const res = await api.get('/teacher/subjects/');
+            const res = await api.get('/api/teacher/subjects/');
             console.log('[QuestionBank] Subjects loaded:', res.data.length);
             setSubjects(res.data);
         } catch (error) {
@@ -87,7 +87,7 @@ const QuestionBank: React.FC = () => {
 
             console.log('[QuestionBank] Fetching questions with params:', params);
 
-            const res = await api.get('/teacher/questions/', { params });
+            const res = await api.get('/api/teacher/questions/', { params });
 
             console.log('API Response:', res.data); // Debug: Check actual response structure
             console.log('Response type:', Array.isArray(res.data) ? 'Array' : 'Object');
@@ -179,7 +179,7 @@ const QuestionBank: React.FC = () => {
         };
         console.log('[QuestionBank] CREATE QUIZ — sending payload:', JSON.stringify(payload, null, 2));
         try {
-            const res = await api.post('/teacher/assignments/from-bank', payload);
+            const res = await api.post('/api/teacher/assignments/from-bank', payload);
             console.log('[QuestionBank] CREATE QUIZ — success! Response:', res.data);
             toast.success('Quiz Created Successfully!');
             setShowModal(false);

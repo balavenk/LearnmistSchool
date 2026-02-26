@@ -29,8 +29,8 @@ const SchoolTypes: React.FC = () => {
         try {
             setLoading(true);
             const [typesRes, countryRes] = await Promise.all([
-                api.get('/super-admin/master/school-types'),
-                api.get('/super-admin/master/countries')
+                api.get('/api/super-admin/master/school-types'),
+                api.get('/api/super-admin/master/countries')
             ]);
             setTypes(typesRes.data);
             setCountries(countryRes.data);
@@ -62,7 +62,7 @@ const SchoolTypes: React.FC = () => {
     const handleDelete = async (id: number) => {
         if (!window.confirm("Are you sure you want to delete this school type?")) return;
         try {
-            await api.delete(`/super-admin/master/school-types/${id}`);
+            await api.delete(`/api/super-admin/master/school-types/${id}`);
             fetchData();
             toast.success("School Type deleted successfully");
         } catch (error: any) {
@@ -80,11 +80,11 @@ const SchoolTypes: React.FC = () => {
             };
 
             if (modalMode === 'add') {
-                await api.post('/super-admin/master/school-types', payload);
+                await api.post('/api/super-admin/master/school-types', payload);
                 toast.success("School Type created successfully");
             } else {
                 if (!currentId) return;
-                await api.put(`/super-admin/master/school-types/${currentId}`, payload);
+                await api.put(`/api/super-admin/master/school-types/${currentId}`, payload);
                 toast.success("School Type updated successfully");
             }
             setIsModalOpen(false);

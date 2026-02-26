@@ -20,7 +20,7 @@ const Settings: React.FC = () => {
 
     const fetchUserInfo = async () => {
         try {
-            const res = await api.get('/auth/me');
+            const res = await api.get('/api/auth/me');
             if (res.data.school_id) {
                 setSchoolId(res.data.school_id);
                 // Optionally fetch school details if we want to show name
@@ -37,7 +37,7 @@ const Settings: React.FC = () => {
         if (schoolId) {
             const fetchGrades = async () => {
                 try {
-                    const res = await api.get(`/individual/schools/${schoolId}/grades`);
+                    const res = await api.get(`/api/individual/schools/${schoolId}/grades`);
                     setGrades(res.data);
                 } catch (err) { console.error(err); }
             };
@@ -50,7 +50,7 @@ const Settings: React.FC = () => {
         if (schoolId && selectedGrade) {
             const fetchClasses = async () => {
                 try {
-                    const res = await api.get(`/individual/schools/${schoolId}/grades/${selectedGrade}/classes`);
+                    const res = await api.get(`/api/individual/schools/${schoolId}/grades/${selectedGrade}/classes`);
                     setClasses(res.data);
                 } catch (err) { console.error(err); }
             };
@@ -63,7 +63,7 @@ const Settings: React.FC = () => {
         if (!schoolId || !selectedGrade) return;
         setIsLoading(true);
         try {
-            await api.put('/individual/link-school', null, {
+            await api.put('/api/individual/link-school', null, {
                 params: {
                     school_id: schoolId, // Pass current school ID to satisfy backend
                     grade_id: selectedGrade,

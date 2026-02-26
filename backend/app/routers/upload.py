@@ -12,7 +12,7 @@ import asyncio
 from .. import database, models, schemas, auth
 
 router = APIRouter(
-    prefix="/upload",
+    prefix="/api/upload",
     tags=["upload"],
     responses={404: {"description": "Not found"}},
 )

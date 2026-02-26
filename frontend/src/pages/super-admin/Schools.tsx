@@ -60,7 +60,7 @@ const Schools: React.FC = () => {
     const fetchSchools = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/super-admin/schools/');
+            const response = await api.get('/api/super-admin/schools/');
             const data = response.data.map((s: any) => ({
                 ...s,
                 students: s.student_count || 0,
@@ -78,7 +78,7 @@ const Schools: React.FC = () => {
 
     const fetchCountries = async () => {
         try {
-            const res = await api.get('/super-admin/master/countries');
+            const res = await api.get('/api/super-admin/master/countries');
             setCountries(res.data);
         } catch (error) {
             console.error("Failed to fetch countries", error);
@@ -97,8 +97,8 @@ const Schools: React.FC = () => {
             const fetchData = async () => {
                 try {
                     const [currRes, typeRes] = await Promise.all([
-                        api.get(`/super-admin/master/curriculums?country_id=${selectedCountryId}`),
-                        api.get(`/super-admin/master/school-types?country_id=${selectedCountryId}`)
+                        api.get(`/api/super-admin/master/curriculums?country_id=${selectedCountryId}`),
+                        api.get(`/api/super-admin/master/school-types?country_id=${selectedCountryId}`)
                     ]);
                     setCurriculums(currRes.data);
                     setSchoolTypes(typeRes.data);
@@ -178,7 +178,7 @@ const Schools: React.FC = () => {
         try {
             if (editMode && selectedSchoolId) {
                 // Update School
-                await api.put(`/super-admin/schools/${selectedSchoolId}`, {
+                await api.put(`/api/super-admin/schools/${selectedSchoolId}`, {
                     name: newSchoolName,
                     address: newSchoolAddress,
                     max_teachers: 100,
@@ -191,7 +191,7 @@ const Schools: React.FC = () => {
                 toast.success("School updated successfully!");
             } else {
                 // 1. Create School
-                const schoolRes = await api.post('/super-admin/schools/', {
+                const schoolRes = await api.post('/api/super-admin/schools/', {
                     name: newSchoolName,
                     address: newSchoolAddress,
                     max_teachers: 100, // Defaults
@@ -206,7 +206,7 @@ const Schools: React.FC = () => {
                 // 2. Create Admins
                 for (const admin of newSchoolAdmins) {
                     try {
-                        await api.post(`/super-admin/schools/${createdSchool.id}/admin`, {
+                        await api.post(`/api/super-admin/schools/${createdSchool.id}/admin`, {
                             username: admin.username,
                             password: admin.password,
                             role: "SCHOOL_ADMIN"

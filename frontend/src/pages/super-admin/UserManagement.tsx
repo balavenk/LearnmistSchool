@@ -54,7 +54,7 @@ const UserManagement: React.FC = () => {
     useEffect(() => {
         const fetchSchools = async () => {
             try {
-                const res = await api.get('/super-admin/schools/');
+                const res = await api.get('/api/super-admin/schools/');
                 setSchools(res.data);
             } catch (err) {
                 console.error("Failed to fetch schools", err);
@@ -75,10 +75,10 @@ const UserManagement: React.FC = () => {
             setLoading(true);
             try {
                 if (activeTab === 'STUDENT') {
-                    const res = await api.get(`/super-admin/schools/${selectedSchoolId}/students`);
+                    const res = await api.get(`/api/super-admin/schools/${selectedSchoolId}/students`);
                     setStudents(res.data);
                 } else {
-                    const res = await api.get(`/super-admin/schools/${selectedSchoolId}/users`, {
+                    const res = await api.get(`/api/super-admin/schools/${selectedSchoolId}/users`, {
                         params: { role: activeTab }
                     });
                     setUsers(res.data);
@@ -138,8 +138,8 @@ const UserManagement: React.FC = () => {
 
         try {
             const endpoint = currentStatus
-                ? `/super-admin/users/${userId}/deactivate`
-                : `/super-admin/users/${userId}/activate`;
+                ? `/api/super-admin/users/${userId}/deactivate`
+                : `/api/super-admin/users/${userId}/activate`;
 
             await api.post(endpoint);
 
@@ -165,7 +165,7 @@ const UserManagement: React.FC = () => {
                     return s; // Placeholder, reload data might be easier
                 }));
                 // Trigger reload
-                const res = await api.get(`/super-admin/schools/${selectedSchoolId}/students`);
+                const res = await api.get(`/api/super-admin/schools/${selectedSchoolId}/students`);
                 setStudents(res.data);
             } else {
                 setUsers(prev => prev.map(u => u.id === userId ? { ...u, active: !currentStatus } : u));
@@ -190,7 +190,7 @@ const UserManagement: React.FC = () => {
     const handleSavePassword = async () => {
         if (!selectedUserForReset || !newPassword) return;
         try {
-            await api.post(`/super-admin/users/${selectedUserForReset}/reset-password`, { password: newPassword });
+            await api.post(`/api/super-admin/users/${selectedUserForReset}/reset-password`, { password: newPassword });
             toast.success("Password reset successfully.");
             setResetModalOpen(false);
             setNewPassword('');

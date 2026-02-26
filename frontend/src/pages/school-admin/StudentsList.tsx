@@ -39,7 +39,7 @@ const StudentsList: React.FC = () => {
     const fetchStudents = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/school-admin/students/');
+            const res = await api.get('/api/school-admin/students/');
             setStudents(res.data);
         } catch (error) {
             console.error("Failed to fetch students", error);
@@ -51,8 +51,8 @@ const StudentsList: React.FC = () => {
     const fetchOptions = async () => {
         try {
             const [gRes, cRes] = await Promise.all([
-                api.get('/school-admin/grades/'),
-                api.get('/school-admin/classes/')
+                api.get('/api/school-admin/grades/'),
+                api.get('/api/school-admin/classes/')
             ]);
             setGrades(gRes.data);
             setClasses(cRes.data);
@@ -71,11 +71,34 @@ const StudentsList: React.FC = () => {
         setIsModalOpen(true);
     };
 
+    // Deactivate/reactivate student
+    const handleToggleActive = async (student: Student) => {
+        try {
+            await api.patch(`/api/school-admin/students/${student.id}/status`, { active: !student.active });
+            fetchStudents();
+            toast.success(`Student ${!student.active ? 'activated' : 'deactivated'} successfully`);
+        } catch (error) {
+            toast.error('Failed to update status');
+        }
+    };
+
+    // Delete student with confirmation
+    const handleDeleteStudent = async (student: Student) => {
+        if (!window.confirm(`Are you sure you want to delete student '${student.name}'? This action cannot be undone.`)) return;
+        try {
+            await api.delete(`/api/school-admin/students/${student.id}`);
+            fetchStudents();
+            toast.success('Student deleted successfully');
+        } catch (error) {
+            toast.error('Failed to delete student');
+        }
+    };
+
     const handleUpdateStudent = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedStudent) return;
         try {
-            await api.put(`/school-admin/students/${selectedStudent.id}`, {
+            await api.put(`/api/school-admin/students/${selectedStudent.id}`, {
                 name: editName,
                 email: editEmail || null,
                 grade_id: editGradeId ? Number(editGradeId) : null,
@@ -118,7 +141,7 @@ const StudentsList: React.FC = () => {
     const handleAddStudent = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post('/school-admin/students/', {
+            await api.post('/api/school-admin/students/', {
                 name: newStudentName,
                 email: newStudentEmail || null,
                 grade_id: Number(newStudentGradeId),
@@ -192,12 +215,24 @@ const StudentsList: React.FC = () => {
                                 <td className="px-6 py-4 text-slate-600">
                                     {getClassName(student.class_id)}
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="px-6 py-4 text-right flex gap-2 justify-end">
                                     <button
                                         onClick={() => openEditModal(student)}
                                         className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                                     >
                                         Edit
+                                    </button>
+                                    <button
+                                        onClick={() => handleToggleActive(student)}
+                                        className={`text-xs px-3 py-1 rounded-md font-medium transition-colors ${student.active ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100' : 'bg-green-50 text-green-700 hover:bg-green-100'}`}
+                                    >
+                                        {student.active ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteStudent(student)}
+                                        className="text-red-600 hover:text-red-800 font-medium text-xs px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                                    >
+                                        Delete
                                     </button>
                                 </td>
                             </tr>

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from .. import schemas, models, auth
 
 router = APIRouter(
-    prefix="/auth",
+    prefix="/api/auth",
     tags=["auth"],
     responses={404: {"description": "Not found"}},
 )

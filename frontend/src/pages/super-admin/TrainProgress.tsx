@@ -32,7 +32,7 @@ const TrainProgress: React.FC = () => {
             if (message === "DONE") {
                 const markComplete = async () => {
                     try {
-                        await api.put(`/upload/training-material/${fileId}/status`, { file_status: 'Trained' });
+                        await api.put(`/api/upload/training-material/${fileId}/status`, { file_status: 'Trained' });
                     } catch (error) {
                         console.error('Failed to mark file as trained', error);
                     } finally {

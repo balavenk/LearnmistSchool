@@ -45,7 +45,7 @@ const GradesList: React.FC = () => {
     const fetchGrades = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/school-admin/grades/');
+            const res = await api.get('/api/school-admin/grades/');
             setGrades(res.data);
         } catch (error) {
             console.error("Failed to fetch grades", error);
@@ -56,7 +56,7 @@ const GradesList: React.FC = () => {
 
     const fetchSections = async (gradeId: number) => {
         try {
-            const res = await api.get(`/school-admin/classes/?grade_id=${gradeId}`);
+            const res = await api.get(`/api/school-admin/classes/?grade_id=${gradeId}`);
             setSections(res.data);
         } catch (error) {
             console.error("Failed to fetch sections", error);
@@ -66,7 +66,7 @@ const GradesList: React.FC = () => {
     const handleCreateGrade = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post('/school-admin/grades/', { name: newGradeName });
+            await api.post('/api/school-admin/grades/', { name: newGradeName });
             fetchGrades();
             setIsAddGradeModalOpen(false);
             setNewGradeName('');
@@ -94,7 +94,7 @@ const GradesList: React.FC = () => {
             const section = newSectionName.trim();
             const className = `${selectedGrade.name}-${section}`;
 
-            await api.post('/school-admin/classes/', {
+            await api.post('/api/school-admin/classes/', {
                 name: className,
                 section: section,
                 grade_id: selectedGrade.id
@@ -110,7 +110,7 @@ const GradesList: React.FC = () => {
     const handleDeleteSection = async (classId: number) => {
         if (!confirm("Are you sure you want to delete this section?")) return;
         try {
-            await api.delete(`/school-admin/classes/${classId}`);
+            await api.delete(`/api/school-admin/classes/${classId}`);
             if (selectedGrade) fetchSections(selectedGrade.id);
         } catch (error) {
             console.error("Failed to delete section", error);

@@ -39,7 +39,7 @@ const TeacherUploadPdf: React.FC = () => {
 
     const fetchGrades = async () => {
         try {
-            const res = await api.get<Grade[]>('/teacher/grades/');
+            const res = await api.get<Grade[]>('/api/teacher/grades/');
             setGrades(res.data);
             if (res.data.length > 0) {
                 setSelectedGradeId((prev) => (prev === '' ? res.data[0].id : prev));
@@ -53,7 +53,7 @@ const TeacherUploadPdf: React.FC = () => {
         setLoading(true);
         try {
             const response = await api.get<PaginatedResponse>(
-                `/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
+                `/api/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
             );
             setMaterials(response.data.items);
             setTotalPages(response.data.total_pages);

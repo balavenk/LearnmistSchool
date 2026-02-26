@@ -41,7 +41,7 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
 
     const fetchUserInfo = async () => {
         try {
-            const res = await api.get('/auth/me');
+            const res = await api.get('/api/app/auth/me');
             setCurrentSchoolId(res.data.school_id);
         } catch (err) {
             console.error("Failed to fetch user info", err);
@@ -60,9 +60,9 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
     const fetchGrades = async () => {
         try {
             const role = localStorage.getItem('role')?.toUpperCase();
-            let endpoint = '/school-admin/grades/';
+            let endpoint = '/api/school-admin/grades/';
             if (role === 'TEACHER') {
-                endpoint = '/teacher/grades/';
+                endpoint = '/api/teacher/grades/';
             }
             const response = await api.get(endpoint);
             setGrades(response.data);
@@ -80,13 +80,13 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
     const fetchSubjects = async (gId: number) => {
         try {
             const role = localStorage.getItem('role')?.toUpperCase();
-            let endpoint = `/school-admin/grades/${gId}/subjects`;
+            let endpoint = `/api/school-admin/grades/${gId}/subjects`;
 
             if (role === 'TEACHER') {
-                endpoint = `/teacher/grades/${gId}/subjects`;
+                endpoint = `/api/teacher/grades/${gId}/subjects`;
             } else if (role === 'SCHOOL_ADMIN' || role === 'SUPER_ADMIN') {
                 // For Admins, show ALL subjects in the school so they can manage curriculum freely
-                endpoint = `/school-admin/subjects/`;
+                endpoint = `/api/school-admin/subjects/`;
             }
 
             const response = await api.get(endpoint);
@@ -154,13 +154,13 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
 
             if (!schoolIdToUse) {
                 // Last ditch effort: Fetch if both missing (shouldn't happen with grades pre-loaded)
-                const me = await api.get('/auth/me');
+                const me = await api.get('/api/auth/me');
                 formData.append('school_id', me.data.school_id.toString());
             } else {
                 formData.append('school_id', schoolIdToUse.toString());
             }
 
-            await api.post('/upload/training-material', formData, {
+            await api.post('/api/upload/training-material', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },

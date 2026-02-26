@@ -1,3 +1,5 @@
+from urllib import request
+
 from fastapi import FastAPI, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +14,7 @@ from sqlalchemy import func
 from . import database, models, schemas, auth
 from .routers import super_admin, school_admin, teacher, student, upload, auth_routes, ws_generation, individual
 from datetime import timedelta
-
+from fastapi.exception_handlers import http_exception_handler
 logger = logging.getLogger(__name__)
 
 # Create tables
@@ -92,51 +94,37 @@ async def serve_root():
         return {"error": "index.html missing", "path": index_path}
     return {"error": "Frontend build not found"}
 
-# Root Handler
-@app.get("/")
-async def serve_root():
-    if frontend_dist:
-        index_path = os.path.join(frontend_dist, "index.html")
-        if os.path.exists(index_path):
-            return FileResponse(index_path)
-        logger.error(f"index.html not found: {index_path}")
-    return {"error": "Frontend build not found"}
-
 # SPA Support: Handle unknown routes by serving index.html
 # This avoids intercepting WebSocket handshakes which are technically GET requests
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 @app.exception_handler(StarletteHTTPException)
 async def spa_exception_handler(request: Request, exc: StarletteHTTPException):
+     # Only handle 404 errors
     if exc.status_code == 404:
-        full_path = request.url.path.lstrip("/")
-        
-        # API and System Prefixes that should TRULY 404
-        api_prefixes = ["api/", "docs", "redoc", "openapi.json", "super-admin/", "school-admin/", "teacher/", "student/", "upload/", "auth/", "ws/", "individual/"]
-        
-        if any(full_path.startswith(prefix) for prefix in api_prefixes):
-            logger.debug(f"True 404 for API path: {full_path}")
-            return Response(status_code=404, content="Not Found")
-        
-        # Check if it's a websocket upgrade (although Starlette usually handles this before 404)
-        if request.headers.get("upgrade") == "websocket":
-            logger.debug(f"Catching potential WS upgrade in 404 handler for {full_path}")
-            # If we reached here, it means no WS route matched either.
-            return Response(status_code=404, content="WebSocket Route Not Found")
 
-        # Serve frontend for UI routes
+        # Let API routes return real 404
+        if request.url.path.startswith("/api"):
+            return await http_exception_handler(request, exc)
+
+        # Let static files return real 404
+        if request.url.path.startswith("/assets"):
+            return await http_exception_handler(request, exc)
+
+        # Otherwise serve React app
         if frontend_dist:
             index_path = os.path.join(frontend_dist, "index.html")
             if os.path.exists(index_path):
                 return FileResponse(index_path)
-    
-    # Fallback to default handler for other errors or if index.html missing
-    from fastapi.exception_handlers import http_exception_handler
+
+    # All other errors handled normally
     return await http_exception_handler(request, exc)
+    # Fallback to default handler for other errors or if index.html missing
 
 
 
-@app.post("/token", response_model=schemas.Token, tags=["auth"])
+
+@app.post("/api/token", response_model=schemas.Token, tags=["auth"])
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     logger.info(f"Login attempt for user: {form_data.username}")
     # Allow login by username OR email

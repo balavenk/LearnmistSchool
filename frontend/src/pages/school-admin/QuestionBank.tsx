@@ -47,7 +47,7 @@ const QuestionBank: React.FC = () => {
 
     const fetchGrades = async () => {
         try {
-            const res = await api.get('/school-admin/grades/');
+            const res = await api.get('/api/school-admin/grades/');
             setGrades(res.data);
         } catch (error) {
             console.error(error);
@@ -56,7 +56,7 @@ const QuestionBank: React.FC = () => {
 
     const fetchSubjects = async () => {
         try {
-            const res = await api.get('/school-admin/subjects/');
+            const res = await api.get('/api/school-admin/subjects/');
             setSubjects(res.data);
         } catch (error) {
             console.error(error);
@@ -75,7 +75,7 @@ const QuestionBank: React.FC = () => {
             if (difficulty) params.difficulty = difficulty;
             if (searchText) params.search = searchText;
 
-            const res = await api.get('/school-admin/questions/', { params });
+            const res = await api.get('/api/school-admin/questions/', { params });
 
             // Assuming simple array for now matching the backend endpoint I wrote
             if (Array.isArray(res.data)) {
@@ -132,7 +132,7 @@ const QuestionBank: React.FC = () => {
                 question_ids: selectedIds
             };
 
-            await api.post('/school-admin/assignments/from-bank', payload);
+            await api.post('/api/school-admin/assignments/from-bank', payload);
             toast.success('Quiz Created Successfully!');
             setShowModal(false);
             setQuizTitle('');

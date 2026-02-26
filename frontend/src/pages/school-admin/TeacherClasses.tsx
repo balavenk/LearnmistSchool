@@ -46,8 +46,8 @@ const TeacherClasses: React.FC = () => {
             setLoading(true);
             // Ideally we also fetch teacher details to show name
             const [assignmentsRes, teachersRes] = await Promise.all([
-                api.get(`/school-admin/teachers/${id}/assignments`),
-                api.get('/school-admin/teachers/') // Lazy way to get name, optimization possible
+                api.get(`/api/school-admin/teachers/${id}/assignments`),
+                api.get('/api/school-admin/teachers/') // Lazy way to get name, optimization possible
             ]);
 
             setAssignments(assignmentsRes.data);
@@ -64,9 +64,9 @@ const TeacherClasses: React.FC = () => {
     const fetchOptions = async () => {
         try {
             const [gRes, cRes, sRes] = await Promise.all([
-                api.get('/school-admin/grades/'),
-                api.get('/school-admin/classes/'),
-                api.get('/school-admin/subjects/')
+                api.get('/api/school-admin/grades/'),
+                api.get('/api/school-admin/classes/'),
+                api.get('/api/school-admin/subjects/')
             ]);
             setGrades(gRes.data);
             setClasses(cRes.data);
@@ -79,7 +79,7 @@ const TeacherClasses: React.FC = () => {
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await api.post(`/school-admin/teachers/${id}/assignments`, {
+            await api.post(`/api/school-admin/teachers/${id}/assignments`, {
                 grade_id: Number(selectedGrade),
                 class_id: selectedClass ? Number(selectedClass) : null,
                 subject_id: Number(selectedSubject)
@@ -96,7 +96,7 @@ const TeacherClasses: React.FC = () => {
     const handleDelete = async (assignmentId: number) => {
         if (!confirm("Remove this class assignment?")) return;
         try {
-            await api.delete(`/school-admin/assignments/${assignmentId}`);
+            await api.delete(`/api/school-admin/assignments/${assignmentId}`);
             setAssignments(prev => prev.filter(a => a.id !== assignmentId));
         } catch (error) {
             console.error("Failed to delete", error);

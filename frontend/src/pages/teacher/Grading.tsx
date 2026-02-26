@@ -39,9 +39,9 @@ const TeacherGrading: React.FC = () => {
             try {
                 setLoading(true);
                 const [classesRes, subjectsRes, settingsRes] = await Promise.all([
-                    api.get('/teacher/classes/'),
-                    api.get('/teacher/subjects/'),
-                    api.get('/teacher/settings')
+                    api.get('/api/teacher/classes/'),
+                    api.get('/api/teacher/subjects/'),
+                    api.get('/api/teacher/settings')
                 ]);
                 setClasses(classesRes.data);
                 setSubjects(subjectsRes.data);
@@ -69,7 +69,7 @@ const TeacherGrading: React.FC = () => {
 
         try {
             setFetchingStudents(true);
-            const response = await api.get('/teacher/students/', {
+            const response = await api.get('/api/teacher/students/', {
                 params: {
                     class_id: selectedClassId,
                     page: 1,

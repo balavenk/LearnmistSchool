@@ -30,7 +30,7 @@ const TrainViaLLM: React.FC = () => {
 
     const fetchFiles = async () => {
         try {
-            const response = await api.get('/upload/all-training-materials');
+            const response = await api.get('/api/upload/all-training-materials');
             setFiles(response.data);
         } catch (error) {
             console.error("Failed to load materials", error);
@@ -41,7 +41,7 @@ const TrainViaLLM: React.FC = () => {
 
     const handleUpdateStatus = async (id: number, status: string) => {
         try {
-            await api.put(`/upload/training-material/${id}/status`, { file_status: status });
+            await api.put(`/api/upload/training-material/${id}/status`, { file_status: status });
             // Refresh list or optimistic update
             setFiles(prev => prev.map(f => f.id === id ? { ...f, file_status: status } : f));
         } catch (error) {
@@ -52,7 +52,7 @@ const TrainViaLLM: React.FC = () => {
 
     const handleDownload = async (file: PdfFile) => {
         try {
-            const response = await api.get(`/upload/training-material/${file.id}/download`, {
+            const response = await api.get(`/api/upload/training-material/${file.id}/download`, {
                 responseType: 'blob'
             });
 

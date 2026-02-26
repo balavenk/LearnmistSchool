@@ -38,7 +38,7 @@ const QuizDetails: React.FC = () => {
     const fetchQuestions = async () => {
         try {
             setLoading(true);
-            const response = await api.get(`/teacher/assignments/${assignmentId}/questions`);
+            const response = await api.get(`/api/teacher/assignments/${assignmentId}/questions`);
             setQuestions(response.data);
         } catch (error) {
             console.error("Failed to fetch questions", error);
@@ -53,7 +53,7 @@ const QuizDetails: React.FC = () => {
 
     const handleGenerateSample = async () => {
         try {
-            await api.post(`/teacher/assignments/${assignmentId}/seed_questions`);
+            await api.post(`/api/teacher/assignments/${assignmentId}/seed_questions`);
             fetchQuestions();
             toast.success("Sample questions added!");
         } catch (error) {
@@ -73,10 +73,10 @@ const QuizDetails: React.FC = () => {
             };
 
             if (editingQuestion) {
-                await api.put(`/teacher/questions/${editingQuestion.id}`, payload);
+                await api.put(`/api/teacher/questions/${editingQuestion.id}`, payload);
                 toast.success("Question updated!");
             } else {
-                await api.post(`/teacher/assignments/${assignmentId}/questions`, payload);
+                await api.post(`/api/teacher/assignments/${assignmentId}/questions`, payload);
                 toast.success("Question added!");
             }
             closeModal();
@@ -127,7 +127,7 @@ const QuizDetails: React.FC = () => {
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure you want to delete this question?")) return;
         try {
-            await api.delete(`/teacher/questions/${id}`);
+            await api.delete(`/api/teacher/questions/${id}`);
             setQuestions(questions.filter(q => q.id !== id));
         } catch (error) {
             console.error("Failed to delete", error);

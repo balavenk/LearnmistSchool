@@ -70,7 +70,7 @@ const StudentGrading: React.FC = () => {
 
     const fetchStudentDetails = async () => {
         try {
-            const res = await api.get(`/teacher/students/${studentId}`);
+            const res = await api.get(`/api/teacher/students/${studentId}`);
             setStudentName(res.data.name);
         } catch (error) {
             console.error("Failed to fetch student details", error);
@@ -80,7 +80,7 @@ const StudentGrading: React.FC = () => {
     const fetchSubmissions = async () => {
         try {
             setLoading(true);
-            const res = await api.get(`/teacher/students/${studentId}/pending-submissions`);
+            const res = await api.get(`/api/teacher/students/${studentId}/pending-submissions`);
             setSubmissions(res.data);
         } catch (error) {
             console.error("Failed to fetch submissions", error);
@@ -92,7 +92,7 @@ const StudentGrading: React.FC = () => {
     const fetchSubmissionDetail = async (subId: number) => {
         try {
             setSelectedSubmissionId(subId);
-            const res = await api.get(`/teacher/submissions/${subId}/details`);
+            const res = await api.get(`/api/teacher/submissions/${subId}/details`);
             const detail = res.data;
             setSubmissionDetail(detail);
 
@@ -129,7 +129,7 @@ const StudentGrading: React.FC = () => {
                 is_correct: gradedAnswers[Number(qId)].isCorrect
             }));
 
-            await api.post(`/teacher/submissions/${selectedSubmissionId}/grade`, {
+            await api.post(`/api/teacher/submissions/${selectedSubmissionId}/grade`, {
                 grade: finalGrade,
                 feedback: feedback,
                 answers: answersPayload

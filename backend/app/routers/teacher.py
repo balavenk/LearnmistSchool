@@ -12,7 +12,7 @@ from app.services import rag_service
 from app.config import settings
 
 router = APIRouter(
-    prefix="/teacher",
+    prefix="/api/teacher",
     tags=["teacher"],
     responses={404: {"description": "Not found"}},
 )
@@ -57,12 +57,46 @@ def create_student(student: schemas.StudentCreate, db: Session = Depends(databas
         if class_obj.grade_id != student.grade_id:
             raise HTTPException(status_code=400, detail="Class does not belong to the selected grade")
 
+        # Email uniqueness check
+        existing_email = db.query(models.User).filter(models.User.email == student.email).first()
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Generate username
+    parts = student.name.strip().split()
+    if len(parts) >= 2:
+        base_username = f"{parts[0]}{parts[-1][0]}".lower()
+    else:
+        base_username = parts[0].lower()
+    base_username = "".join(c for c in base_username if c.isalnum())
+    username = base_username
+    counter = 1
+    while db.query(models.User).filter(models.User.username == username).first():
+        username = f"{base_username}{counter}"
+        counter += 1
+
+    # Create User
+    hashed_password = auth.get_password_hash("password123")
+    new_user = models.User(
+        username=username,
+        email=student.email,
+        hashed_password=hashed_password,
+        role=models.UserRole.STUDENT,
+        school_id=current_user.school_id,
+        active=True
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    # Create Student
     new_student = models.Student(
         name=student.name,
         email=student.email,
         grade_id=student.grade_id,
         class_id=student.class_id,
         school_id=current_user.school_id,
+        user_id=new_user.id,
         active=True
     )
     db.add(new_student)

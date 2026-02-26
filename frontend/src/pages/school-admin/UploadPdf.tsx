@@ -40,7 +40,7 @@ const QuestionBank: React.FC = () => {
 
     const fetchGrades = async () => {
         try {
-            const res = await api.get<Grade[]>('/school-admin/grades/');
+            const res = await api.get<Grade[]>('/api/school-admin/grades/');
             setGrades(res.data);
             if (res.data.length > 0) {
                 setSelectedGradeId((prev) => (prev === '' ? res.data[0].id : prev));
@@ -54,7 +54,7 @@ const QuestionBank: React.FC = () => {
         setLoading(true);
         try {
             const response = await api.get<PaginatedResponse>(
-                `/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
+                `/api/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
             );
             setMaterials(response.data.items);
             setTotalPages(response.data.total_pages);
@@ -91,7 +91,7 @@ const QuestionBank: React.FC = () => {
         if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return;
 
         try {
-            await api.delete(`/upload/training-material/${id}`);
+            await api.delete(`/api/upload/training-material/${id}`);
             if (selectedGradeId !== '') {
                 fetchMaterials(Number(selectedGradeId), currentPage);
             }

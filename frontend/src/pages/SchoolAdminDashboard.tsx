@@ -14,7 +14,7 @@ const SchoolAdminDashboard: React.FC = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await api.get('/school-admin/dashboard/stats');
+                const res = await api.get('/api/school-admin/dashboard/stats');
                 setStats(res.data);
             } catch (error) {
                 console.error("Failed to fetch dashboard stats", error);
