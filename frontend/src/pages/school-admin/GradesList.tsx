@@ -4,10 +4,6 @@ import api from '../../api/axios';
 import { toast } from 'react-hot-toast';
 import { isValidInput } from '../../utils/inputValidation';
 import { useNavigate } from 'react-router-dom';
-import type { ColumnDef } from '@tanstack/react-table';
-import axios from 'axios';
-import { DataTable } from '../../components/DataTable';
-import { PaginationControls } from '../../components/PaginationControls';
 
 interface Grade {
     id: number;
@@ -217,6 +213,27 @@ const GradesList: React.FC = () => {
         </div>
     );
 
+    // Skeleton loader
+    const SkeletonRow = () => (
+        <tr>
+            <td className="px-6 py-4">
+                <div className="animate-pulse h-6 w-32 bg-slate-200 rounded" />
+            </td>
+            <td className="px-6 py-4 text-right">
+                <div className="animate-pulse h-6 w-24 bg-slate-200 rounded" />
+            </td>
+        </tr>
+    );
+
+    // Empty state illustration
+    const EmptyState = () => (
+        <div className="flex flex-col items-center justify-center py-12">
+            <BookOpen className="w-12 h-12 text-slate-300 mb-2" />
+            <div className="text-slate-400 text-lg font-semibold mb-1">No grades found.</div>
+            <div className="text-slate-400 text-sm">Try adding a new grade or adjusting your search.</div>
+        </div>
+    );
+
     return (
         <div className="space-y-8">
             {/* Header */}
@@ -268,24 +285,66 @@ const GradesList: React.FC = () => {
                 </button>
             </div>
 
-            {/* DataTable */}
-            <DataTable
-                columns={columns}
-                data={paginated}
-                isLoading={loading}
-                emptyMessage="No grades found."
-            />
-
-            {/* Pagination */}
-            {!loading && filtered.length > 0 && totalPages > 1 && (
-                <PaginationControls
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                    totalItems={filtered.length}
-                    itemsPerPage={ITEMS_PER_PAGE}
-                />
-            )}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">
+                <table className="w-full text-left text-sm min-w-[400px]">
+                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                        <tr>
+                            <th className="px-6 py-4">Grade Name</th>
+                            <th className="px-6 py-4">Student Count</th>
+                            <th className="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {loading ? (
+                            Array.from({ length: 4 }).map((_, idx) => <SkeletonRow key={idx} />)
+                        ) : paginated.length > 0 ? (
+                            paginated.map(grade => (
+                                <tr key={grade.id} className="hover:bg-slate-50 transition">
+                                    <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-2">
+                                        {grade.name}
+                                        <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full ml-2" title="Grade ID">ID: {grade.id}</span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full flex items-center gap-1" title="Student count">
+                                            <Users className="w-4 h-4" />
+                                            {grade.student_count ?? '--'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right flex gap-2 justify-end">
+                                        <button
+                                            onClick={() => openSectionsModal(grade)}
+                                            className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 border border-indigo-200 rounded-full hover:bg-indigo-50 flex items-center gap-1"
+                                            title="Manage sections"
+                                        >
+                                            <Info className="w-4 h-4 mr-1" />
+                                            Sections
+                                        </button>
+                                        <button
+                                            onClick={() => navigate(`/school-admin/grades/${grade.id}/subjects`)}
+                                            className="text-emerald-600 hover:text-emerald-800 font-medium text-xs px-3 py-1 border border-emerald-200 rounded-full hover:bg-emerald-50 flex items-center gap-1"
+                                            title="View subjects"
+                                        >
+                                            <BookOpen className="w-4 h-4 mr-1" />
+                                            Subjects
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr><td colSpan={3}><EmptyState /></td></tr>
+                        )}
+                    </tbody>
+                </table>
+                {totalPages > 1 && (
+                    <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm">
+                        <span className="text-slate-500">Page {currentPage} of {totalPages}</span>
+                        <div className="flex gap-2">
+                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border rounded-lg bg-slate-50 hover:bg-slate-100 disabled:opacity-50">Prev</button>
+                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border rounded-lg bg-slate-50 hover:bg-slate-100 disabled:opacity-50">Next</button>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {/* Add Grade Modal */}
             {isAddGradeModalOpen && (
