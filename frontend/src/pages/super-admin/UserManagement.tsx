@@ -42,6 +42,13 @@ const UserManagement: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
 
+    // Add Admin State
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [newAdminUsername, setNewAdminUsername] = useState('');
+    const [newAdminEmail, setNewAdminEmail] = useState('');
+    const [newAdminPassword, setNewAdminPassword] = useState('');
+    const [isAddingAdmin, setIsAddingAdmin] = useState(false);
+
     // Data State
     const [users, setUsers] = useState<User[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
@@ -187,6 +194,30 @@ const UserManagement: React.FC = () => {
         setResetModalOpen(true);
     };
 
+    const handleAddAdmin = async () => {
+        if (!selectedSchoolId || !newAdminUsername || !newAdminPassword) {
+            toast.error("Please fill in required fields.");
+            return;
+        }
+        setIsAddingAdmin(true);
+        try {
+            const res = await api.post(`/super-admin/schools/${selectedSchoolId}/admin`, {
+                username: newAdminUsername,
+                email: newAdminEmail,
+                password: newAdminPassword,
+                role: 'SCHOOL_ADMIN'
+            });
+            setUsers(prev => [...prev, res.data]);
+            toast.success("School admin added successfully.");
+            setIsAddModalOpen(false);
+        } catch (error: any) {
+            console.error("Failed to add admin", error);
+            toast.error(error.response?.data?.detail || "Failed to add school admin.");
+        } finally {
+            setIsAddingAdmin(false);
+        }
+    };
+
     const handleSavePassword = async () => {
         if (!selectedUserForReset || !newPassword) return;
         try {
@@ -289,12 +320,30 @@ const UserManagement: React.FC = () => {
                                 className="w-full pl-12 pr-4 py-2 border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-all"
                             />
                         </div>
-                        <div className="flex items-center gap-2 bg-indigo-100 px-4 py-2 rounded-xl border-2 border-indigo-200">
-                            <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            <span className="text-sm font-bold text-indigo-900">{filteredList.length}</span>
-                            <span className="text-sm text-indigo-600">Total</span>
+                        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                            {activeTab === 'SCHOOL_ADMIN' && selectedSchoolId && (
+                                <button
+                                    onClick={() => {
+                                        setNewAdminUsername('');
+                                        setNewAdminEmail('');
+                                        setNewAdminPassword('');
+                                        setIsAddModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold transition-all shadow-sm"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Add Admin
+                                </button>
+                            )}
+                            <div className="flex items-center gap-2 bg-indigo-100 px-4 py-2 rounded-xl border-2 border-indigo-200">
+                                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                                <span className="text-sm font-bold text-indigo-900">{filteredList.length}</span>
+                                <span className="text-sm text-indigo-600">Total</span>
+                            </div>
                         </div>
                     </div>
 
@@ -435,6 +484,84 @@ const UserManagement: React.FC = () => {
                     <p className="text-slate-500 text-lg">Please select a school from the dropdown above to manage users</p>
                 </div>
             )}
+            {/* Add Admin Modal */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border-2 border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-6 border-b-2 border-slate-200 bg-slate-50 flex items-center gap-3 shrink-0">
+                            <div className="bg-indigo-100 p-2.5 rounded-xl text-indigo-600">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-800">Add School Admin</h3>
+                                <p className="text-sm text-slate-500 font-medium">Create a new admin for the selected school</p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Username *</label>
+                                    <input
+                                        type="text"
+                                        value={newAdminUsername}
+                                        onChange={(e) => setNewAdminUsername(e.target.value)}
+                                        placeholder="Enter unique username"
+                                        className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Email (Optional)</label>
+                                    <input
+                                        type="email"
+                                        value={newAdminEmail}
+                                        onChange={(e) => setNewAdminEmail(e.target.value)}
+                                        placeholder="Enter email address"
+                                        className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Password *</label>
+                                    <input
+                                        type="password"
+                                        value={newAdminPassword}
+                                        onChange={(e) => setNewAdminPassword(e.target.value)}
+                                        placeholder="Enter secure password"
+                                        className="w-full px-4 py-2.5 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t-2 border-slate-200 bg-slate-50 flex gap-3 shrink-0">
+                            <button
+                                onClick={() => setIsAddModalOpen(false)}
+                                disabled={isAddingAdmin}
+                                className="flex-1 px-4 py-2.5 border-2 border-slate-300 rounded-xl text-slate-700 hover:bg-slate-100 font-bold transition-all disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAddAdmin}
+                                disabled={isAddingAdmin || !newAdminUsername || !newAdminPassword}
+                                className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isAddingAdmin ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        <span>Saving...</span>
+                                    </>
+                                ) : (
+                                    'Add Admin'
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Enhanced Reset Password Modal */}
             {resetModalOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
