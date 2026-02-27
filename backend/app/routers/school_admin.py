@@ -312,6 +312,29 @@ def update_student(student_id: int, student_data: schemas.StudentUpdate, db: Ses
     db.refresh(student)
     return student
 
+@router.delete("/students/{student_id}")
+def delete_student(student_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    student = db.query(models.Student).filter(
+        models.Student.id == student_id,
+        models.Student.school_id == current_user.school_id
+    ).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    user_id = student.user_id
+    
+    # Delete student (cascade will handle submissions and answers)
+    db.delete(student)
+    
+    # Delete associated user if exists
+    if user_id:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if user:
+            db.delete(user)
+            
+    db.commit()
+    return {"message": "Student and associated user deleted successfully"}
+
 @router.post("/students/", response_model=schemas.Student)
 def create_student(student_data: schemas.StudentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
     # 1. Validation

@@ -133,7 +133,18 @@ const StudentsList: React.FC = () => {
             toast.success("Student created successfully!");
         } catch (error) {
             console.error("Failed to create student", error);
-            toast.error("Failed to create student.");
+        }
+    };
+
+    const handleDeleteStudent = async (studentId: number) => {
+        if (!window.confirm("Are you sure you want to delete this student? This will also remove their user account and all submissions/grades associated with them.")) return;
+        try {
+            await api.delete(`/school-admin/students/${studentId}`);
+            toast.success("Student deleted successfully");
+            fetchStudents();
+        } catch (error) {
+            console.error("Failed to delete student", error);
+            toast.error("Failed to delete student.");
         }
     };
 
@@ -192,12 +203,18 @@ const StudentsList: React.FC = () => {
                                 <td className="px-6 py-4 text-slate-600">
                                     {getClassName(student.class_id)}
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="px-6 py-4 text-right flex gap-2 justify-end">
                                     <button
                                         onClick={() => openEditModal(student)}
                                         className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                                     >
                                         Edit
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteStudent(student.id)}
+                                        className="text-red-600 hover:text-red-800 font-medium text-xs px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                                    >
+                                        Delete
                                     </button>
                                 </td>
                             </tr>

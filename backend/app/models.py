@@ -169,7 +169,7 @@ class Student(Base):
     school = relationship("School", back_populates="students")
     grade = relationship("Grade", back_populates="students")
     class_ = relationship("Class", back_populates="students")
-    submissions = relationship("Submission", back_populates="student")
+    submissions = relationship("Submission", back_populates="student", cascade="all, delete-orphan")
 
     @property
     def username(self):
