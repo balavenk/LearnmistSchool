@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import toast from 'react-hot-toast';
+import type { ColumnDef } from '@tanstack/react-table';
 import api from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 
 interface Country {
     id: number;
@@ -49,7 +52,7 @@ const Countries: React.FC = () => {
     };
 
     const handleDelete = async (id: number) => {
-        if (!window.confirm("Are you sure you want to delete this country?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/super-admin/master/countries/${id}`);
             fetchCountries();
@@ -82,6 +85,65 @@ const Countries: React.FC = () => {
     const filteredCountries = useMemo(() => {
         return countries.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [countries, searchTerm]);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
+    const totalPages = Math.ceil(filteredCountries.length / pageSize);
+    const paginatedCountries = filteredCountries.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
+    const columns: ColumnDef<Country>[] = useMemo(
+        () => [
+            {
+                header: 'Country Name',
+                accessorKey: 'name',
+                cell: (info) => {
+                    const country = info.row.original;
+                    return (
+                        <div className="flex items-center gap-3">
+                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl p-3 font-bold text-lg shadow-md">
+                                {country.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <span className="font-bold text-slate-900 text-lg">{country.name}</span>
+                        </div>
+                    );
+                },
+            },
+            {
+                header: 'Actions',
+                id: 'actions',
+                cell: (info) => {
+                    const country = info.row.original;
+                    return (
+                        <div className="flex items-center justify-end gap-2">
+                            <button
+                                onClick={() => handleEdit(country)}
+                                className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg transition-all text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Edit
+                            </button>
+                            <button
+                                onClick={() => handleDelete(country.id)}
+                                className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg transition-all text-red-600 bg-red-50 hover:bg-red-100 border border-red-200"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete
+                            </button>
+                        </div>
+                    );
+                },
+            },
+        ],
+        [handleEdit, handleDelete]
+    );
 
     return (
         <div className="space-y-8">
@@ -125,65 +187,22 @@ const Countries: React.FC = () => {
                 <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b-2 border-slate-200">
                     <h3 className="text-lg font-bold text-slate-800">All Countries ({filteredCountries.length})</h3>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50 border-b-2 border-slate-200">
-                                <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider">Country Name</th>
-                                <th className="px-6 py-4 text-xs uppercase font-bold text-slate-600 tracking-wider text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {loading ? (
-                                <tr><td colSpan={2} className="text-center py-12"><div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div></td></tr>
-                            ) : filteredCountries.length === 0 ? (
-                                <tr><td colSpan={2} className="px-6 py-16 text-center">
-                                    <div className="flex flex-col items-center">
-                                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
-                                            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                                            </svg>
-                                        </div>
-                                        <p className="text-slate-500 font-medium text-lg">No countries found</p>
-                                    </div>
-                                </td></tr>
-                            ) : filteredCountries.map((country) => (
-                                <tr key={country.id} className="hover:bg-indigo-50 transition-colors duration-150">
-                                    <td className="px-6 py-5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl p-3 font-bold text-lg shadow-md">
-                                                {country.name.substring(0, 2).toUpperCase()}
-                                            </div>
-                                            <span className="font-bold text-slate-900 text-lg">{country.name}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => handleEdit(country)}
-                                                className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg transition-all text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                                Edit
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(country.id)}
-                                                className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-lg transition-all text-red-600 bg-red-50 hover:bg-red-100 border border-red-200"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={paginatedCountries}
+                    columns={columns}
+                    isLoading={loading}
+                    emptyMessage="No countries found"
+                />
+                {totalPages > 1 && (
+                    <PaginationControls
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={filteredCountries.length}
+                        itemsPerPage={pageSize}
+                        onPageChange={setCurrentPage}
+                        isLoading={loading}
+                    />
+                )}
             </div>
 
             {/* Enhanced Modal */}

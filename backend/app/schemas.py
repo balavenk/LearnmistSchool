@@ -76,6 +76,9 @@ class StudentSubjectStats(BaseModel):
     completed_assignments: int
     pending_assignments: int
 
+class SubjectStatusUpdate(BaseModel):
+    active: bool
+
 class FileArtifactBase(BaseModel):
     id: int
     original_filename: str
@@ -141,6 +144,7 @@ class SubjectCreate(SubjectBase):
 class Subject(SubjectBase):
     id: int
     school_id: int
+    active: bool
     
     class Config:
         from_attributes = True

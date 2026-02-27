@@ -11,47 +11,68 @@ const SchoolAdminDashboard: React.FC = () => {
     });
     const username = localStorage.getItem('username');
     const role = localStorage.getItem('role') || '';
+
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
         const fetchStats = async () => {
             try {
-                const res = await api.get('/school-admin/dashboard/stats');
-                setStats(res.data);
-            } catch (error) {
+                const res = await api.get('/school-admin/dashboard/stats', {
+                    signal: abortController.signal
+                });
+                if (isMounted) {
+                    setStats(res.data);
+                }
+            } catch (error: any) {
+                if (error.name === 'AbortError' || error.name === 'CanceledError') {
+                    // Silently ignore canceled requests (navigation away from page)
+                    return;
+                }
                 console.error("Failed to fetch dashboard stats", error);
             }
         };
+
         fetchStats();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
     return (
         <div className="space-y-6">
-<div className="bg-white rounded-xl border border-slate-200 p-6 mb-6 shadow-sm">
-    <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-            <div className="h-10 w-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-        </div>
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">Welcome {username} <span className='inline-block text-sm'>({role.replace('_', ' ')})</span>
+            <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6 shadow-sm">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-md">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-900">
+                                Welcome {username}
+                                <span className='inline-block text-sm font-normal text-slate-500 ml-2'>({role.replace('_', ' ')})</span>
                             </h1>
-                {stats.school_name && (
-                    <p className="text-sm text-slate-600 mt-1">Managing: <span className="font-semibold text-indigo-600">{stats.school_name}</span></p>
-                )}
+                            {stats.school_name && (
+                                <p className="text-sm text-slate-600 mt-1">Managing: <span className="font-semibold text-indigo-600">{stats.school_name}</span></p>
+                            )}
+                        </div>
+                    </div>
+                    <div className="w-full md:w-auto flex items-center justify-between md:block text-right border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
+                        <p className="text-sm text-slate-500 inline md:block mr-2 md:mr-0">Today</p>
+                        <p className="text-lg font-bold text-slate-700 inline md:block">
+                            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                    </div>
+                </div>
             </div>
-        </div>
-         <div className="text-right">
-        <p className="text-sm text-slate-500">Today</p>
-        <p className="text-lg font-semibold text-slate-700">
-            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-        </p>
-    </div>
-    </div>
-</div>    
- <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Total Students Card */}
-                <div className="bg-gradient-to-br from-blue-400 via-blue-500 to-cyan-500 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all">
+                <div className="bg-gradient-to-br from-blue-400 via-blue-500 to-cyan-500 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all group">
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Total Students</p>
@@ -61,14 +82,14 @@ const SchoolAdminDashboard: React.FC = () => {
                                 <span>Enrolled</span>
                             </div>
                         </div>
-                        <div className="bg-white/25 backdrop-blur-sm p-3 rounded-lg">
+                        <div className="bg-white/25 backdrop-blur-sm p-3 rounded-lg group-hover:scale-110 transition-transform">
                             <Users className="w-8 h-8 text-white" />
                         </div>
                     </div>
                 </div>
 
                 {/* Total Teachers Card */}
-                <div className="bg-gradient-to-br from-violet-400 via-purple-500 to-fuchsia-500 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all">
+                <div className="bg-gradient-to-br from-violet-400 via-purple-500 to-fuchsia-500 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all group">
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Total Teachers</p>
@@ -78,14 +99,14 @@ const SchoolAdminDashboard: React.FC = () => {
                                 <span>Teaching</span>
                             </div>
                         </div>
-                        <div className="bg-white/25 backdrop-blur-sm p-3 rounded-lg">
+                        <div className="bg-white/25 backdrop-blur-sm p-3 rounded-lg group-hover:scale-110 transition-transform">
                             <BookOpen className="w-8 h-8 text-white" />
                         </div>
                     </div>
                 </div>
 
                 {/* Classes Card */}
-                <div className="bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all">
+                <div className="bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all group">
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Classes</p>
@@ -95,7 +116,7 @@ const SchoolAdminDashboard: React.FC = () => {
                                 <span>Active</span>
                             </div>
                         </div>
-                        <div className="bg-white/25 backdrop-blur-sm p-3 rounded-lg">
+                        <div className="bg-white/25 backdrop-blur-sm p-3 rounded-lg group-hover:scale-110 transition-transform">
                             <GraduationCap className="w-8 h-8 text-white" />
                         </div>
                     </div>

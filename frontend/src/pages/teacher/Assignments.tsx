@@ -13,6 +13,7 @@ interface Assignment {
     due_date?: string;
     status: 'PUBLISHED' | 'DRAFT'; // Matches Enum in backend (mapped in UI)
     assignedTo?: string; // Derived for UI
+    class_id?: number | null; // New field for class association
 }
 
 interface GradeOption {
@@ -25,11 +26,23 @@ interface SubjectOption {
     name: string;
 }
 
+interface ClassData {
+    id: number;
+    name: string;
+    section: string;
+    grade_id: number;
+}
+
 const TeacherAssignments: React.FC = () => {
     const [assignments, setAssignments] = useState<Assignment[]>([]);
+    // Due Date Edit State
+    const [editingDueDateId, setEditingDueDateId] = useState<number | null>(null);
+    const [editingDueDate, setEditingDueDate] = useState<string>('');
+    const [savingDueDate, setSavingDueDate] = useState(false);
     const [grades, setGrades] = useState<GradeOption[]>([]);
     const [subjects, setSubjects] = useState<SubjectOption[]>([]);
     const [loading, setLoading] = useState(true);
+    const [classes, setClasses] = useState<ClassData[]>([]);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAIModalOpen, setIsAIModalOpen] = useState(false);
@@ -41,6 +54,7 @@ const TeacherAssignments: React.FC = () => {
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [newDueDate, setNewDueDate] = useState('');
+    const [includeFromPDF, setIncludeFromPDF] = useState(false);
 
     // Form State (AI)
     const [aiTopic, setAiTopic] = useState('');
@@ -54,20 +68,66 @@ const TeacherAssignments: React.FC = () => {
     const [aiUsePdfContext, setAiUsePdfContext] = useState(false);
 
 
-    // Fetch Data
+    // Fetch Data (now includes classes)
+    // Edit Due Date handler
+    const handleEditDueDate = (assignment: Assignment) => {
+        setEditingDueDateId(assignment.id);
+        setEditingDueDate(assignment.due_date ? assignment.due_date.split('T')[0] : '');
+    };
+
+    const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setEditingDueDate(e.target.value);
+    };
+
+    const handleSaveDueDate = async (assignmentId: number) => {
+        if (!editingDueDate) {
+            toast.error('Please select a valid due date.');
+            return;
+        }
+        setSavingDueDate(true);
+        try {
+            // Validation: Due date must be today or later
+            const selectedDate = new Date(editingDueDate);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            if (selectedDate < today) {
+                toast.error('Due date cannot be in the past.');
+                setSavingDueDate(false);
+                return;
+            }
+            await api.put(`/teacher/assignments/${assignmentId}/due-date`, {
+                due_date: new Date(editingDueDate).toISOString()
+            });
+            toast.success('Due date updated!');
+            setEditingDueDateId(null);
+            setEditingDueDate('');
+            fetchData();
+        } catch (error: any) {
+            toast.error(error.response?.data?.detail || 'Failed to update due date.');
+        } finally {
+            setSavingDueDate(false);
+        }
+    };
+
+    const handleCancelDueDate = () => {
+        setEditingDueDateId(null);
+        setEditingDueDate('');
+    };
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [assignmentsRes, gradesRes, subjectsRes] = await Promise.all([
+            const [assignmentsRes, gradesRes, subjectsRes, classesRes] = await Promise.all([
                 api.get('/teacher/assignments/'),
                 api.get('/teacher/grades/'),
-                api.get('/teacher/subjects/')
+                api.get('/teacher/subjects/'),
+                api.get('/teacher/classes/')
             ]);
             setAssignments(assignmentsRes.data);
             setGrades(gradesRes.data);
             setSubjects(subjectsRes.data);
+            setClasses(classesRes.data);
         } catch (error) {
-            console.error("Failed to fetch teacher data", error);
+            toast.error("Failed to load assignments. Please refresh the page or contact support.");
         } finally {
             setLoading(false);
         }
@@ -90,15 +150,15 @@ const TeacherAssignments: React.FC = () => {
                 description: newDesc,
                 due_date: newDueDate ? new Date(newDueDate).toISOString() : null,
                 status: 'PUBLISHED',
-                grade_id: Number(selectedGradeId),
-                subject_id: Number(selectedSubjectId)
+                grade_id: selectedGradeId ? Number(selectedGradeId) : null,
+                subject_id: selectedSubjectId ? Number(selectedSubjectId) : null,
+                include_from_pdf: includeFromPDF
             });
             fetchData();
             closeModal();
             toast.success("Assignment created successfully!");
-        } catch (error) {
-            console.error("Failed to create assignment", error);
-            toast.error("Failed to create assignment.");
+        } catch (error: any) {
+           toast.error(error.response?.data?.detail || "Failed to create assignment. Please try again.");
         }
     };
 
@@ -106,7 +166,6 @@ const TeacherAssignments: React.FC = () => {
 
     const handleAIGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("🚀 [AI GEN] Generate Quiz button clicked");
         setIsGenerating(true);
 
         const payload = {
@@ -120,8 +179,6 @@ const TeacherAssignments: React.FC = () => {
             grade_id: Number(aiGradeId),
             use_pdf_context: aiUsePdfContext
         };
-
-        console.log("🌐 [AI GEN] Calling API /teacher/assignments/ai-generate with payload:", payload);
 
         try {
             const response = await api.post('/teacher/assignments/ai-generate', payload);
@@ -143,12 +200,11 @@ const TeacherAssignments: React.FC = () => {
         }
     };
 
-    // ... (rest of methods)
-
     const handleDelete = async (id: number) => {
-        if (!confirm("Are you sure you want to delete this assignment?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/teacher/assignments/${id}`);
+            toast.success('Assignment deleted successfully');
             fetchData();
         } catch (error) {
             console.error("Failed to delete", error);
@@ -157,7 +213,7 @@ const TeacherAssignments: React.FC = () => {
     };
 
     const handlePublish = async (id: number) => {
-        if (!confirm("Are you sure you want to publish this quiz? Students will be able to see it immediately.")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking  
         try {
             await api.put(`/teacher/assignments/${id}/publish`);
             fetchData();
@@ -175,6 +231,7 @@ const TeacherAssignments: React.FC = () => {
         setSelectedSubjectId('');
         setSelectedGradeId('');
         setNewDueDate('');
+        setIncludeFromPDF(false);
     };
 
     const closeAIModal = () => {
@@ -191,11 +248,19 @@ const TeacherAssignments: React.FC = () => {
         setIsGenerating(false);
     };
 
-    // ... helper functions ...
+    // Helper: get grade name from grade_id
     const getGradeName = (id?: number | null) => {
         if (!id) return "N/A";
         const g = grades.find(g => g.id === id);
         return g ? g.name : "Unknown Grade";
+    };
+
+    // New helper: get grade name from class_id
+    const getGradeNameFromClassId = (class_id?: number | null) => {
+        if (!class_id) return "N/A";
+        const cls = classes.find(c => c.id === class_id);
+        if (!cls) return "Unknown Class";
+        return getGradeName(cls.grade_id);
     };
 
     const getSubjectName = (id?: number | null) => {
@@ -338,17 +403,53 @@ const TeacherAssignments: React.FC = () => {
                         <div className="space-y-2 relative z-10 mb-4">
                             <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
                                 <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                                 <span className="font-medium">Due:</span>
-                                <span className="text-slate-700 font-semibold">{assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No deadline'}</span>
+                                {editingDueDateId === assignment.id ? (
+                                    <>
+                                        <input
+                                            type="date"
+                                            value={editingDueDate}
+                                            onChange={handleDueDateChange}
+                                            className="px-2 py-1 border border-indigo-300 rounded-lg text-slate-700 font-semibold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all mr-2"
+                                            min={new Date().toISOString().split('T')[0]}
+                                            disabled={savingDueDate}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={e => { e.preventDefault(); handleSaveDueDate(assignment.id); }}
+                                            className="bg-indigo-600 text-white px-2 py-1 rounded-lg font-semibold mr-1 disabled:opacity-50"
+                                            disabled={savingDueDate}
+                                        >Save</button>
+                                        <button
+                                            type="button"
+                                            onClick={e => { e.preventDefault(); handleCancelDueDate(); }}
+                                            className="bg-slate-300 text-slate-700 px-2 py-1 rounded-lg font-semibold"
+                                            disabled={savingDueDate}
+                                        >Cancel</button>
+                                    </>
+                                ) : (
+                                    <span
+                                        className="text-slate-700 font-semibold cursor-pointer hover:underline"
+                                        onClick={() => handleEditDueDate(assignment)}
+                                        title="Edit Due Date"
+                                    >
+                                        {assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No deadline'}
+                                    </span>
+                                )}
                             </div>
                             <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
                                 <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
                                 <span className="font-medium">Grade:</span>
-                                <span className="text-slate-700 font-semibold">{getGradeName(assignment.grade_id)}</span>
+                                {/* Show grade name from class_id if available, else fallback to grade_id */}
+                                <span className="text-slate-700 font-semibold">
+                                    {assignment.class_id
+                                        ? getGradeNameFromClassId(assignment.class_id)
+                                        : getGradeName(assignment.grade_id)}
+                                </span>
                             </div>
                         </div>
 
@@ -456,6 +557,31 @@ const TeacherAssignments: React.FC = () => {
                                 </label>
                                 <textarea required rows={3} value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Describe the assignment..." className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none transition-all" />
                             </div>
+                            {/* PDF Checkbox */}
+                            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={includeFromPDF}
+                                        onChange={(e) => setIncludeFromPDF(e.target.checked)}
+                                        className="w-5 h-5 rounded-lg border-2 border-amber-400 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 cursor-pointer transition-all mt-0.5 group-hover:border-amber-500"
+                                    />
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                            </svg>
+                                            <span className="text-sm font-bold text-amber-900">Include from Uploaded PDF/Book</span>
+                                        </div>
+                                        <p className="text-xs text-amber-700 leading-relaxed">
+                                            {includeFromPDF 
+                                                ? '✓ Assignment will use questions only from uploaded PDF materials' 
+                                                : '○ Assignment will use open source questions'}
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
@@ -506,6 +632,8 @@ const TeacherAssignments: React.FC = () => {
                                     ))}
                                 </select>
                             </div>
+
+                            
                             <div className="flex gap-3 pt-6 border-t-2 border-slate-100 mt-6">
                                 <button type="button" onClick={closeModal} className="flex-1 px-6 py-3 border-2 border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-all flex items-center justify-center gap-2">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Play } from 'lucide-react';
+import { Plus, Play, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 import TakeQuiz from './TakeQuiz';
@@ -337,6 +338,7 @@ const MyQuizzes: React.FC = () => {
                                 />
                             </div>
 
+                           
                             <div className="flex justify-end space-x-3 pt-4">
                                 <button
                                     type="button"

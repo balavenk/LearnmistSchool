@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 
 // Mock function to get role from token (since we are mocking, we can just read from localStorage directly or passing it down)
@@ -50,6 +50,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [isDropdownOpen]);
+
+    // Close sidebar and dropdown when route changes
+    useEffect(() => {
+        setIsSidebarOpen(false);
+        setIsDropdownOpen(false);
+    }, [location.pathname]);
 
     const handleLogout = () => {
         // Clear all authentication data
@@ -147,7 +153,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
                 {/* Page Content */}
                 <main className="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-6">
-                    {children}
+                    <Outlet key={location.pathname} />
                 </main>
             </div>
         </div>

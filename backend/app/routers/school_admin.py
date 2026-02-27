@@ -162,6 +162,17 @@ def read_subjects(db: Session = Depends(database.get_db), current_user: models.U
     print(f"DEBUG: Found {len(subjects)} subjects for SchoolID {current_user.school_id}")
     return subjects
 
+@router.patch("/subjects/{subject_id}/status", response_model=schemas.Subject)
+def update_subject_status(subject_id: int, status: schemas.SubjectStatusUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    subject = db.query(models.Subject).filter(
+        models.Subject.id == subject_id, models.Subject.school_id == current_user.school_id).first()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    subject.active = status.active
+    db.commit()
+    db.refresh(subject)
+    return subject
+
 @router.delete("/subjects/{subject_id}")
 def delete_subject(subject_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
     subject = db.query(models.Subject).filter(
