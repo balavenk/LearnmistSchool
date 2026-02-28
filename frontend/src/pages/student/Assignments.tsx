@@ -87,11 +87,11 @@ const StudentAssignments: React.FC = () => {
     const currentMainList = activeMainTab === 'quiz' ? quizItems : projectItems;
 
     const openItems = currentMainList.filter(item => {
-        const status = item.submission?.status;
-        return !status || (status !== 'SUBMITTED' && status !== 'GRADED');
+        const status = item.submission?.status?.toUpperCase();
+        return !status || status === 'PENDING';
     });
-    const completedItems = currentMainList.filter(item => item.submission?.status === 'SUBMITTED');
-    const gradedItems = currentMainList.filter(item => item.submission?.status === 'GRADED');
+    const completedItems = currentMainList.filter(item => item.submission?.status?.toUpperCase() === 'SUBMITTED');
+    const gradedItems = currentMainList.filter(item => item.submission?.status?.toUpperCase() === 'GRADED');
 
     const renderOpenGrid = () => (
         <div className="divide-y divide-slate-100">

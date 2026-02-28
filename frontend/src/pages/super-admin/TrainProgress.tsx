@@ -13,10 +13,16 @@ const TrainProgress: React.FC = () => {
     const ws = useRef<WebSocket | null>(null);
 
     useEffect(() => {
-        // Connect to same host as page (production) or localhost:8000 (dev)
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = import.meta.env.PROD ? window.location.host : '127.0.0.1:8000';
-        const wsUrl = `${protocol}//${host}/upload/ws/train/${fileId}`;
+        // Dynamically build WS URL from the base API URL prefix
+        const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://127.0.0.1:8000/api');
+        let wsBase = '';
+        if (apiUrl.startsWith('http')) {
+            wsBase = apiUrl.replace(/^http/, 'ws');
+        } else {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            wsBase = `${protocol}//${window.location.host}${apiUrl}`;
+        }
+        const wsUrl = `${wsBase}/upload/ws/train/${fileId}`;
 
         console.log('[TrainProgress] Connecting WebSocket to:', wsUrl);
         const socket = new WebSocket(wsUrl);
