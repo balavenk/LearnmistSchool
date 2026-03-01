@@ -27,8 +27,15 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
     total_students = db.query(models.Student).filter(models.Student.active == True).count()
     total_users = db.query(models.User).filter(models.User.active == True).count()
     
-    recent_schools = db.query(models.School).order_by(models.School.id.desc()).limit(5).all()
-    
+    recent_schools_db = db.query(models.School).order_by(models.School.id.desc()).limit(5).all()
+    recent_schools = []
+    for school in recent_schools_db:
+        student_count = db.query(models.Student).filter(models.Student.school_id == school.id).count()
+        teacher_count = db.query(models.User).filter(models.User.school_id == school.id, models.User.role == models.UserRole.TEACHER).count()
+        school_data = schemas.School.model_validate(school)
+        school_data.student_count = student_count
+        school_data.teacher_count = teacher_count
+        recent_schools.append(school_data)    
     # Calculate Quizzes vs Projects
     # Quiz: Assignment with at least one question
     # Project: Assignment with zero questions
