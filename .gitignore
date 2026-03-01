@@ -9,3 +9,6 @@ storage/
 qdrant_db/
 
 *.gz
+*.log
+frontend/playwright-report/index.html
+

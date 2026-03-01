@@ -18,7 +18,7 @@ Write-Host "Project set." -ForegroundColor Green
 # ── 2. Build frontend ────────────────────────────────────────────────────────
 Write-Host "[2/5] Building frontend..." -ForegroundColor Cyan
 Push-Location frontend
-    $env:VITE_API_URL = "/"
+    $env:VITE_API_URL = "/api"
     npm install --silent
     if ($LASTEXITCODE -ne 0) { Pop-Location; Write-Error "npm install failed"; exit 1 }
     npm run build
@@ -30,13 +30,18 @@ Write-Host "Frontend built OK." -ForegroundColor Green
 Write-Host "[3/5] Packaging backend + frontend/dist..." -ForegroundColor Cyan
 if (Test-Path $PACK) { Remove-Item $PACK -Force }
 
-tar.exe -czf $PACK `
-    --exclude="backend/venv" `
-    --exclude="backend/__pycache__" `
-    --exclude="backend/*.pyc" `
-    --exclude="backend/learnmistschool.db" `
-    backend `
-    frontend/dist
+$STAGE = "deploy_stage_pkg"
+if (Test-Path $STAGE) { Remove-Item $STAGE -Recurse -Force -ErrorAction SilentlyContinue }
+New-Item -ItemType Directory -Force -Path "$STAGE\frontend" | Out-Null
+
+Write-Host "Staging backend..." -ForegroundColor DarkGray
+robocopy backend "$STAGE\backend" /E /XD venv __pycache__ qdrant_db /XF *.pyc *.db /R:0 /W:0 | Out-Null
+
+Write-Host "Staging frontend/dist..." -ForegroundColor DarkGray
+robocopy frontend\dist "$STAGE\frontend\dist" /E /R:0 /W:0 | Out-Null
+
+Write-Host "Compressing payload..." -ForegroundColor DarkGray
+tar.exe -czf $PACK -C $STAGE backend frontend
 
 if ($LASTEXITCODE -ne 0) { Write-Error "Packaging failed"; exit 1 }
 if (-not (Test-Path $PACK)) { Write-Error "Package not created"; exit 1 }
