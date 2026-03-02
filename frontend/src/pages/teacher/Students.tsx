@@ -1,8 +1,22 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import type { ColumnDef } from '@tanstack/react-table';
+import { DataTable } from '../../components/DataTable';
 import api from '../../api/axios';
 import PAGINATION_CONFIG from '../../config/pagination';
+
+/**
+ * PERFORMANCE OPTIMIZATIONS:
+ * 1. Settings/Grades/Classes fetched ONCE on mount (not on every page/filter change)
+ * 2. fetchData memoized with useCallback to prevent recreations
+ * 3. Backend filtering (grade_id, class_id) instead of client-side filtering
+ * 4. useEffect with proper dependencies to prevent infinite loops
+ * 5. settingsLoaded flag prevents race conditions
+ * 
+ * NOTE: In development, React.StrictMode causes useEffect to run twice.
+ * This is intentional for detecting side effects. Production builds run once.
+ */
 
 interface Student {
     id: number;
@@ -32,13 +46,13 @@ interface ClassData {
 }
 
 const Students: React.FC = () => {
+    console.log('🔄 COMPONENT RENDER - Students.tsx rendering');
     const [students, setStudents] = useState<Student[]>([]);
     const [grades, setGrades] = useState<Grade[]>([]);
     const [classes, setClasses] = useState<ClassData[]>([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
     const [filters, setFilters] = useState({
         name: '',
         grade_id: '',
@@ -48,10 +62,15 @@ const Students: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-    const [pageSize, setPageSize] = useState<number>(PAGINATION_CONFIG.STUDENTS_PER_PAGE); // Fallback to config, will be updated from backend
+    const [pageSize, setPageSize] = useState<number>(PAGINATION_CONFIG.STUDENTS_PER_PAGE);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
     const [searchQuery, setSearchQuery] = useState('');
+    const [settingsLoaded, setSettingsLoaded] = useState(false); // ✅ Track settings load
+
+    // ✅ Store unfiltered stats for header display (won't change with filters)
+    const [unfilteredTotalCount, setUnfilteredTotalCount] = useState(0);
+    const [unfilteredGradeStats, setUnfilteredGradeStats] = useState<{grade: string, count: number}[]>([]);
 
     // Form State
     const [newName, setNewName] = useState('');
@@ -95,74 +114,82 @@ const Students: React.FC = () => {
         return gradeColors[gradeName] || 'bg-gray-100 text-gray-700 border-gray-200';
     };
 
-    const getStatsByGrade = () => {
-        const stats = grades.map(grade => ({
-            grade: grade.name,
-            count: students.filter(s => s.grade_id === grade.id).length
-        }));
-        return stats;
-    };
+    // Column Definitions for DataTable
+    const studentColumns = useMemo<ColumnDef<Student>[]>(() => [
+        {
+            accessorKey: 'name',
+            header: 'Student',
+            cell: ({ row }) => (
+                <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full ${getAvatarColor(row.original.id)} flex items-center justify-center text-white font-bold text-sm shadow-md`}>
+                        {getInitials(row.original.name)}
+                    </div>
+                    <div>
+                        <div className="font-semibold text-slate-900">{row.original.name}</div>
+                        <div className="text-xs text-slate-500">ID: {row.original.id}</div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            accessorKey: 'grade_id',
+            header: 'Grade',
+            cell: ({ row }) => (
+                <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold border ${getGradeColor(getGradeName(row.original.grade_id))}`}>
+                    {getGradeName(row.original.grade_id)}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'class_id',
+            header: 'Class / Section',
+            cell: ({ row }) => (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    {getClassName(row.original.class_id)}
+                </span>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => (
+                <div className="flex items-center justify-center gap-2">
+                    <button 
+                        onClick={() => navigate(`/teacher/grading/${row.original.id}`)}
+                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        View Work
+                    </button>
+                </div>
+            ),
+        },
+    ], [navigate, grades, classes]);
 
-    // Filter & Sort Logic (now on frontend only for display, backend handles pagination)
+    // No filtering needed - backend handles it
     const processedStudents = useMemo(() => {
+        console.log('🔄 processedStudents useMemo - using backend-filtered data', {
+            studentCount: students.length,
+            searchQuery
+        });
+        const startTime = performance.now();
         let result = [...students];
 
-        // Search query
+        // Only apply search query (not sent to backend)
         if (searchQuery) {
             result = result.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
         }
 
-        // Frontend filtering
-        if (filters.name) {
-            result = result.filter(s => s.name.toLowerCase().includes(filters.name.toLowerCase()));
-        }
-        if (filters.grade_id) {
-            result = result.filter(s => s.grade_id === Number(filters.grade_id));
-        }
-        if (filters.class_id) {
-            result = result.filter(s => s.class_id === Number(filters.class_id));
-        }
-
-        // Frontend sorting
-        if (sortConfig) {
-            result.sort((a, b) => {
-                let aValue: any = '';
-                let bValue: any = '';
-
-                switch (sortConfig.key) {
-                    case 'name':
-                        aValue = a.name;
-                        bValue = b.name;
-                        break;
-                    case 'grade':
-                        aValue = getGradeName(a.grade_id);
-                        bValue = getGradeName(b.grade_id);
-                        break;
-                    case 'class':
-                        aValue = getClassName(a.class_id);
-                        bValue = getClassName(b.class_id);
-                        break;
-                    default:
-                        return 0;
-                }
-
-                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-                return 0;
-            });
-        }
-
+        const endTime = performance.now();
+        console.log(`✅ processedStudents completed in ${(endTime - startTime).toFixed(2)}ms, result count:`, result.length);
         return result;
-    }, [students, filters, sortConfig, grades, classes, searchQuery]);
+    }, [students, searchQuery]);
 
-    const handleSort = (key: string) => {
-        setSortConfig(current => {
-            if (current?.key === key) {
-                return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
-            }
-            return { key, direction: 'asc' };
-        });
-    };
 
     // Derived state for class dropdown in add student form (filter by selected grade)
     const availableClasses = useMemo(() => {
@@ -172,59 +199,136 @@ const Students: React.FC = () => {
 
     // Derived state for class filter dropdown (filter by grade filter)
     const filteredClassesForFilter = useMemo(() => {
+        console.log('🔄 filteredClassesForFilter useMemo RECALCULATING', {
+            grade_filter: filters.grade_id,
+            totalClasses: classes.length
+        });
         if (!filters.grade_id) return classes;
-        return classes.filter(c => c.grade_id === Number(filters.grade_id));
+        const filtered = classes.filter(c => c.grade_id === Number(filters.grade_id));
+        console.log('✅ filteredClassesForFilter result:', filtered.length, 'classes');
+        return filtered;
     }, [filters.grade_id, classes]);
 
-    // Clear class filter when grade filter changes
+    // ✅ Clear class filter when grade filter changes to incompatible class
     useEffect(() => {
-        if (filters.grade_id && filters.class_id) {
+        console.log("🔍 useEffect: Grade/class filter compatibility check", {
+            grade_id: filters.grade_id,
+            class_id: filters.class_id
+        });
+        if (filters.grade_id && filters.class_id && classes.length > 0) {
             const selectedClass = classes.find(c => c.id === Number(filters.class_id));
             if (selectedClass && selectedClass.grade_id !== Number(filters.grade_id)) {
+                console.log('⚠️ Clearing incompatible class filter');
                 setFilters(prev => ({ ...prev, class_id: '' }));
             }
         }
-    }, [filters.grade_id, filters.class_id, classes]);
+    }, [filters.grade_id, filters.class_id]); // ✅ Removed 'classes' to prevent unnecessary re-runs
 
-    const fetchData = async (page: number = 1) => {
+    // ✅ Memoized fetchData with useCallback to prevent recreation on every render
+    const fetchData = useCallback(async (page: number = 1) => {
+        console.log('🌐 fetchData called for page:', page, 'with filters:', filters);
         try {
             setLoading(true);
-
-            // Fetch settings first if not loaded yet
-            let currentPageSize = pageSize;
-
-            // Fetch settings to get backend pagination config
-            const settingsRes = await api.get('/teacher/settings');
-            if (settingsRes.data.pagination?.default_page_size) {
-                currentPageSize = settingsRes.data.pagination.default_page_size;
-                setPageSize(currentPageSize);
+            
+            // Build query params with filters
+            const params = new URLSearchParams({
+                page: page.toString(),
+                page_size: pageSize.toString()
+            });
+            
+            // Add filters to query params
+            if (filters.grade_id) {
+                params.append('grade_id', filters.grade_id);
             }
-
-            // Now fetch data with correct page size
-            const [studentsRes, gradesRes, classesRes] = await Promise.all([
-                api.get<PaginatedStudents>(`/teacher/students/?page=${page}&page_size=${currentPageSize}`),
-                api.get('/teacher/grades/'),
-                api.get('/teacher/classes/')
-            ]);
-
+            if (filters.class_id) {
+                params.append('class_id', filters.class_id);
+            }
+            
+            console.log('📤 API call with params:', params.toString());
+            
+            // Fetch students with filters
+            const studentsRes = await api.get<PaginatedStudents>(`/teacher/students/?${params.toString()}`);
+            
             // Update students from paginated response
+            console.log('✅ fetchData response:', {
+                itemsCount: studentsRes.data.items.length,
+                totalPages: studentsRes.data.total_pages,
+                currentPage: studentsRes.data.page,
+                totalCount: studentsRes.data.total
+            });
             setStudents(studentsRes.data.items);
             setTotalPages(studentsRes.data.total_pages);
             setTotalCount(studentsRes.data.total);
             setCurrentPage(studentsRes.data.page);
-
-            setGrades(gradesRes.data);
-            setClasses(classesRes.data);
         } catch (error) {
             console.error("Failed to fetch data", error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [filters.grade_id, filters.class_id, pageSize]); // ✅ Only recreate when these change
 
+    // ✅ Fetch settings, grades, classes, and unfiltered stats ONCE on mount
     useEffect(() => {
+        console.log('🚀 Component mounted - fetching initial data (settings, grades, classes, stats)');
+        const fetchInitialData = async () => {
+            try {
+                // ✅ Parallel fetch all initial data
+                const [settingsRes, gradesRes, classesRes] = await Promise.all([
+                    api.get('/teacher/settings'),
+                    api.get('/teacher/grades/'),
+                    api.get('/teacher/classes/')
+                ]);
+                
+                console.log('✅ Initial data loaded:', {
+                    pageSize: settingsRes.data.pagination?.default_page_size,
+                    gradesCount: gradesRes.data.length,
+                    classesCount: classesRes.data.length
+                });
+                
+                // Update state ONCE
+                if (settingsRes.data.pagination?.default_page_size) {
+                    setPageSize(settingsRes.data.pagination.default_page_size);
+                }
+                setGrades(gradesRes.data);
+                setClasses(classesRes.data);
+                
+                // ✅ Fetch unfiltered student stats for header cards
+                const statsRes = await api.get<PaginatedStudents>('/teacher/students/?page=1&page_size=1000'); // Get all students
+                const allStudents = statsRes.data.items;
+                const totalStudentsCount = statsRes.data.total;
+                
+                // Calculate grade breakdown from all students
+                const gradeStats = gradesRes.data.map((grade: Grade) => ({
+                    grade: grade.name,
+                    count: allStudents.filter(s => s.grade_id === grade.id).length
+                }));
+                
+                console.log('✅ Unfiltered stats calculated:', {
+                    totalStudents: totalStudentsCount,
+                    gradeStats
+                });
+                
+                setUnfilteredTotalCount(totalStudentsCount);
+                setUnfilteredGradeStats(gradeStats);
+                setSettingsLoaded(true);
+            } catch (error) {
+                console.error("Failed to fetch initial data", error);
+                setSettingsLoaded(true); // Mark as loaded even on error to prevent blocking
+            }
+        };
+        fetchInitialData();
+    }, []); // ✅ Empty array - runs ONCE on mount
+
+    // ✅ Fetch students when page or filters change (only after settings loaded)
+    useEffect(() => {
+        if (!settingsLoaded) {
+            console.log('⏳ Waiting for settings to load before fetching students...');
+            return;
+        }
+        console.log('🔄 useEffect: Fetching students', { currentPage, grade_id: filters.grade_id, class_id: filters.class_id });
         fetchData(currentPage);
-    }, [currentPage]);
+    }, [currentPage, filters.grade_id, filters.class_id, settingsLoaded, fetchData]); // ✅ Proper dependencies
+
     // Missing handlers
     const closeModal = () => {
         setIsModalOpen(false);
@@ -245,7 +349,7 @@ const Students: React.FC = () => {
             });
             await fetchData(1); // Refresh and go to first page
             closeModal();
-            // alert("Student added successfully"); 
+            toast.success("Student added successfully");
         } catch (error) {
             console.error("Failed to create student", error);
             toast.error("Failed to create student");
@@ -259,11 +363,18 @@ const Students: React.FC = () => {
     };
 
     const clearAllFilters = () => {
+        console.log('🧹 clearAllFilters called');
         setFilters({
             name: '',
             grade_id: '',
             class_id: ''
         });
+        setSearchQuery('');
+        // useEffect will handle page reset if needed
+        if (currentPage !== 1) {
+            console.log('📄 Resetting page to 1');
+            setCurrentPage(1);
+        }
     };
 
     const hasActiveFilters = filters.name || filters.grade_id || filters.class_id;
@@ -286,10 +397,10 @@ const Students: React.FC = () => {
                     {/* Quick Stats */}
                     <div className="flex flex-wrap gap-3">
                         <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-indigo-100">
-                            <div className="text-2xl font-bold text-indigo-600">{totalCount}</div>
+                            <div className="text-2xl font-bold text-indigo-600">{unfilteredTotalCount}</div>
                             <div className="text-xs text-slate-500 font-medium">Total Students</div>
                         </div>
-                        {getStatsByGrade().slice(0, 2).map(stat => (
+                        {unfilteredGradeStats.slice(0, 2).map(stat => (
                             <div key={stat.grade} className="bg-white rounded-xl px-4 py-3 shadow-sm border border-purple-100">
                                 <div className="text-2xl font-bold text-purple-600">{stat.count}</div>
                                 <div className="text-xs text-slate-500 font-medium">{stat.grade}</div>
@@ -308,12 +419,22 @@ const Students: React.FC = () => {
                             type="text"
                             placeholder="Search students by name..."
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                if (currentPage !== 1) {
+                                    setCurrentPage(1);
+                                }
+                            }}
                             className="w-full pl-12 pr-4 py-3 border-2 border-white bg-white rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm transition-all"
                         />
                         {searchQuery && (
                             <button
-                                onClick={() => setSearchQuery('')}
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    if (currentPage !== 1) {
+                                        setCurrentPage(1);
+                                    }
+                                }}
                                 className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -369,7 +490,11 @@ const Students: React.FC = () => {
                         {filters.grade_id && (
                             <span className="inline-flex items-center gap-1 bg-white border border-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-xs font-medium shadow-sm">
                                 Grade: {getGradeName(Number(filters.grade_id))}
-                                <button onClick={() => setFilters(prev => ({ ...prev, grade_id: '' }))} className="hover:text-indigo-900">
+                                <button onClick={() => {
+                                    console.log('🧹 Clear grade filter clicked');
+                                    setFilters(prev => ({ ...prev, grade_id: '' }));
+                                    // useEffect will refetch data automatically
+                                }} className="hover:text-indigo-900">
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
@@ -379,7 +504,11 @@ const Students: React.FC = () => {
                         {filters.class_id && (
                             <span className="inline-flex items-center gap-1 bg-white border border-purple-200 text-purple-700 px-3 py-1 rounded-lg text-xs font-medium shadow-sm">
                                 Class: {getClassName(Number(filters.class_id))}
-                                <button onClick={() => setFilters(prev => ({ ...prev, class_id: '' }))} className="hover:text-purple-900">
+                                <button onClick={() => {
+                                    console.log('🧹 Clear class filter clicked');
+                                    setFilters(prev => ({ ...prev, class_id: '' }));
+                                    // useEffect will refetch data automatically
+                                }} className="hover:text-purple-900">
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
@@ -400,7 +529,7 @@ const Students: React.FC = () => {
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2">
                             <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                             </svg>
@@ -408,7 +537,21 @@ const Students: React.FC = () => {
                         </label>
                         <select
                             value={filters.grade_id}
-                            onChange={(e) => setFilters(prev => ({ ...prev, grade_id: e.target.value }))}
+                            onChange={(e) => {
+                                console.log('🎯 GRADE DROPDOWN CLICKED - onChange fired', {
+                                    newValue: e.target.value,
+                                    previousValue: filters.grade_id,
+                                    currentPage
+                                });
+                                console.time('⏱️ Grade filter update duration');
+                                setFilters(prev => ({ ...prev, grade_id: e.target.value }));
+                                // Reset page to 1 only if not already on page 1
+                                if (currentPage !== 1) {
+                                    console.log('📄 Resetting page to 1');
+                                    setCurrentPage(1);
+                                }
+                                console.timeEnd('⏱️ Grade filter update duration');
+                            }}
                             className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                         >
                             <option value="">All Grades</option>
@@ -416,7 +559,7 @@ const Students: React.FC = () => {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 mb-2">
                             <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
@@ -424,7 +567,21 @@ const Students: React.FC = () => {
                         </label>
                         <select
                             value={filters.class_id}
-                            onChange={(e) => setFilters(prev => ({ ...prev, class_id: e.target.value }))}
+                            onChange={(e) => {
+                                console.log('🎯 CLASS DROPDOWN CLICKED - onChange fired', {
+                                    newValue: e.target.value,
+                                    previousValue: filters.class_id,
+                                    currentPage
+                                });
+                                console.time('⏱️ Class filter update duration');
+                                setFilters(prev => ({ ...prev, class_id: e.target.value }));
+                                // Reset page to 1 only if not already on page 1
+                                if (currentPage !== 1) {
+                                    console.log('📄 Resetting page to 1');
+                                    setCurrentPage(1);
+                                }
+                                console.timeEnd('⏱️ Class filter update duration');
+                            }}
                             className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
                         >
                             <option value="">All Classes</option>
@@ -450,121 +607,16 @@ const Students: React.FC = () => {
             {/* Table or Card View */}
             {viewMode === 'table' ? (
                 <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 text-xs uppercase text-slate-600 font-bold">
-                                <th className="px-6 py-4 cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('name')}>
-                                    <div className="flex items-center gap-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
-                                        Student {sortConfig?.key === 'name' && (
-                                            <span className="text-indigo-600">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                                        )}
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('grade')}>
-                                    <div className="flex items-center gap-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                        </svg>
-                                        Grade {sortConfig?.key === 'grade' && (
-                                            <span className="text-indigo-600">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                                        )}
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 cursor-pointer hover:bg-slate-200 transition-colors" onClick={() => handleSort('class')}>
-                                    <div className="flex items-center gap-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                        </svg>
-                                        Class / Section {sortConfig?.key === 'class' && (
-                                            <span className="text-indigo-600">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
-                                        )}
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {loading ? (
-                                <tr><td colSpan={4} className="text-center py-12">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                                        <span className="text-slate-500 font-medium">Loading students...</span>
-                                    </div>
-                                </td></tr>
-                            ) : processedStudents.map((student) => (
-                                <tr key={student.id} className="hover:bg-indigo-50 transition-all group">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full ${getAvatarColor(student.id)} flex items-center justify-center text-white font-bold text-sm shadow-md`}>
-                                                {getInitials(student.name)}
-                                            </div>
-                                            <div>
-                                                <div className="font-semibold text-slate-900">{student.name}</div>
-                                                <div className="text-xs text-slate-500">ID: {student.id}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold border ${getGradeColor(getGradeName(student.grade_id))}`}>
-                                            {getGradeName(student.grade_id)}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                            </svg>
-                                            {getClassName(student.class_id)}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <button
-                                                onClick={() => navigate(`/grading/${student.id}`)}
-                                                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                                </svg>
-                                                View Work
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {processedStudents.length === 0 && !loading && (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-16">
-                                        <div className="text-center">
-                                            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full mb-4">
-                                                <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                                </svg>
-                                            </div>
-                                            <h3 className="text-xl font-bold text-slate-900 mb-2">No students found</h3>
-                                            <p className="text-slate-500 mb-6">
-                                                {hasActiveFilters ? 'Try adjusting your filters' : 'Add your first student to get started'}
-                                            </p>
-                                            {!hasActiveFilters && (
-                                                <button
-                                                    onClick={() => setIsModalOpen(true)}
-                                                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl font-semibold transition-all duration-200 inline-flex items-center gap-2"
-                                                >
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                                    </svg>
-                                                    Add First Student
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                    <DataTable
+                        data={processedStudents}
+                        columns={studentColumns}
+                        isLoading={loading}
+                        emptyMessage={
+                            hasActiveFilters 
+                                ? 'No students found. Try adjusting your filters.' 
+                                : 'No students found. Add your first student to get started.'
+                        }
+                    />
 
                     {/* Enhanced Pagination */}
                     {totalPages > 1 && pageSize && (
@@ -573,7 +625,7 @@ const Students: React.FC = () => {
                                 <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
-                                Showing <span className="text-indigo-600">{students.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to <span className="text-indigo-600">{Math.min(currentPage * pageSize, totalCount)}</span> of <span className="text-indigo-600">{totalCount}</span> students
+                                Showing <span className="text-indigo-600">{processedStudents.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to <span className="text-indigo-600">{Math.min(currentPage * pageSize, hasActiveFilters ? processedStudents.length : totalCount)}</span> of <span className="text-indigo-600">{hasActiveFilters ? `${processedStudents.length} filtered` : totalCount}</span> students
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
@@ -661,9 +713,9 @@ const Students: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
-
-                            <button
-                                onClick={() => navigate(`/grading/${student.id}`)}
+                            
+                            <button 
+                                onClick={() => navigate(`/teacher/grading/${student.id}`)}
                                 className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-3 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -727,7 +779,7 @@ const Students: React.FC = () => {
                         </div>
                         <form onSubmit={handleCreateStudent} className="space-y-5 relative z-10">
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                                     <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                     </svg>
@@ -743,7 +795,7 @@ const Students: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                                     <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                     </svg>
@@ -759,7 +811,7 @@ const Students: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                                         <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                         </svg>
@@ -781,7 +833,7 @@ const Students: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                                         <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                         </svg>

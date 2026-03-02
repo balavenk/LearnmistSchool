@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { ColumnDef } from '@tanstack/react-table';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import axios from 'axios';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 
 interface Teacher {
     id: number;
@@ -18,6 +22,9 @@ const TeachersList: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    
+    // Use deferred value for expensive filtering - React 18 feature
+    const deferredSearchTerm = useDeferredValue(searchTerm);
 
     // Create Modal State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -30,9 +37,47 @@ const TeachersList: React.FC = () => {
 
     const ITEMS_PER_PAGE = 5;
 
-    const fetchTeachers = async () => {
+    // Debug: Log when modal state changes
+    useEffect(() => {
+        console.log('Add Teacher Modal state:', isCreateModalOpen);
+    }, [isCreateModalOpen]);
+
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchTeachers = async () => {
+            try {
+                setLoading(true);
+                const response = await api.get('/school-admin/teachers/', { signal: abortController.signal });
+                if (isMounted) {
+                    const data = response.data.map((t: any) => ({
+                        id: t.id,
+                        username: t.username,
+                        email: t.email || "",
+                        status: t.active ? 'Active' : 'Inactive'
+                    }));
+                    setTeachers(data);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error("Failed to fetch teachers", error);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        fetchTeachers();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
+    }, []);
+
+    // Refetch function for use after mutations
+    const refetchTeachers = async () => {
         try {
-            setLoading(true);
             const response = await api.get('/school-admin/teachers/');
             const data = response.data.map((t: any) => ({
                 id: t.id,
@@ -41,26 +86,46 @@ const TeachersList: React.FC = () => {
                 status: t.active ? 'Active' : 'Inactive'
             }));
             setTeachers(data);
-        } catch (error) {
-            console.error("Failed to fetch teachers", error);
-        } finally {
-            setLoading(false);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch teachers", error);
         }
     };
 
-    useEffect(() => {
-        fetchTeachers();
-    }, []);
-
     const filtered = useMemo(() => {
         return teachers.filter(t =>
-            t.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            t.email.toLowerCase().includes(searchTerm.toLowerCase())
+            t.username.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+            t.email.toLowerCase().includes(deferredSearchTerm.toLowerCase())
         );
-    }, [teachers, searchTerm]);
+    }, [teachers, deferredSearchTerm]);
+
+    // Memoize filter loading state to prevent unnecessary re-renders
+    const isFilterLoading = useMemo(() => searchTerm !== deferredSearchTerm, [searchTerm, deferredSearchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    
+    const paginated = useMemo(() => {
+        return filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    }, [filtered, currentPage]);
+
+    // Memoized modal handler to prevent performance issues
+    const handleOpenModal = useCallback(() => {
+        console.log('Add Teacher button clicked');
+        setIsCreateModalOpen(true);
+    }, []);
+
+    // Toggle Status Handler - memoized to prevent column recreation
+    const toggleStatus = async (id: number, currentStatus: string) => {
+        try {
+            const newActive = currentStatus !== 'Active';
+            await api.patch(`/school-admin/teachers/${id}/status`, { active: newActive });
+            alert(`Teacher ${newActive ? 'activated' : 'deactivated'} successfully`);
+            refetchTeachers();
+        } catch (error) {
+            console.error("Failed to update teacher status", error);
+            alert("Failed to update teacher status");
+        }
+    };
 
     // Create Handler
     const handleCreate = async (e: React.FormEvent) => {
@@ -72,7 +137,7 @@ const TeachersList: React.FC = () => {
                 password: 'password123', // Default password
                 role: 'TEACHER'
             });
-            fetchTeachers();
+            refetchTeachers();
             setIsCreateModalOpen(false);
             setNewUsername(''); setNewEmail(''); // setNewSubject('');
             toast.success("Teacher created successfully (Default password: password123)");
@@ -82,18 +147,67 @@ const TeachersList: React.FC = () => {
         }
     };
 
-    // Toggle Status Handler
-    const toggleStatus = async (id: number, currentStatus: string) => {
-        try {
-            const newActive = currentStatus !== 'Active';
-            await api.patch(`/school-admin/teachers/${id}/status`, { active: newActive });
-            toast.success(`Teacher ${newActive ? 'activated' : 'deactivated'} successfully`);
-            fetchTeachers();
-        } catch (error) {
-            console.error("Failed to update teacher status", error);
-            toast.error("Failed to update teacher status");
-        }
-    };
+    const columns: ColumnDef<Teacher>[] = useMemo(
+        () => [
+            {
+                header: 'Username',
+                accessorKey: 'username',
+                cell: (info) => (
+                    <span className="font-medium text-slate-900">{info.getValue() as string}</span>
+                ),
+            },
+            {
+                header: 'Email',
+                accessorKey: 'email',
+                cell: (info) => (
+                    <span className="text-slate-500">{info.getValue() as string}</span>
+                ),
+            },
+            {
+                header: 'Status',
+                accessorKey: 'status',
+                cell: (info) => {
+                    const status = info.getValue() as string;
+                    return (
+                        <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}
+                        >
+                            {status}
+                        </span>
+                    );
+                },
+            },
+            {
+                header: 'Actions',
+                id: 'actions',
+                cell: (info) => {
+                    const teacher = info.row.original;
+                    return (
+                        <div className="text-right space-x-2">
+                            <button
+                                onClick={() => toggleStatus(teacher.id, teacher.status)}
+                                className={`text-xs font-medium ${
+                                    teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'
+                                }`}
+                            >
+                                {teacher.status === 'Active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <span className="text-slate-300">|</span>
+                            <button
+                                onClick={() => navigate(`/school-admin/teachers/${teacher.id}/classes`)}
+                                className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                            >
+                                Change class
+                            </button>
+                        </div>
+                    );
+                },
+            },
+        ],
+        [navigate, toggleStatus]
+    );
 
     return (
         <div className="space-y-6">
@@ -102,7 +216,7 @@ const TeachersList: React.FC = () => {
                     <h1 className="text-2xl font-bold text-slate-900">Teachers</h1>
                     <p className="text-slate-500 text-sm">Manage teaching staff.</p>
                 </div>
-                <button onClick={() => setIsCreateModalOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
+                <button onClick={handleOpenModal} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
                     + Add Teacher
                 </button>
             </div>
@@ -117,61 +231,46 @@ const TeachersList: React.FC = () => {
                 />
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Username</th>
-                            <th className="px-6 py-4">Email</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={4} className="text-center py-8">Loading...</td></tr>
-                        ) : paginated.map(teacher => (
-                            <tr key={teacher.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4 font-medium text-slate-900">{teacher.username}</td>
-                                <td className="px-6 py-4 text-slate-500">{teacher.email}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${teacher.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {teacher.status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right space-x-2">
-                                    <button
-                                        onClick={() => toggleStatus(teacher.id, teacher.status)}
-                                        className={`text-xs font-medium ${teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}
-                                    >
-                                        {teacher.status === 'Active' ? 'Deactivate' : 'Activate'}
-                                    </button>
-                                    <span className="text-slate-300">|</span>
-                                    <button onClick={() => navigate(`/school-admin/teachers/${teacher.id}/classes`)} className="text-xs font-medium text-indigo-600 hover:text-indigo-800">
-                                        Change class
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {!loading && paginated.length === 0 && <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No teachers found.</td></tr>}
-                    </tbody>
-                </table>
-                {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm">
-                        <span className="text-slate-500">Page {currentPage} of {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            <DataTable
+                data={paginated}
+                columns={columns}
+                isLoading={loading || isFilterLoading}
+                emptyMessage="No teachers found."
+            />
+
+            {totalPages > 1 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={filtered.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    onPageChange={setCurrentPage}
+                    isLoading={loading || isFilterLoading}
+                />
+            )}
 
             {/* Create Teacher Modal */}
             {isCreateModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
-                        <h2 className="text-xl font-bold mb-4">Add Teacher</h2>
+                <div 
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setIsCreateModalOpen(false);
+                    }}
+                >  
+                    <div 
+                        className="bg-white rounded-xl shadow-lg w-full max-w-md p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Add Teacher</h2>
+                            <button 
+                                type="button"
+                                onClick={() => setIsCreateModalOpen(false)} 
+                                className="text-slate-400 hover:text-slate-600 text-2xl leading-none w-8 h-8 flex items-center justify-center"
+                            >
+                                ✕
+                            </button>
+                        </div>
                         <form onSubmit={handleCreate} className="space-y-4">
                             <input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="Username" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
                             <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Email" type="email" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />

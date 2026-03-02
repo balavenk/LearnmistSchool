@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import axios from 'axios';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 import { isValidInput } from '../../utils/inputValidation';
 
 interface Subject {
     id: number;
     name: string;
     code: string;
-    status: 'Active' | 'Inactive';
+    active: boolean;
+    school_id?: number;
 }
 
 // Removed mock data
@@ -25,39 +30,130 @@ const SubjectsList: React.FC = () => {
 
     const ITEMS_PER_PAGE = 8;
 
-    const fetchSubjects = async () => {
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchSubjects = async () => {
+            try {
+                setLoading(true);
+                const response = await api.get('/school-admin/subjects/', { signal: abortController.signal });
+                if (isMounted) {
+                    const data = response.data.map((s: any) => ({
+                        id: s.id,
+                        name: s.name,
+                        code: s.code || 'N/A',
+                        active: s.active,
+                        school_id: s.school_id
+                    }));
+                    setSubjects(data);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) {
+                    console.error("Failed to fetch subjects", error);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        fetchSubjects();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
+    }, []);
+
+    // Refetch function for use after mutations
+    const refetchSubjects = async () => {
         try {
-            setLoading(true);
             const response = await api.get('/school-admin/subjects/');
-            // Backend returns {id, name, code, school_id}.
-            // Map to frontend interface
             const data = response.data.map((s: any) => ({
                 id: s.id,
                 name: s.name,
                 code: s.code || 'N/A',
-                status: 'Active'     // Default for now as backend doesn't have status for Subject
+                active: s.active,
+                school_id: s.school_id
             }));
             setSubjects(data);
-        } catch (error) {
-            console.error("Failed to fetch subjects", error);
-        } finally {
-            setLoading(false);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch subjects", error);
         }
     };
 
-    useEffect(() => {
-        fetchSubjects();
-    }, []);
-
     const filtered = useMemo(() => {
         return subjects.filter(s =>
-            s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.code.toLowerCase().includes(searchTerm.toLowerCase())
+            s?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) ||
+            s?.code?.toLowerCase()?.includes(searchTerm.toLowerCase())
         );
     }, [subjects, searchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    
+    const paginated = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        return filtered.slice(start, end);
+    }, [filtered, currentPage]);
+
+    // DataTable Columns
+    const columns = useMemo<ColumnDef<Subject>[]>(
+        () => [
+            {
+                accessorKey: 'name',
+                header: 'Subject Name',
+                cell: ({ row }) => (
+                    <span className="font-medium text-slate-900">{row.original.name}</span>
+                ),
+            },
+            {
+                accessorKey: 'code',
+                header: 'Code',
+                cell: ({ row }) => (
+                    <span className="text-slate-500">{row.original.code}</span>
+                ),
+            },
+            {
+                accessorKey: 'active',
+                header: 'Status',
+                cell: ({ row }) => (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        row.original.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                        {row.original.active ? 'Active' : 'Inactive'}
+                    </span>
+                ),
+            },
+            {
+                id: 'actions',
+                header: 'Actions',
+                cell: ({ row }) => (
+                    <div className="flex justify-end gap-3 items-center">
+                        <button
+                            onClick={() => toggleStatus(row.original.id, row.original.active)}
+                            className={`text-xs font-medium ${
+                                row.original.active ? 'text-red-600' : 'text-green-600'
+                            }`}
+                        >
+                            {row.original.active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                            onClick={() => handleDelete(row.original.id)}
+                            className="text-xs font-medium text-red-600 hover:text-red-800"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                ),
+            },
+        ],
+        []
+    );
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,7 +163,7 @@ const SubjectsList: React.FC = () => {
                 code: newCode
             });
             // If success, refresh list
-            fetchSubjects();
+            refetchSubjects();
             setIsModalOpen(false);
             setNewName(''); setNewCode('');
         } catch (error) {
@@ -77,18 +173,26 @@ const SubjectsList: React.FC = () => {
     };
 
     const handleDelete = async (id: number) => {
-        if (!window.confirm("Are you sure you want to delete this subject?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/school-admin/subjects/${id}`);
-            fetchSubjects();
+            toast.success('Subject deleted successfully');
+            refetchSubjects();
         } catch (error: any) {
             console.error("Delete failed", error);
             toast.error(error.response?.data?.detail || "Failed to delete subject");
         }
     };
 
-    const toggleStatus = (id: number) => {
-        setSubjects(subjects.map(s => s.id === id ? { ...s, status: s.status === 'Active' ? 'Inactive' : 'Active' } : s));
+    const toggleStatus = async (id: number, currentStatus: boolean) => {
+        try {
+            const newStatus = !currentStatus;
+            await api.patch(`/school-admin/subjects/${id}/status`, { active: newStatus });
+            await refetchSubjects();
+            toast.success(`Subject ${newStatus ? 'activated' : 'deactivated'} successfully`);
+        } catch (error) {
+            toast.error("Failed to update subject status");
+        }
     };
 
     return (
@@ -123,49 +227,24 @@ const SubjectsList: React.FC = () => {
                     )}  
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Subject Name</th>
-                            <th className="px-6 py-4">Code</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr> : paginated.map(subject => (
-                            <tr key={subject.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4 font-medium text-slate-900">{subject.name}</td>
-                                <td className="px-6 py-4 text-slate-500">{subject.code}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${subject.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {subject.status}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right flex justify-end gap-3 items-center">
-                                    <button onClick={() => toggleStatus(subject.id)} className={`text-xs font-medium ${subject.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}>
-                                        {subject.status === 'Active' ? 'Deactivate' : 'Activate'}
-                                    </button>
-                                    <button onClick={() => handleDelete(subject.id)} className="text-xs font-medium text-red-600 hover:text-red-800">
-                                        Delete
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {paginated.length === 0 && <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No subjects found.</td></tr>}
-                    </tbody>
-                </table>
-                {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm">
-                        <span className="text-slate-500">Page {currentPage} of {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            {/* DataTable */}
+            <DataTable
+                columns={columns}
+                data={paginated}
+                isLoading={loading}
+                emptyMessage="No subjects found."
+            />
+
+            {/* Pagination */}
+            {!loading && filtered.length > 0 && totalPages > 1 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    totalItems={filtered.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                />
+            )}
 
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">

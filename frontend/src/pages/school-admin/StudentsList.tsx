@@ -1,6 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import axios from 'axios';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
 
 interface Student {
     id: number;
@@ -16,6 +20,7 @@ const StudentsList: React.FC = () => {
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [grades, setGrades] = useState<any[]>([]);
@@ -31,37 +36,61 @@ const StudentsList: React.FC = () => {
 
     const ITEMS_PER_PAGE = 10;
 
+    // Debounce search term to avoid excessive filtering
     useEffect(() => {
-        fetchStudents();
-        fetchOptions();
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchAllData = async () => {
+            try {
+                setLoading(true);
+                // Fetch all data in parallel to ensure everything is ready before rendering
+                const [studentsRes, gradesRes, classesRes] = await Promise.all([
+                    api.get('/school-admin/students/', { signal: abortController.signal }),
+                    api.get('/school-admin/grades/', { signal: abortController.signal }),
+                    api.get('/school-admin/classes/', { signal: abortController.signal })
+                ]);
+                
+                if (isMounted) {
+                    setStudents(studentsRes.data);
+                    setGrades(gradesRes.data);
+                    setClasses(classesRes.data);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error("Failed to fetch data", error);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        fetchAllData();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
-    const fetchStudents = async () => {
+    // Refetch function for use after mutations
+    const refetchStudents = async () => {
         try {
-            setLoading(true);
             const res = await api.get('/school-admin/students/');
             setStudents(res.data);
-        } catch (error) {
-            console.error("Failed to fetch students", error);
-        } finally {
-            setLoading(false);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch students", error);
         }
     };
 
-    const fetchOptions = async () => {
-        try {
-            const [gRes, cRes] = await Promise.all([
-                api.get('/school-admin/grades/'),
-                api.get('/school-admin/classes/')
-            ]);
-            setGrades(gRes.data);
-            setClasses(cRes.data);
-        } catch (error) {
-            console.error("Failed to fetch options", error);
-        }
-    };
-
-    const openEditModal = (student: Student) => {
+    const openEditModal = useCallback((student: Student) => {
         setSelectedStudent(student);
         setEditName(student.name);
         setEditEmail(student.email || '');
@@ -69,7 +98,7 @@ const StudentsList: React.FC = () => {
         setEditClassId(student.class_id || '');
         setEditActive(student.active);
         setIsModalOpen(true);
-    };
+    }, []);
 
     const handleUpdateStudent = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -82,7 +111,7 @@ const StudentsList: React.FC = () => {
                 class_id: editClassId ? Number(editClassId) : null,
                 active: editActive
             });
-            fetchStudents();
+            refetchStudents();
             setIsModalOpen(false);
             toast.success("Student updated successfully");
         } catch (error) {
@@ -91,22 +120,108 @@ const StudentsList: React.FC = () => {
         }
     };
 
+    // Create efficient lookup maps
+    const gradeMap = useMemo(() => {
+        const map = new Map<number, string>();
+        grades.forEach(g => map.set(g.id, g.name));
+        return map;
+    }, [grades]);
+
+    const classMap = useMemo(() => {
+        const map = new Map<number, { name: string; section: string }>();
+        classes.forEach(c => map.set(c.id, { name: c.name, section: c.section }));
+        return map;
+    }, [classes]);
+
     const filtered = useMemo(() => {
-        return students.filter(s =>
-            s.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [students, searchTerm]);
+        if (!debouncedSearchTerm) return students;
+        const search = debouncedSearchTerm.toLowerCase();
+        return students.filter(s => s?.name?.toLowerCase()?.includes(search));
+    }, [students, debouncedSearchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    
+    const paginated = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        return filtered.slice(start, end);
+    }, [filtered, currentPage]);
 
-    // Helpers for display
-    const getGradeName = (id?: number) => grades.find(g => g.id === id)?.name || id;
-    const getClassName = (id?: number | null) => {
-        if (!id) return 'Unassigned';
-        const c = classes.find(c => c.id === id);
-        return c ? `${c.name} (${c.section})` : id;
-    };
+    const columns = useMemo<ColumnDef<Student>[]>(
+        () => [
+            {
+                header: 'Name',
+                accessorKey: 'name',
+                cell: (info) => (
+                    <span className="font-medium text-slate-900">{info.getValue() as string}</span>
+                ),
+            },
+            {
+                header: 'Username',
+                accessorKey: 'username',
+                cell: (info) => (
+                    <span className="text-slate-600 font-mono text-xs">
+                        {(info.getValue() as string) || '-'}
+                    </span>
+                ),
+            },
+            {
+                header: 'Active',
+                accessorKey: 'active',
+                cell: (info) => {
+                    const active = info.getValue() as boolean;
+                    return (
+                        <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}
+                        >
+                            {active ? 'Active' : 'Inactive'}
+                        </span>
+                    );
+                },
+            },
+            {
+                header: 'Grade',
+                accessorKey: 'grade_id',
+                cell: (info) => {
+                    const gradeId = info.getValue() as number | undefined;
+                    if (!gradeId) return <span className="text-slate-600">-</span>;
+                    const gradeName = gradeMap.get(gradeId) || String(gradeId);
+                    return <span className="text-slate-600">{gradeName}</span>;
+                },
+            },
+            {
+                header: 'Class',
+                accessorKey: 'class_id',
+                cell: (info) => {
+                    const classId = info.getValue() as number | null | undefined;
+                    if (!classId) return <span className="text-slate-600">Unassigned</span>;
+                    const classData = classMap.get(classId);
+                    const className = classData ? `${classData.name} (${classData.section})` : String(classId);
+                    return <span className="text-slate-600">{className}</span>;
+                },
+            },
+            {
+                header: 'Actions',
+                id: 'actions',
+                cell: (info) => {
+                    const student = info.row.original;
+                    return (
+                        <div className="text-right">
+                            <button
+                                onClick={() => openEditModal(student)}
+                                className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
+                            >
+                                Edit
+                            </button>
+                        </div>
+                    );
+                },
+            },
+        ],
+        [gradeMap, classMap, openEditModal]
+    );
 
     // Add Student State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -114,6 +229,17 @@ const StudentsList: React.FC = () => {
     const [newStudentEmail, setNewStudentEmail] = useState('');
     const [newStudentGradeId, setNewStudentGradeId] = useState<number | ''>('');
     const [newStudentClassId, setNewStudentClassId] = useState<number | ''>('');
+
+    // Memoize filtered classes for modals to avoid inline filtering on every render
+    const filteredClassesForNewStudent = useMemo(() => {
+        if (!newStudentGradeId) return [];
+        return classes.filter(c => c.grade_id === Number(newStudentGradeId));
+    }, [classes, newStudentGradeId]);
+
+    const filteredClassesForEdit = useMemo(() => {
+        if (!editGradeId) return [];
+        return classes.filter(c => c.grade_id === Number(editGradeId));
+    }, [classes, editGradeId]);
 
     const handleAddStudent = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -124,7 +250,7 @@ const StudentsList: React.FC = () => {
                 grade_id: Number(newStudentGradeId),
                 class_id: newStudentClassId ? Number(newStudentClassId) : null
             });
-            fetchStudents();
+            refetchStudents();
             setIsAddModalOpen(false);
             setNewStudentName('');
             setNewStudentEmail('');
@@ -162,59 +288,23 @@ const StudentsList: React.FC = () => {
                 />
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Name</th>
-                            <th className="px-6 py-4">Username</th>
-                            <th className="px-6 py-4">Active</th>
-                            <th className="px-6 py-4">Grade</th>
-                            <th className="px-6 py-4">Class</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
-                        ) : paginated.map(student => (
-                            <tr key={student.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4 font-medium text-slate-900">{student.name}</td>
-                                <td className="px-6 py-4 text-slate-600 font-mono text-xs">{student.username || '-'}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${student.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {student.active ? 'Active' : 'Inactive'}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-slate-600">
-                                    {getGradeName(student.grade_id)}
-                                </td>
-                                <td className="px-6 py-4 text-slate-600">
-                                    {getClassName(student.class_id)}
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => openEditModal(student)}
-                                        className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
-                                    >
-                                        Edit
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {!loading && paginated.length === 0 && <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No students found.</td></tr>}
-                    </tbody>
-                </table>
-                {totalPages > 1 && (
-                    <div className="p-4 border-t border-slate-200 flex justify-between items-center text-sm">
-                        <span className="text-slate-500">Page {currentPage} of {totalPages}</span>
-                        <div className="flex gap-2">
-                            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 border rounded disabled:opacity-50">Prev</button>
-                            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 border rounded disabled:opacity-50">Next</button>
-                        </div>
-                    </div>
-                )}
-            </div>
+            <DataTable
+                data={paginated}
+                columns={columns}
+                isLoading={loading}
+                emptyMessage="No students found."
+            />
+
+            {totalPages > 1 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={filtered.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    onPageChange={setCurrentPage}
+                    isLoading={loading}
+                />
+            )}
 
             {/* Add Student Modal */}
             {isAddModalOpen && (
@@ -279,7 +369,7 @@ const StudentsList: React.FC = () => {
                                     disabled={!newStudentGradeId}
                                 >
                                     <option value="">Select Class</option>
-                                    {classes.filter(c => c.grade_id == newStudentGradeId).map(c => (
+                                    {filteredClassesForNewStudent.map(c => (
                                         <option key={c.id} value={c.id}>{c.name} ({c.section})</option>
                                     ))}
                                 </select>
@@ -359,7 +449,7 @@ const StudentsList: React.FC = () => {
                                     disabled={!editGradeId}
                                 >
                                     <option value="">Unassigned</option>
-                                    {classes.filter(c => c.grade_id == editGradeId).map(c => (
+                                    {filteredClassesForEdit.map(c => (
                                         <option key={c.id} value={c.id}>{c.name} ({c.section})</option>
                                     ))}
                                 </select>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, PlusCircle, Users, BookOpen, XCircle, Info } from 'lucide-react';
 import api from '../../api/axios';
@@ -39,18 +38,44 @@ const GradesList: React.FC = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchGrades = async () => {
+            try {
+                setLoading(true);
+                const res = await api.get('/school-admin/grades/', { signal: abortController.signal });
+                if (isMounted) {
+                    setGrades(res.data);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) {
+                    console.error("Failed to fetch grades", error);
+                }
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
         fetchGrades();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
-    const fetchGrades = async () => {
+    // Refetch function for use after mutations
+    const refetchGrades = async () => {
         try {
-            setLoading(true);
             const res = await api.get('/school-admin/grades/');
             setGrades(res.data);
-        } catch (error) {
-            console.error("Failed to fetch grades", error);
-        } finally {
-            setLoading(false);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch grades", error);
         }
     };
 
@@ -67,7 +92,7 @@ const GradesList: React.FC = () => {
         e.preventDefault();
         try {
             await api.post('/school-admin/grades/', { name: newGradeName });
-            fetchGrades();
+            refetchGrades();
             setIsAddGradeModalOpen(false);
             setNewGradeName('');
         } catch (error) {
@@ -108,9 +133,10 @@ const GradesList: React.FC = () => {
     };
 
     const handleDeleteSection = async (classId: number) => {
-        if (!confirm("Are you sure you want to delete this section?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/school-admin/classes/${classId}`);
+            toast.success('Section deleted successfully');
             if (selectedGrade) fetchSections(selectedGrade.id);
         } catch (error) {
             console.error("Failed to delete section", error);
@@ -120,12 +146,72 @@ const GradesList: React.FC = () => {
 
     const filtered = useMemo(() => {
         return grades.filter(g =>
-            g.name.toLowerCase().includes(searchTerm.toLowerCase())
+            g?.name?.toLowerCase()?.includes(searchTerm.toLowerCase()) ?? false
         );
     }, [grades, searchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    
+    const paginated = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        return filtered.slice(start, end);
+    }, [filtered, currentPage]);
+
+    // DataTable Columns
+    const columns = useMemo<ColumnDef<Grade>[]>(
+        () => [
+            {
+                accessorKey: 'name',
+                header: 'Grade Name',
+                cell: ({ row }) => (
+                    <span className="font-medium text-slate-900">{row.original.name}</span>
+                ),
+            },
+            {
+                id: 'actions',
+                header: 'Actions',
+                cell: ({ row }) => (
+                    <div className="flex items-center justify-end gap-2">
+                        <button
+                            onClick={() => openSectionsModal(row.original)}
+                            className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 border border-indigo-200 rounded-full hover:bg-indigo-50"
+                        >
+                            Manage Sections
+                        </button>
+                        <button
+                            onClick={() => window.location.href = `/school-admin/grades/${row.original.id}/subjects`}
+                            className="text-emerald-600 hover:text-emerald-800 font-medium text-xs px-3 py-1 border border-emerald-200 rounded-full hover:bg-emerald-50"
+                        >
+                            Subjects
+                        </button>
+                    </div>
+                ),
+            },
+        ],
+        []
+    );
+
+    // Skeleton loader
+    const SkeletonRow = () => (
+        <tr>
+            <td className="px-6 py-4">
+                <div className="animate-pulse h-6 w-32 bg-slate-200 rounded" />
+            </td>
+            <td className="px-6 py-4 text-right">
+                <div className="animate-pulse h-6 w-24 bg-slate-200 rounded" />
+            </td>
+        </tr>
+    );
+
+    // Empty state illustration
+    const EmptyState = () => (
+        <div className="flex flex-col items-center justify-center py-12">
+            <BookOpen className="w-12 h-12 text-slate-300 mb-2" />
+            <div className="text-slate-400 text-lg font-semibold mb-1">No grades found.</div>
+            <div className="text-slate-400 text-sm">Try adding a new grade or adjusting your search.</div>
+        </div>
+    );
 
     // Skeleton loader
     const SkeletonRow = () => (

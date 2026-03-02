@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
 interface QuestionOption {
@@ -69,7 +70,7 @@ const ReviewQuiz: React.FC<ReviewQuizProps> = ({ submissionId, onClose }) => {
                 setSubmission(response.data);
             } catch (error) {
                 console.error("Failed to load review", error);
-                alert("Failed to load review.");
+                toast.error("Failed to load review.");
                 onClose();
             } finally {
                 setLoading(false);

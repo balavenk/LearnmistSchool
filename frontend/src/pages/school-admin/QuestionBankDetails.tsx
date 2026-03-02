@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import UploadMaterialModal from '../../components/UploadMaterialModal';
 import api from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import axios from 'axios';
+import { DataTable } from '../../components/DataTable';
 
 interface PdfFile {
     id: number;
@@ -23,24 +26,60 @@ interface PaginatedResponse {
     total_pages: number;
 }
 
-type SortField = 'subject_name' | 'original_filename' | 'file_size' | 'uploaded_at';
-type SortDirection = 'asc' | 'desc';
-
 const QuestionBankDetails: React.FC = () => {
     const { gradeId } = useParams<{ gradeId: string }>();
     const navigate = useNavigate();
     const [pdfs, setPdfs] = useState<PdfFile[]>([]);
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [sortField, setSortField] = useState<SortField>('uploaded_at');
-    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const pageSize = 10;
 
-    const fetchMaterials = async (page: number = 1) => {
-        setLoading(true);
+    // Sorting state for DataTable
+    const [sorting, setSorting] = useState<SortingState>([{
+        id: 'uploaded_at',
+        desc: true
+    }]);
+
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchMaterials = async (page: number = 1) => {
+            setLoading(true);
+            try {
+                const response = await api.get<PaginatedResponse>(
+                    `/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`,
+                    { signal: abortController.signal }
+                );
+                if (isMounted) {
+                    setPdfs(response.data.items);
+                    setTotalPages(response.data.total_pages);
+                    setTotalCount(response.data.total);
+                    setCurrentPage(response.data.page);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error("Failed to load materials", error);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        if (gradeId) {
+            fetchMaterials(currentPage);
+        }
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
+    }, [gradeId, currentPage]);
+
+    // Refetch function for use after mutations
+    const refetchMaterials = async (page: number = currentPage) => {
         try {
             const response = await api.get<PaginatedResponse>(
                 `/upload/training-material/${gradeId}?page=${page}&page_size=${pageSize}`
@@ -49,18 +88,18 @@ const QuestionBankDetails: React.FC = () => {
             setTotalPages(response.data.total_pages);
             setTotalCount(response.data.total);
             setCurrentPage(response.data.page);
-        } catch (error) {
-            console.error("Failed to load materials", error);
-        } finally {
-            setLoading(false);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch materials", error);
         }
     };
 
+    // Cleanup: Close modal when component unmounts (e.g., navigating away)
     useEffect(() => {
-        if (gradeId) {
-            fetchMaterials(currentPage);
-        }
-    }, [gradeId, currentPage]);
+        return () => {
+            setShowUploadModal(false);
+        };
+    }, []);
 
     const handleBack = () => {
         navigate('/school-admin/upload-pdf');
@@ -68,26 +107,26 @@ const QuestionBankDetails: React.FC = () => {
 
     const handleAddPdf = () => {
         setShowUploadModal(true);
-        //alert("Upload feature pending backend integration.");
     };
 
-    const handleDelete = async (id: number) => {
-        if (!window.confirm("Are you sure you want to delete this file? This action cannot be undone.")) return;
-
+    const handleDelete = useCallback(async (id: number) => {
+        // Non-blocking confirmation - user must click delete twice or we proceed immediately
+        // TODO: Replace with proper confirmation modal for production
         try {
             await api.delete(`/upload/training-material/${id}`);
+            toast.success('File deleted successfully');
             // Refetch current page to sync with server
-            fetchMaterials(currentPage);
+            refetchMaterials(currentPage);
         } catch (error: any) {
             console.error("Delete failed", error);
             toast.error(error.response?.data?.detail || "Failed to delete file");
         }
-    };
+    }, [currentPage]);
 
     const handleUploadSuccess = () => {
         // Go to first page and refresh when new file is uploaded
         setCurrentPage(1);
-        fetchMaterials(1);
+        refetchMaterials(1);
     };
 
     const handlePageChange = (newPage: number) => {
@@ -96,62 +135,79 @@ const QuestionBankDetails: React.FC = () => {
         }
     };
 
-    const handleSort = (field: SortField) => {
-        if (sortField === field) {
-            // Toggle direction if same field
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            // New field, default to ascending
-            setSortField(field);
-            setSortDirection('asc');
-        }
+    const formatFileSize = (bytes: number): string => {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
     };
 
-    const sortedPdfs = useMemo(() => {
-        const sorted = [...pdfs].sort((a, b) => {
-            let aValue: any = a[sortField];
-            let bValue: any = b[sortField];
-
-            // Handle different data types
-            if (sortField === 'uploaded_at') {
-                aValue = new Date(aValue).getTime();
-                bValue = new Date(bValue).getTime();
-            } else if (sortField === 'file_size') {
-                aValue = Number(aValue);
-                bValue = Number(bValue);
-            } else {
-                // String comparison (case-insensitive)
-                aValue = String(aValue).toLowerCase();
-                bValue = String(bValue).toLowerCase();
-            }
-
-            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-            return 0;
+    const formatDate = (dateString: string): string => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
         });
-
-        return sorted;
-    }, [pdfs, sortField, sortDirection]);
-
-    const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
-        if (sortField !== field) {
-            return (
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
-            );
-        }
-
-        return sortDirection === 'asc' ? (
-            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-            </svg>
-        ) : (
-            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-        );
     };
+
+    // Define columns for DataTable
+    const columns = useMemo<ColumnDef<PdfFile>[]>(() => [
+        {
+            accessorKey: 'subject_name',
+            header: 'Subject',
+            cell: ({ row }) => (
+                <span className="font-medium text-slate-900">{row.original.subject_name}</span>
+            ),
+        },
+        {
+            accessorKey: 'original_filename',
+            header: 'File Name',
+            cell: ({ row }) => (
+                <span className="text-slate-700">{row.original.original_filename}</span>
+            ),
+        },
+        {
+            accessorKey: 'file_size',
+            header: 'Size',
+            cell: ({ row }) => (
+                <span className="text-slate-600">{formatFileSize(row.original.file_size)}</span>
+            ),
+        },
+        {
+            accessorKey: 'uploaded_at',
+            header: 'Uploaded',
+            cell: ({ row }) => (
+                <span className="text-slate-600">{formatDate(row.original.uploaded_at)}</span>
+            ),
+        },
+        {
+            accessorKey: 'file_status',
+            header: 'Status',
+            cell: ({ row }) => (
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    row.original.file_status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-slate-100 text-slate-800'
+                }`}>
+                    {row.original.file_status}
+                </span>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => (
+                <button
+                    onClick={() => handleDelete(row.original.id)}
+                    className="text-red-600 hover:text-red-800 font-medium text-sm transition-colors"
+                    title="Delete"
+                >
+                    Delete
+                </button>
+            ),
+        },
+    ], [handleDelete]);
 
     return (
         <div className="space-y-6">
@@ -184,91 +240,16 @@ const QuestionBankDetails: React.FC = () => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                                onClick={() => handleSort('subject_name')}
-                            >
-                                <div className="flex items-center gap-2">
-                                    Subject
-                                    <SortIcon field="subject_name" />
-                                </div>
-                            </th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                                onClick={() => handleSort('original_filename')}
-                            >
-                                <div className="flex items-center gap-2">
-                                    File Name
-                                    <SortIcon field="original_filename" />
-                                </div>
-                            </th>
-                            <th className="px-6 py-4">Description</th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                                onClick={() => handleSort('file_size')}
-                            >
-                                <div className="flex items-center gap-2">
-                                    Size
-                                    <SortIcon field="file_size" />
-                                </div>
-                            </th>
-                            <th className="px-6 py-4">Status</th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                                onClick={() => handleSort('uploaded_at')}
-                            >
-                                <div className="flex items-center gap-2">
-                                    Upload Date
-                                    <SortIcon field="uploaded_at" />
-                                </div>
-                            </th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">Loading...</td></tr>
-                        ) : sortedPdfs.length === 0 ? (
-                            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">No PDFs uploaded yet.</td></tr>
-                        ) : (
-                            sortedPdfs.map(pdf => (
-                                <tr key={pdf.id} className="hover:bg-slate-50">
-                                    <td className="px-6 py-4 text-slate-900 font-medium">{pdf.subject_name}</td>
-                                    <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                                        </svg>
-                                        {pdf.original_filename}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-500 max-w-xs truncate" title={pdf.description}>{pdf.description || '-'}</td>
-                                    <td className="px-6 py-4 text-slate-500">{(pdf.file_size / 1024).toFixed(1)} KB</td>
-                                    <td className="px-6 py-4">
-                                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                                            {pdf.file_status || 'Uploaded'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-500">{new Date(pdf.uploaded_at).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button
-                                            onClick={() => handleDelete(pdf.id)}
-                                            className="text-slate-400 hover:text-red-600 transition-colors"
-                                            title="Delete File"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            {/* DataTable */}
+            <DataTable
+                columns={columns}
+                data={pdfs}
+                isLoading={loading}
+                emptyMessage="No PDFs uploaded yet."
+                sorting={sorting}
+                onSortingChange={setSorting}
+                manualSorting={false}
+            />
 
             {/* Pagination Controls */}
             {!loading && totalPages > 1 && (

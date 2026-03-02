@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { ColumnDef } from '@tanstack/react-table';
+import { DataTable } from '../../components/DataTable';
 import api from '../../api/axios';
+import { PAGINATION_CONFIG } from '../../config/pagination';
 import toast from 'react-hot-toast';
-import PAGINATION_CONFIG from '../../config/pagination';
 
 interface ClassOption {
     id: number;
@@ -24,12 +27,14 @@ interface Student {
 }
 
 const TeacherGrading: React.FC = () => {
+    const navigate = useNavigate();
     const [classes, setClasses] = useState<ClassOption[]>([]);
     const [subjects, setSubjects] = useState<SubjectOption[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
 
     const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
+    const [error, setError] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [fetchingStudents, setFetchingStudents] = useState(false);
     const [maxPageSize, setMaxPageSize] = useState(PAGINATION_CONFIG.MAX_PAGE_SIZE);
@@ -49,7 +54,7 @@ const TeacherGrading: React.FC = () => {
                     setMaxPageSize(settingsRes.data.pagination.max_page_size);
                 }
             } catch (error) {
-                console.error("Failed to fetch teacher data", error);
+               toast.error("Failed to load teacher data. Please refresh the page or contact support.");
             } finally {
                 setLoading(false);
             }
@@ -59,13 +64,14 @@ const TeacherGrading: React.FC = () => {
 
     const handleShowStudents = async () => {
         if (!selectedClassId) {
-            toast.error("Please select a class first.");
+            setError("Please select a class first.");
             return;
         }
         if (!selectedSubjectId) {
-            toast.error("Please select a subject.");
+            setError("Please select a subject.");
             return;
         }
+        setError('');
 
         try {
             setFetchingStudents(true);
@@ -78,15 +84,93 @@ const TeacherGrading: React.FC = () => {
             });
             setStudents(response.data.items || []);
         } catch (error) {
-            console.error("Failed to fetch students", error);
-            toast.error("Failed to fetch students.");
+            toast.error("Failed to load students. Please try again.");
+            setStudents([]);
         } finally {
             setFetchingStudents(false);
         }
     };
 
+    // Helper functions for avatar rendering
+    const getInitials = (name: string) => {
+        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    };
+
+    const getAvatarColor = (id: number) => {
+        const colors = [
+            'bg-gradient-to-br from-blue-500 to-cyan-500',
+            'bg-gradient-to-br from-purple-500 to-pink-500',
+            'bg-gradient-to-br from-green-500 to-emerald-500',
+            'bg-gradient-to-br from-orange-500 to-red-500',
+            'bg-gradient-to-br from-indigo-500 to-purple-500',
+            'bg-gradient-to-br from-pink-500 to-rose-500'
+        ];
+        return colors[id % colors.length];
+    };
+
+    // Column Definitions for DataTable
+    const studentColumns = useMemo<ColumnDef<Student>[]>(() => [
+        {
+            accessorKey: 'name',
+            header: 'Student Info',
+            cell: ({ row }) => (
+                <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-xl ${getAvatarColor(row.original.id)} flex items-center justify-center text-white font-bold text-sm shadow-lg group-hover:scale-110 transition-transform`}>
+                        {getInitials(row.original.name)}
+                    </div>
+                    <div>
+                        <div className="font-bold text-slate-900 text-lg">{row.original.name}</div>
+                        <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                            ID: {row.original.id}
+                        </div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            id: 'actions',
+            header: 'Actions',
+            cell: ({ row }) => (
+                <div className="flex items-center justify-center gap-3">
+                    <button
+                        onClick={() => navigate(`/teacher/grading/${row.original.id}`)}
+                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2 transform hover:scale-105"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        Grade Assignments
+                    </button>
+                </div>
+            ),
+        },
+    ], [navigate]);
+
     return (
         <div className="space-y-8">
+            {/* Error Message */}
+            {error && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+                    <div className="flex items-center">
+                        <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-red-700 font-medium">{error}</p>
+                        <button 
+                            onClick={() => setError('')}
+                            className="ml-auto text-red-500 hover:text-red-700"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            )}
+            
             {/* Enhanced Header */}
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100">
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Grading Dashboard</h1>
@@ -135,7 +219,7 @@ const TeacherGrading: React.FC = () => {
                                         </svg>
                                     </div>
                                 )}
-                                <div className="text-3xl font-bold text-slate-800 mb-1">{cls.name}</div>
+                                <div className="text-xl font-bold text-slate-800 mb-1">{cls.name}</div>
                                 <div className="text-sm font-semibold text-indigo-600">Section {cls.section}</div>
                                 {cls.grade && <div className="text-xs text-slate-500 mt-2 bg-slate-100 px-2 py-1 rounded-full inline-block">{cls.grade.name}</div>}
                             </div>
@@ -158,7 +242,10 @@ const TeacherGrading: React.FC = () => {
                     <div className="flex gap-4">
                         <select
                             value={selectedSubjectId}
-                            onChange={(e) => setSelectedSubjectId(Number(e.target.value))}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setSelectedSubjectId(value === '' ? '' : Number(value));
+                            }}
                             className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-medium"
                         >
                             <option value="">Choose Subject...</option>
@@ -213,76 +300,12 @@ const TeacherGrading: React.FC = () => {
                         </div>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4 text-left">
-                                        <div className="flex items-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                            </svg>
-                                            Student Info
-                                        </div>
-                                    </th>
-                                    <th className="px-6 py-4 text-center">
-                                        <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                                            </svg>
-                                            Actions
-                                        </div>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {students.map((student) => {
-                                    const initials = student.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-                                    const colors = [
-                                        'bg-gradient-to-br from-blue-500 to-cyan-500',
-                                        'bg-gradient-to-br from-purple-500 to-pink-500',
-                                        'bg-gradient-to-br from-green-500 to-emerald-500',
-                                        'bg-gradient-to-br from-orange-500 to-red-500',
-                                        'bg-gradient-to-br from-indigo-500 to-purple-500',
-                                        'bg-gradient-to-br from-pink-500 to-rose-500'
-                                    ];
-                                    const avatarColor = colors[student.id % colors.length];
-
-                                    return (
-                                        <tr key={student.id} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all group">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 rounded-xl ${avatarColor} flex items-center justify-center text-white font-bold text-sm shadow-lg group-hover:scale-110 transition-transform`}>
-                                                        {initials}
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold text-slate-900 text-lg">{student.name}</div>
-                                                        <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                                            </svg>
-                                                            ID: {student.id}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center justify-center gap-3">
-                                                    <a
-                                                        href={`/grading/${student.id}`}
-                                                        className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center gap-2 transform hover:scale-105"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                                                        </svg>
-                                                        Grade Assignments
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                        <DataTable
+                            data={students}
+                            columns={studentColumns}
+                            isLoading={fetchingStudents}
+                            emptyMessage="No students found. Please select a class and subject."
+                        />
                     </div>
                 </div>
             )}

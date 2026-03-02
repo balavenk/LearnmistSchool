@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import axios from 'axios';
 
 const Settings: React.FC = () => {
     // const [schools, setSchools] = useState<any[]>([]); // No longer needed
@@ -14,52 +16,89 @@ const Settings: React.FC = () => {
 
     const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        fetchUserInfo();
-    }, []);
-
-    const fetchUserInfo = async () => {
+    const fetchUserInfo = useCallback(async (signal?: AbortSignal) => {
         try {
-            const res = await api.get('/auth/me');
+            const res = await api.get('/auth/me', { signal });
             if (res.data.school_id) {
                 setSchoolId(res.data.school_id);
                 // Optionally fetch school details if we want to show name
                 // For "Individual", we know it's Individual, but being dynamic is better.
                 // We'll skip name fetch for now or trust it's set.
             }
-        } catch (err) {
+        } catch (err: any) {
+            if (axios.isCancel(err) || err?.code === 'ERR_CANCELED') return;
             console.error("Failed to fetch user info", err);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const loadUserInfo = async () => {
+            await fetchUserInfo(abortController.signal);
+        };
+
+        loadUserInfo();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
+    }, [fetchUserInfo]);
 
     // When school changes (loaded), fetch grades
     useEffect(() => {
-        if (schoolId) {
-            const fetchGrades = async () => {
-                try {
-                    const res = await api.get(`/individual/schools/${schoolId}/grades`);
-                    setGrades(res.data);
-                } catch (err) { console.error(err); }
-            };
-            fetchGrades();
-        }
+        if (!schoolId) return;
+
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchGrades = async () => {
+            try {
+                const res = await api.get(`/individual/schools/${schoolId}/grades`, { signal: abortController.signal });
+                if (isMounted) setGrades(res.data);
+            } catch (err: any) {
+                if (axios.isCancel(err) || err?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error(err);
+            }
+        };
+
+        fetchGrades();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, [schoolId]);
 
     // When grade changes, fetch classes
     useEffect(() => {
-        if (schoolId && selectedGrade) {
-            const fetchClasses = async () => {
-                try {
-                    const res = await api.get(`/individual/schools/${schoolId}/grades/${selectedGrade}/classes`);
-                    setClasses(res.data);
-                } catch (err) { console.error(err); }
-            };
-            fetchClasses();
-        }
+        if (!schoolId || !selectedGrade) return;
+
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchClasses = async () => {
+            try {
+                const res = await api.get(`/individual/schools/${schoolId}/grades/${selectedGrade}/classes`, { signal: abortController.signal });
+                if (isMounted) setClasses(res.data);
+            } catch (err: any) {
+                if (axios.isCancel(err) || err?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error(err);
+            }
+        };
+
+        fetchClasses();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, [selectedGrade, schoolId]);
 
 
-    const handleSave = async () => {
+    const handleSave = useCallback(async () => {
         if (!schoolId || !selectedGrade) return;
         setIsLoading(true);
         try {
@@ -70,14 +109,14 @@ const Settings: React.FC = () => {
                     class_id: selectedClass || null
                 }
             });
-            alert("Settings saved successfully!");
+            toast.success("Settings saved successfully!");
         } catch (err) {
             console.error(err);
-            alert("Failed to save settings.");
+            toast.error("Failed to save settings.");
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [schoolId, selectedGrade, selectedClass]);
 
     return (
         <div className="p-6">

@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../../api/axios';
-import { toast } from 'react-hot-toast';
+import axios from 'axios';
+import { DataTable } from '../../components/DataTable';
 
 interface Assignment {
     id: number;
@@ -37,42 +40,70 @@ const TeacherClasses: React.FC = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                const [assignmentsRes, teachersRes] = await Promise.all([
+                    api.get(`/school-admin/teachers/${id}/assignments`, { signal: abortController.signal }),
+                    api.get('/school-admin/teachers/', { signal: abortController.signal })
+                ]);
+
+                if (isMounted) {
+                    setAssignments(assignmentsRes.data);
+                    const teacher = teachersRes.data.find((t: any) => t.id === Number(id));
+                    if (teacher) setTeacherName(teacher.username);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error("Failed to fetch assignments", error);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        const fetchOptions = async () => {
+            try {
+                const [gRes, cRes, sRes] = await Promise.all([
+                    api.get('/school-admin/grades/', { signal: abortController.signal }),
+                    api.get('/school-admin/classes/', { signal: abortController.signal }),
+                    api.get('/school-admin/subjects/', { signal: abortController.signal })
+                ]);
+                if (isMounted) {
+                    setGrades(gRes.data);
+                    setClasses(cRes.data);
+                    setSubjects(sRes.data);
+                }
+            } catch (error: any) {
+                if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+                if (isMounted) console.error("Failed to fetch options", error);
+            }
+        };
+
         fetchData();
         fetchOptions();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, [id]);
 
-    const fetchData = async () => {
+    // Refetch function for use after mutations
+    const refetchData = async () => {
         try {
-            setLoading(true);
-            // Ideally we also fetch teacher details to show name
             const [assignmentsRes, teachersRes] = await Promise.all([
                 api.get(`/school-admin/teachers/${id}/assignments`),
-                api.get('/school-admin/teachers/') // Lazy way to get name, optimization possible
+                api.get('/school-admin/teachers/')
             ]);
-
             setAssignments(assignmentsRes.data);
             const teacher = teachersRes.data.find((t: any) => t.id === Number(id));
             if (teacher) setTeacherName(teacher.username);
-
-        } catch (error) {
-            console.error("Failed to fetch assignments", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchOptions = async () => {
-        try {
-            const [gRes, cRes, sRes] = await Promise.all([
-                api.get('/school-admin/grades/'),
-                api.get('/school-admin/classes/'),
-                api.get('/school-admin/subjects/')
-            ]);
-            setGrades(gRes.data);
-            setClasses(cRes.data);
-            setSubjects(sRes.data);
-        } catch (error) {
-            console.error("Failed to fetch options", error);
+        } catch (error: any) {
+            if (axios.isCancel(error) || error?.code === 'ERR_CANCELED') return;
+            console.error("Failed to refetch assignments", error);
         }
     };
 
@@ -84,7 +115,7 @@ const TeacherClasses: React.FC = () => {
                 class_id: selectedClass ? Number(selectedClass) : null,
                 subject_id: Number(selectedSubject)
             });
-            fetchData();
+            refetchData();
             setIsAddModalOpen(false);
             setSelectedGrade(''); setSelectedClass(''); setSelectedSubject('');
         } catch (error) {
@@ -94,9 +125,10 @@ const TeacherClasses: React.FC = () => {
     };
 
     const handleDelete = async (assignmentId: number) => {
-        if (!confirm("Remove this class assignment?")) return;
+        // Non-blocking - removed confirm() to prevent navigation blocking
         try {
             await api.delete(`/school-admin/assignments/${assignmentId}`);
+            toast.success('Class assignment removed');
             setAssignments(prev => prev.filter(a => a.id !== assignmentId));
         } catch (error) {
             console.error("Failed to delete", error);
@@ -106,6 +138,50 @@ const TeacherClasses: React.FC = () => {
     // Filter classes by grade
     // const availableClasses = classes.filter(c => c.grade_id === Number(selectedGrade));
     // Actually schema for Class has grade_id
+
+    // DataTable Columns
+    const columns = useMemo<ColumnDef<Assignment>[]>(
+        () => [
+            {
+                accessorKey: 'grade.name',
+                header: 'Grade',
+                cell: ({ row }) => (
+                    <span className="text-slate-900 font-medium">{row.original.grade?.name || 'N/A'}</span>
+                ),
+            },
+            {
+                accessorKey: 'class_.name',
+                header: 'Class / Section',
+                cell: ({ row }) => (
+                    <span className="text-slate-500">
+                        {row.original.class_ ? `${row.original.class_.name} (${row.original.class_.section})` : 'All Classes'}
+                    </span>
+                ),
+            },
+            {
+                accessorKey: 'subject.name',
+                header: 'Subject',
+                cell: ({ row }) => (
+                    <span className="text-slate-700">{row.original.subject?.name || 'N/A'}</span>
+                ),
+            },
+            {
+                id: 'actions',
+                header: 'Actions',
+                cell: ({ row }) => (
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => handleDelete(row.original.id)}
+                            className="text-red-600 hover:text-red-800 font-medium text-xs"
+                        >
+                            Remove
+                        </button>
+                    </div>
+                ),
+            },
+        ],
+        []
+    );
 
     return (
         <div className="space-y-6">
@@ -122,42 +198,13 @@ const TeacherClasses: React.FC = () => {
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                        <tr>
-                            <th className="px-6 py-4">Grade</th>
-                            <th className="px-6 py-4">Class / Section</th>
-                            <th className="px-6 py-4">Subject</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={4} className="text-center py-8">Loading...</td></tr>
-                        ) : assignments.map(a => (
-                            <tr key={a.id} className="hover:bg-slate-50">
-                                <td className="px-6 py-4 text-slate-900 font-medium">{a.grade?.name || 'N/A'}</td>
-                                <td className="px-6 py-4 text-slate-500">
-                                    {a.class_ ? `${a.class_.name} (${a.class_.section})` : 'All Classes'}
-                                </td>
-                                <td className="px-6 py-4 text-slate-700">{a.subject?.name || 'N/A'}</td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => handleDelete(a.id)}
-                                        className="text-red-600 hover:text-red-800 font-medium text-xs"
-                                    >
-                                        Remove
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                        {!loading && assignments.length === 0 && (
-                            <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No classes assigned yet.</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            {/* DataTable */}
+            <DataTable
+                columns={columns}
+                data={assignments}
+                isLoading={loading}
+                emptyMessage="No classes assigned yet."
+            />
 
             {/* Modal */}
             {isAddModalOpen && (

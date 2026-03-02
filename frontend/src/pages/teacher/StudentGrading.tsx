@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ArrowLeft, User } from 'lucide-react';
 import api from '../../api/axios';
 
 interface Assignment {

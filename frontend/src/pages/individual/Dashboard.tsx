@@ -11,16 +11,33 @@ const Dashboard: React.FC = () => {
     const username = localStorage.getItem('username');
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
         // Fetch stats if available, or just mock for now/use list length
         const fetchStats = async () => {
             try {
-                const res = await api.get('/individual/quizzes');
-                setStats(s => ({ ...s, totalQuizzes: res.data.length }));
-            } catch (err) {
+                const res = await api.get('/individual/quizzes', {
+                    signal: abortController.signal
+                });
+                if (isMounted) {
+                    setStats(s => ({ ...s, totalQuizzes: res.data.length }));
+                }
+            } catch (err: any) {
+                if (err.name === 'AbortError' || err.name === 'CanceledError') {
+                    // Silently ignore canceled requests (navigation away from page)
+                    return;
+                }
                 console.error(err);
             }
         };
+        
         fetchStats();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
     return (

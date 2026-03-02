@@ -24,18 +24,36 @@ const TeacherDashboard: React.FC = () => {
     const username = localStorage.getItem('username') || 'Teacher';
 
     useEffect(() => {
+        const abortController = new AbortController();
+        let isMounted = true;
+
         const fetchStats = async () => {
             try {
-                const res = await api.get('/teacher/dashboard/stats');
-                setStats(res.data);
-            } catch (error) {
+                const res = await api.get('/teacher/dashboard/stats', {
+                    signal: abortController.signal
+                });
+                if (isMounted) {
+                    setStats(res.data);
+                }
+            } catch (error: any) {
+                if (error.name === 'AbortError' || error.name === 'CanceledError') {
+                    // Silently ignore canceled requests (navigation away from page)
+                    return;
+                }
                 console.error("Failed to fetch dashboard stats", error);
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchStats();
+
+        return () => {
+            isMounted = false;
+            abortController.abort();
+        };
     }, []);
 
     if (loading) {
