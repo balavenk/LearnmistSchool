@@ -136,7 +136,8 @@ const QuizDetails: React.FC = () => {
     const renderOptions = (q: Question) => {
         if (q.question_type === 'SHORT_ANSWER') {
             const correct = q.options.find(o => o.is_correct);
-            return <p className="text-sm text-green-600">Answer: {correct ? correct.text : 'N/A'}</p>;
+            if (!includeAnswers) return null;
+            return <p className="text-sm text-green-600 font-medium mt-2">Correct Answer: {correct ? correct.text : ''}</p>;
         }
         return (
             <ul className="list-disc pl-5 mt-2 space-y-1">
@@ -151,37 +152,36 @@ const QuizDetails: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            {/* Print Styles */}
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                @media print {
-                    nav, sidebar, aside, footer, .no-print, button, .flex.gap-2, .print-toggle {
-                        display: none !important;
-                    }
-                    .max-w-4xl {
-                        max-width: 100% !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                    }
-                    body {
-                        background: white !important;
-                        color: black !important;
-                    }
-                    .bg-white {
-                        box-shadow: none !important;
-                        border: 1px solid #e2e8f0 !important;
-                        margin-bottom: 1rem !important;
-                    }
-                    .text-slate-500, .text-slate-400 {
-                        color: #64748b !important;
-                    }
-                    /* Ensure text is black for clarity */
-                    h1, h3, p, li {
-                        color: black !important;
-                    }
-                }
-            `}} />
-            <div className="flex justify-between items-center">
+
+            {/* Print Only Header */}
+            <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold uppercase tracking-wider">Learnmist School</h1>
+                        <p className="text-sm text-slate-600">Official Assessment Paper</p>
+                    </div>
+                    <div className="text-right">
+                        <h2 className="text-xl font-semibold">Quiz Assessment</h2>
+                        <p className="text-sm text-slate-500">Assignment ID: {assignmentId}</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-3 gap-8 border-t border-slate-100 pt-6">
+                    <div className="border-b border-slate-300 pb-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Student Name:</span>
+                        <div className="h-6"></div>
+                    </div>
+                    <div className="border-b border-slate-300 pb-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Grade / Section:</span>
+                        <div className="h-6"></div>
+                    </div>
+                    <div className="border-b border-slate-300 pb-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Date:</span>
+                        <div className="h-6"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex justify-between items-center no-print">
                 <div className="print-header">
                     <button onClick={() => navigate('/teacher/assignments')} className="text-slate-500 hover:text-slate-800 mb-2 no-print">← Back to Assignments</button>
                     <h1 className="text-3xl font-bold text-slate-900">Quiz Content</h1>
