@@ -6,6 +6,7 @@ import UploadMaterialModal from '../../components/UploadMaterialModal';
 import api from '../../api/axios';
 import axios from 'axios';
 import { DataTable } from '../../components/DataTable';
+import PAGINATION_CONFIG from '../../config/pagination';
 
 interface PdfFile {
     id: number;
@@ -35,7 +36,7 @@ const QuestionBankDetails: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-    const pageSize = 10;
+    const pageSize = PAGINATION_CONFIG.TRAINING_FILES_PER_PAGE;
 
     // Sorting state for DataTable
     const [sorting, setSorting] = useState<SortingState>([{
@@ -185,11 +186,10 @@ const QuestionBankDetails: React.FC = () => {
             accessorKey: 'file_status',
             header: 'Status',
             cell: ({ row }) => (
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    row.original.file_status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-slate-100 text-slate-800'
-                }`}>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${row.original.file_status === 'active'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-slate-100 text-slate-800'
+                    }`}>
                     {row.original.file_status}
                 </span>
             ),

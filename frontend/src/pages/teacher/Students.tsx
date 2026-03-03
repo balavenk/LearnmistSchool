@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls'
 import api from '../../api/axios';
 import PAGINATION_CONFIG from '../../config/pagination';
 
@@ -23,6 +24,10 @@ interface Student {
     name: string;
     grade_id: number;
     class_id: number | null;
+    assigned_count?: number;
+    completed_count?: number;
+    graded_count?: number;
+    pending_count?: number;
 }
 
 interface PaginatedStudents {
@@ -70,15 +75,13 @@ const Students: React.FC = () => {
 
     // ✅ Store unfiltered stats for header display (won't change with filters)
     const [unfilteredTotalCount, setUnfilteredTotalCount] = useState(0);
-    const [unfilteredGradeStats, setUnfilteredGradeStats] = useState<{grade: string, count: number}[]>([]);
+    const [unfilteredGradeStats, setUnfilteredGradeStats] = useState<{ grade: string, count: number }[]>([]);
 
     // Form State
     const [newName, setNewName] = useState('');
     const [newEmail, setNewEmail] = useState('');
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
-
-    // Remove ITEMS_PER_PAGE as it's now coming from backend
 
     // Helpers
     const getGradeName = (id: number) => grades.find(g => g.id === id)?.name || 'Unknown';
@@ -153,11 +156,31 @@ const Students: React.FC = () => {
             ),
         },
         {
+            accessorKey: 'assigned_count',
+            header: () => <div className="text-center">Assigned</div>,
+            cell: ({ row }) => <div className="text-center font-bold text-slate-700">{row.original.assigned_count || 0}</div>,
+        },
+        {
+            accessorKey: 'completed_count',
+            header: () => <div className="text-center">Completed</div>,
+            cell: ({ row }) => <div className="text-center font-bold text-emerald-600">{row.original.completed_count || 0}</div>,
+        },
+        {
+            accessorKey: 'graded_count',
+            header: () => <div className="text-center">Graded</div>,
+            cell: ({ row }) => <div className="text-center font-bold text-purple-600">{row.original.graded_count || 0}</div>,
+        },
+        {
+            accessorKey: 'pending_count',
+            header: () => <div className="text-center">Pending</div>,
+            cell: ({ row }) => <div className="text-center font-bold text-amber-600">{row.original.pending_count || 0}</div>,
+        },
+        {
             id: 'actions',
-            header: 'Actions',
+            header: () => <div className="text-center">Actions</div>,
             cell: ({ row }) => (
                 <div className="flex items-center justify-center gap-2">
-                    <button 
+                    <button
                         onClick={() => navigate(`/teacher/grading/${row.original.id}`)}
                         className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center gap-1.5"
                     >
@@ -170,6 +193,64 @@ const Students: React.FC = () => {
             ),
         },
     ], [navigate, grades, classes]);
+
+    const mobileCardRender = useCallback((student: Student) => (
+        <div key={student.id} className="space-y-4">
+            <div className="flex items-start gap-4">
+                <div className={`w-16 h-16 rounded-2xl ${getAvatarColor(student.id)} flex items-center justify-center text-white font-bold text-xl shadow-lg`}>
+                    {getInitials(student.name)}
+                </div>
+                <div className="flex-1">
+                    <h3 className="text-lg font-bold text-slate-900 mb-1">{student.name}</h3>
+                    <div className="text-xs text-slate-500 font-medium">Student ID: {student.id}</div>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600 font-medium">Grade</span>
+                    <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${getGradeColor(getGradeName(student.grade_id))}`}>
+                        {getGradeName(student.grade_id)}
+                    </span>
+                </div>
+                <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-600 font-medium">Class</span>
+                    <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
+                        {getClassName(student.class_id)}
+                    </span>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+                <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
+                    <div className="text-xl font-black text-slate-700">{student.assigned_count || 0}</div>
+                    <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Assigned</div>
+                </div>
+                <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100">
+                    <div className="text-xl font-black text-emerald-600">{student.completed_count || 0}</div>
+                    <div className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">Completed</div>
+                </div>
+                <div className="bg-purple-50 rounded-xl p-3 text-center border border-purple-100">
+                    <div className="text-xl font-black text-purple-600">{student.graded_count || 0}</div>
+                    <div className="text-[10px] uppercase font-bold text-purple-600 tracking-wider">Graded</div>
+                </div>
+                <div className="bg-amber-50 rounded-xl p-3 text-center border border-amber-100">
+                    <div className="text-xl font-black text-amber-600">{student.pending_count || 0}</div>
+                    <div className="text-[10px] uppercase font-bold text-amber-600 tracking-wider">Pending</div>
+                </div>
+            </div>
+
+            <button
+                onClick={() => navigate(`/teacher/grading/${student.id}`)}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-3 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+            >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                View Assignments
+            </button>
+        </div>
+    ), [navigate, grades, classes]);
 
     // No filtering needed - backend handles it
     const processedStudents = useMemo(() => {
@@ -186,7 +267,7 @@ const Students: React.FC = () => {
         }
 
         const endTime = performance.now();
-        console.log(`✅ processedStudents completed in ${(endTime - startTime).toFixed(2)}ms, result count:`, result.length);
+        console.log(`✅ processedStudents completed in ${(endTime - startTime).toFixed(2)} ms, result count: `, result.length);
         return result;
     }, [students, searchQuery]);
 
@@ -225,17 +306,17 @@ const Students: React.FC = () => {
     }, [filters.grade_id, filters.class_id]); // ✅ Removed 'classes' to prevent unnecessary re-runs
 
     // ✅ Memoized fetchData with useCallback to prevent recreation on every render
-    const fetchData = useCallback(async (page: number = 1) => {
+    const fetchData = useCallback(async (page: number = 1, size: number = pageSize) => {
         console.log('🌐 fetchData called for page:', page, 'with filters:', filters);
         try {
             setLoading(true);
-            
+
             // Build query params with filters
             const params = new URLSearchParams({
                 page: page.toString(),
-                page_size: pageSize.toString()
+                page_size: size.toString()
             });
-            
+
             // Add filters to query params
             if (filters.grade_id) {
                 params.append('grade_id', filters.grade_id);
@@ -243,12 +324,12 @@ const Students: React.FC = () => {
             if (filters.class_id) {
                 params.append('class_id', filters.class_id);
             }
-            
+
             console.log('📤 API call with params:', params.toString());
-            
+
             // Fetch students with filters
             const studentsRes = await api.get<PaginatedStudents>(`/teacher/students/?${params.toString()}`);
-            
+
             // Update students from paginated response
             console.log('✅ fetchData response:', {
                 itemsCount: studentsRes.data.items.length,
@@ -278,36 +359,36 @@ const Students: React.FC = () => {
                     api.get('/teacher/grades/'),
                     api.get('/teacher/classes/')
                 ]);
-                
+
                 console.log('✅ Initial data loaded:', {
                     pageSize: settingsRes.data.pagination?.default_page_size,
                     gradesCount: gradesRes.data.length,
                     classesCount: classesRes.data.length
                 });
-                
+
                 // Update state ONCE
                 if (settingsRes.data.pagination?.default_page_size) {
                     setPageSize(settingsRes.data.pagination.default_page_size);
                 }
                 setGrades(gradesRes.data);
                 setClasses(classesRes.data);
-                
+
                 // ✅ Fetch unfiltered student stats for header cards
-                const statsRes = await api.get<PaginatedStudents>('/teacher/students/?page=1&page_size=1000'); // Get all students
+                const statsRes = await api.get<PaginatedStudents>(`/teacher/students/?page=1&page_size=${PAGINATION_CONFIG.DEFAULT_PAGE_SIZE}`); // Get configured number of students for stats
                 const allStudents = statsRes.data.items;
                 const totalStudentsCount = statsRes.data.total;
-                
+
                 // Calculate grade breakdown from all students
                 const gradeStats = gradesRes.data.map((grade: Grade) => ({
                     grade: grade.name,
                     count: allStudents.filter(s => s.grade_id === grade.id).length
                 }));
-                
+
                 console.log('✅ Unfiltered stats calculated:', {
                     totalStudents: totalStudentsCount,
                     gradeStats
                 });
-                
+
                 setUnfilteredTotalCount(totalStudentsCount);
                 setUnfilteredGradeStats(gradeStats);
                 setSettingsLoaded(true);
@@ -326,8 +407,8 @@ const Students: React.FC = () => {
             return;
         }
         console.log('🔄 useEffect: Fetching students', { currentPage, grade_id: filters.grade_id, class_id: filters.class_id });
-        fetchData(currentPage);
-    }, [currentPage, filters.grade_id, filters.class_id, settingsLoaded, fetchData]); // ✅ Proper dependencies
+        fetchData(currentPage, pageSize);
+    }, [currentPage, filters.grade_id, filters.class_id, settingsLoaded, fetchData, pageSize]); // ✅ Proper dependencies
 
     // Missing handlers
     const closeModal = () => {
@@ -353,12 +434,6 @@ const Students: React.FC = () => {
         } catch (error) {
             console.error("Failed to create student", error);
             toast.error("Failed to create student");
-        }
-    };
-
-    const handlePageChange = (newPage: number) => {
-        if (newPage >= 1 && newPage <= totalPages) {
-            setCurrentPage(newPage);
         }
     };
 
@@ -448,10 +523,10 @@ const Students: React.FC = () => {
                     <div className="flex gap-2 bg-white rounded-xl p-1.5 shadow-sm border border-indigo-100">
                         <button
                             onClick={() => setViewMode('table')}
-                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${viewMode === 'table'
-                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
-                                    : 'text-slate-600 hover:bg-slate-50'
-                                }`}
+                            className={`px - 4 py - 2 rounded - lg font - semibold text - sm transition - all flex items - center gap - 2 ${viewMode === 'table'
+                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                                : 'text-slate-600 hover:bg-slate-50'
+                                } `}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -460,10 +535,10 @@ const Students: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setViewMode('cards')}
-                            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${viewMode === 'cards'
-                                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
-                                    : 'text-slate-600 hover:bg-slate-50'
-                                }`}
+                            className={`px - 4 py - 2 rounded - lg font - semibold text - sm transition - all flex items - center gap - 2 ${viewMode === 'cards'
+                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                                : 'text-slate-600 hover:bg-slate-50'
+                                } `}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -612,62 +687,21 @@ const Students: React.FC = () => {
                         columns={studentColumns}
                         isLoading={loading}
                         emptyMessage={
-                            hasActiveFilters 
-                                ? 'No students found. Try adjusting your filters.' 
+                            hasActiveFilters
+                                ? 'No students found. Try adjusting your filters.'
                                 : 'No students found. Add your first student to get started.'
                         }
+                        mobileCardRender={mobileCardRender}
                     />
 
-                    {/* Enhanced Pagination */}
-                    {totalPages > 1 && pageSize && (
-                        <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-t-2 border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <div className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                                <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                                Showing <span className="text-indigo-600">{processedStudents.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to <span className="text-indigo-600">{Math.min(currentPage * pageSize, hasActiveFilters ? processedStudents.length : totalCount)}</span> of <span className="text-indigo-600">{hasActiveFilters ? `${processedStudents.length} filtered` : totalCount}</span> students
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => handlePageChange(1)}
-                                    disabled={currentPage === 1}
-                                    className="px-3 py-2 text-sm font-semibold text-slate-700 bg-white border-2 border-slate-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                                    title="First Page"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                                    </svg>
-                                </button>
-                                <button
-                                    disabled={currentPage === 1}
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    className="px-4 py-2 border-2 border-slate-300 rounded-lg text-sm font-semibold bg-white hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                                >
-                                    Previous
-                                </button>
-                                <span className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-sm font-bold shadow-md">
-                                    Page {currentPage} of {totalPages}
-                                </span>
-                                <button
-                                    disabled={currentPage === totalPages}
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    className="px-4 py-2 border-2 border-slate-300 rounded-lg text-sm font-semibold bg-white hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                                >
-                                    Next
-                                </button>
-                                <button
-                                    onClick={() => handlePageChange(totalPages)}
-                                    disabled={currentPage === totalPages}
-                                    className="px-3 py-2 text-sm font-semibold text-slate-700 bg-white border-2 border-slate-300 rounded-lg hover:bg-indigo-50 hover:border-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                                    title="Last Page"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                    <PaginationControls
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={hasActiveFilters ? processedStudents.length : totalCount}
+                        itemsPerPage={pageSize}
+                        onPageChange={setCurrentPage}
+                        isLoading={loading}
+                    />
                 </div>
             ) : (
                 /* Card View */
@@ -680,7 +714,7 @@ const Students: React.FC = () => {
                     ) : processedStudents.map((student) => (
                         <div key={student.id} className="group bg-white rounded-2xl shadow-md border-2 border-slate-200 hover:border-indigo-300 p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                             <div className="flex items-start gap-4 mb-4">
-                                <div className={`w-16 h-16 rounded-2xl ${getAvatarColor(student.id)} flex items-center justify-center text-white font-bold text-xl shadow-lg group-hover:scale-110 transition-transform`}>
+                                <div className={`w - 16 h - 16 rounded - 2xl ${getAvatarColor(student.id)} flex items - center justify - center text - white font - bold text - xl shadow - lg group - hover: scale - 110 transition - transform`}>
                                     {getInitials(student.name)}
                                 </div>
                                 <div className="flex-1">
@@ -697,7 +731,7 @@ const Students: React.FC = () => {
                                         </svg>
                                         Grade
                                     </span>
-                                    <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${getGradeColor(getGradeName(student.grade_id))}`}>
+                                    <span className={`px - 3 py - 1 rounded - lg text - xs font - bold border ${getGradeColor(getGradeName(student.grade_id))} `}>
                                         {getGradeName(student.grade_id)}
                                     </span>
                                 </div>
@@ -713,9 +747,25 @@ const Students: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
-                            
-                            <button 
-                                onClick={() => navigate(`/teacher/grading/${student.id}`)}
+
+                            {/* Analytics Grid */}
+                            <div className="grid grid-cols-3 gap-2 mb-5">
+                                <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100 hover:border-slate-300 transition-colors">
+                                    <div className="text-xl font-black text-slate-700">{student.assigned_count || 0}</div>
+                                    <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Assigned</div>
+                                </div>
+                                <div className="bg-emerald-50 rounded-xl p-3 text-center border border-emerald-100 hover:border-emerald-300 transition-colors">
+                                    <div className="text-xl font-black text-emerald-600">{student.completed_count || 0}</div>
+                                    <div className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider">Completed</div>
+                                </div>
+                                <div className="bg-purple-50 rounded-xl p-3 text-center border border-purple-100 hover:border-purple-300 transition-colors">
+                                    <div className="text-xl font-black text-purple-600">{student.graded_count || 0}</div>
+                                    <div className="text-[10px] uppercase font-bold text-purple-600 tracking-wider">Graded</div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => navigate(`/ teacher / grading / ${student.id} `)}
                                 className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-3 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

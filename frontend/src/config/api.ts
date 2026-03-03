@@ -18,8 +18,11 @@ if (!import.meta.env.VITE_WS_URL) {
  * API Configuration Object
  */
 export const API_CONFIG = {
-    /** Base URL for REST API calls */
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+    /** Base URL for REST API calls 
+     * In development, we use an empty string to leverage Vite's proxy (avoiding CORS).
+     * In production, this can be overridden by VITE_API_URL.
+     */
+    baseURL: import.meta.env.VITE_API_URL || '/api',
     
     /** Base URL for WebSocket connections */
     wsURL: import.meta.env.VITE_WS_URL || 'ws://localhost:8000',

@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Smile, Zap, ShieldAlert } from 'lucide-react';
 import api from '../../api/axios';
 import PAGINATION_CONFIG from '../../config/pagination';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
+import type { ColumnDef } from '@tanstack/react-table';
 
 interface Grade {
     id: number;
@@ -34,6 +37,7 @@ const QuestionBank: React.FC = () => {
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [difficulty, setDifficulty] = useState<string>('');
     const [searchText, setSearchText] = useState<string>('');
+    const [year, setYear] = useState<string>('');
     const [loading, setLoading] = useState(false);
 
     // Pagination
@@ -80,52 +84,34 @@ const QuestionBank: React.FC = () => {
             const params: any = {
                 grade_id: selectedGradeId,
                 subject_id: selectedSubjectId,
-                skip: (currentPage - 1) * questionsPerPage,
-                limit: questionsPerPage
+                page: currentPage,
+                page_size: questionsPerPage
             };
             if (difficulty) params.difficulty = difficulty;
             if (searchText) params.search = searchText;
+            if (year) params.year = year;
 
             console.log('[QuestionBank] Fetching questions with params:', params);
 
             const res = await api.get('/teacher/questions/', { params });
 
             console.log('API Response:', res.data); // Debug: Check actual response structure
-            console.log('Response type:', Array.isArray(res.data) ? 'Array' : 'Object');
-            console.log('Response length/total:', Array.isArray(res.data) ? res.data.length : res.data.total);
 
-            // Handle different API response formats
-            if (Array.isArray(res.data)) {
-                // Backend is not implementing pagination properly - returning all results
-                // We need to manually paginate on frontend as fallback
-                console.warn('Backend returned array instead of paginated response. Applying client-side pagination.');
-                const startIndex = (currentPage - 1) * questionsPerPage;
-                const endIndex = startIndex + questionsPerPage;
-                const paginatedQuestions = res.data.slice(startIndex, endIndex);
-                setQuestions(paginatedQuestions);
-                setTotalQuestions(res.data.length);
-            } else if (res.data.questions && typeof res.data.total === 'number') {
-                // Proper paginated response with questions array and total count
-                console.log('Using paginated response format (questions + total)');
-                setQuestions(res.data.questions);
-                setTotalQuestions(res.data.total);
-            } else if (res.data.items && typeof res.data.total === 'number') {
-                // Alternative paginated format
-                console.log('Using paginated response format (items + total)');
+            // Handle paginated response
+            if (res.data && res.data.items !== undefined) {
                 setQuestions(res.data.items);
                 setTotalQuestions(res.data.total);
-            } else {
-                // Fallback
-                console.log('Using fallback response handling');
-                setQuestions(res.data.questions || res.data.items || res.data);
-                setTotalQuestions(res.data.total || res.data.count || 0);
+            } else if (Array.isArray(res.data)) {
+                console.warn('Backend returned array instead of paginated response.');
+                setQuestions(res.data);
+                setTotalQuestions(res.data.length);
             }
         } catch (error) {
             console.error(error);
         } finally {
             setLoading(false);
         }
-    }, [selectedGradeId, selectedSubjectId, currentPage, questionsPerPage, difficulty, searchText]);
+    }, [selectedGradeId, selectedSubjectId, currentPage, questionsPerPage, difficulty, searchText, year]);
 
     useEffect(() => {
         fetchGrades();
@@ -147,7 +133,7 @@ const QuestionBank: React.FC = () => {
             setQuestions([]);
             setTotalQuestions(0);
         }
-    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, year]);
 
     // Fetch questions when page changes or filters are ready (with debounce for search)
     useEffect(() => {
@@ -159,7 +145,7 @@ const QuestionBank: React.FC = () => {
         }, searchText ? 500 : 0); // 500ms debounce for search, immediate for others
 
         return () => clearTimeout(timer);
-    }, [fetchQuestions, selectedGradeId, selectedSubjectId, searchText]);
+    }, [fetchQuestions, selectedGradeId, selectedSubjectId, searchText, year]);
 
     const toggleSelection = (id: number) => {
         setSelectedIds(prev => prev.includes(id)
@@ -202,15 +188,115 @@ const QuestionBank: React.FC = () => {
 
     const totalPages = Math.ceil(totalQuestions / questionsPerPage);
 
-    const getDifficultyStats = () => {
+    const stats = useMemo(() => {
         const easy = questions.filter(q => q.difficulty_level === 'Easy').length;
         const medium = questions.filter(q => q.difficulty_level === 'Medium').length;
         const hard = questions.filter(q => q.difficulty_level === 'Hard').length;
         return { easy, medium, hard };
-    };
+    }, [questions]);
 
-    const stats = getDifficultyStats();
-    const isShowingAllResults = questions.length === totalQuestions; // Only show stats when showing complete data
+    const isShowingAllResults = questions.length === totalQuestions;
+
+    const columns = useMemo<ColumnDef<Question>[]>(() => [
+        {
+            id: 'selection',
+            header: () => (
+                <div className="flex items-center justify-center w-12">
+                    <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                </div>
+            ),
+            cell: ({ row }) => (
+                <div className="flex items-center justify-center">
+                    <input
+                        type="checkbox"
+                        checked={selectedIds.includes(row.original.id)}
+                        onChange={() => toggleSelection(row.original.id)}
+                        className="rounded-lg border-2 border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 w-5 h-5 cursor-pointer transition-all"
+                    />
+                </div>
+            ),
+        },
+        {
+            header: 'Question Text',
+            accessorKey: 'text',
+            cell: ({ row }) => (
+                <div className="font-medium text-slate-800 text-sm leading-relaxed max-w-md">
+                    {row.original.text}
+                </div>
+            ),
+        },
+        {
+            header: 'Difficulty',
+            accessorKey: 'difficulty_level',
+            cell: ({ row }) => {
+                const level = row.original.difficulty_level;
+                return (
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm
+                        ${level === 'Easy' ? 'bg-green-100 text-green-700 border-2 border-green-200' :
+                            level === 'Hard' ? 'bg-red-100 text-red-700 border-2 border-red-200' :
+                                'bg-yellow-100 text-yellow-700 border-2 border-yellow-200'}`}>
+                        {level === 'Easy' && <Smile className="w-3.5 h-3.5" />}
+                        {level === 'Medium' && <Zap className="w-3.5 h-3.5" />}
+                        {level === 'Hard' && <ShieldAlert className="w-3.5 h-3.5" />}
+                        {level || 'N/A'}
+                    </span>
+                );
+            },
+        },
+        {
+            header: 'Points',
+            accessorKey: 'points',
+            cell: ({ row }) => (
+                <div className="bg-indigo-100 text-indigo-700 rounded-lg px-3 py-1.5 font-bold text-sm inline-block">
+                    {row.original.points}
+                </div>
+            ),
+        },
+        {
+            header: 'Type',
+            accessorKey: 'question_type',
+            cell: ({ row }) => (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    {row.original.question_type}
+                </span>
+            ),
+        },
+    ], [selectedIds]);
+
+    const mobileCardRender = useCallback((q: Question) => (
+        <div className="space-y-4">
+            <div className="flex justify-between items-start gap-4">
+                <div className="flex-1">
+                    <h3 className="font-bold text-slate-900 leading-snug mb-2">{q.text}</h3>
+                    <div className="flex flex-wrap gap-2">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider
+                            ${q.difficulty_level === 'Easy' ? 'bg-green-100 text-green-700' :
+                                q.difficulty_level === 'Hard' ? 'bg-red-100 text-red-700' :
+                                    'bg-yellow-100 text-yellow-700'}`}>
+                            {q.difficulty_level}
+                        </span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                            {q.question_type}
+                        </span>
+                        <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                            {q.points} pts
+                        </span>
+                    </div>
+                </div>
+                <input
+                    type="checkbox"
+                    checked={selectedIds.includes(q.id)}
+                    onChange={() => toggleSelection(q.id)}
+                    className="rounded-lg border-2 border-slate-300 text-indigo-600 w-6 h-6 cursor-pointer flex-shrink-0"
+                />
+            </div>
+        </div>
+    ), [selectedIds]);
 
     return (
         <div className="space-y-6">
@@ -309,7 +395,7 @@ const QuestionBank: React.FC = () => {
                     </svg>
                     <h3 className="text-lg font-bold text-slate-800">Filters</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
                         <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,6 +428,25 @@ const QuestionBank: React.FC = () => {
                         >
                             <option value="">Select Subject</option>
                             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Year
+                        </label>
+                        <select
+                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium transition-all text-slate-700"
+                            value={year}
+                            onChange={(e) => setYear(e.target.value)}
+                        >
+                            <option value="">All Years</option>
+                            {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).reverse().map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -382,159 +487,25 @@ const QuestionBank: React.FC = () => {
                 </div>
             </div>
 
-            {/* Enhanced Table */}
-            <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200">
-                            <th className="p-4 w-16">
-                                <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                                </svg>
-                            </th>
-                            <th className="p-4 text-xs uppercase text-slate-700 font-bold tracking-wide">Question Text</th>
-                            <th className="p-4 w-32 text-xs uppercase text-slate-700 font-bold tracking-wide">Difficulty</th>
-                            <th className="p-4 w-24 text-xs uppercase text-slate-700 font-bold tracking-wide">Points</th>
-                            <th className="p-4 w-40 text-xs uppercase text-slate-700 font-bold tracking-wide">Type</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {loading ? (
-                            <tr>
-                                <td colSpan={5} className="p-12 text-center">
-                                    <div className="flex flex-col items-center gap-4">
-                                        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                                        <span className="text-slate-500 font-medium">Loading questions...</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : questions.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="p-12 text-center">
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="bg-gradient-to-br from-slate-100 to-slate-200 rounded-full p-4">
-                                            <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                        </div>
-                                        <div>
-                                            <p className="text-slate-700 font-semibold mb-1">No questions found</p>
-                                            <p className="text-slate-500 text-sm">Please select a class and subject to view questions</p>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        ) : (
-                            questions.map(q => (
-                                <tr key={q.id} className={`group hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all ${selectedIds.includes(q.id) ? 'bg-gradient-to-r from-indigo-50 to-purple-50 border-l-4 border-indigo-500' : ''}`}>
-                                    <td className="p-4">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.includes(q.id)}
-                                            onChange={() => toggleSelection(q.id)}
-                                            className="rounded-lg border-2 border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 w-5 h-5 cursor-pointer transition-all"
-                                        />
-                                    </td>
-                                    <td className="p-4 font-medium text-slate-800 text-sm leading-relaxed">{q.text}</td>
-                                    <td className="p-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm
-                                            ${q.difficulty_level === 'Easy' ? 'bg-green-100 text-green-700 border-2 border-green-200' :
-                                                q.difficulty_level === 'Hard' ? 'bg-red-100 text-red-700 border-2 border-red-200' :
-                                                    'bg-yellow-100 text-yellow-700 border-2 border-yellow-200'
-                                            }`}>
-                                            {q.difficulty_level === 'Easy' && <Smile className="w-3.5 h-3.5" />}
-                                            {q.difficulty_level === 'Medium' && <Zap className="w-3.5 h-3.5" />}
-                                            {q.difficulty_level === 'Hard' && <ShieldAlert className="w-3.5 h-3.5" />}
-                                            {q.difficulty_level || 'N/A'}
-                                        </span>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="bg-indigo-100 text-indigo-700 rounded-lg px-3 py-1.5 font-bold text-sm">
-                                                {q.points}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                            </svg>
-                                            {q.question_type}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            {/* Enhanced Table with DataTable */}
+            <DataTable
+                columns={columns}
+                data={questions}
+                isLoading={loading}
+                mobileCardRender={mobileCardRender}
+                emptyMessage={selectedGradeId && selectedSubjectId ? "No questions found matching your criteria" : "Please select a grade and subject to view questions"}
+                rowClassName={(row) => selectedIds.includes(row.original.id) ? 'bg-gradient-to-r from-indigo-50 to-purple-50 border-l-4 border-indigo-500' : ''}
+            />
 
-            {/* Enhanced Pagination */}
+            {/* Enhanced Pagination Controls */}
             {!loading && questions.length > 0 && totalPages > 1 && (
-                <div className="flex items-center justify-between bg-white rounded-xl p-4 shadow-sm border-2 border-slate-200">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <span className="font-medium">Showing</span>
-                        <span className="font-bold text-indigo-600">{(currentPage - 1) * questionsPerPage + 1}</span>
-                        <span>to</span>
-                        <span className="font-bold text-indigo-600">{Math.min(currentPage * questionsPerPage, totalQuestions)}</span>
-                        <span>of</span>
-                        <span className="font-bold text-indigo-600">{totalQuestions}</span>
-                        <span>questions</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                            className="px-4 py-2 rounded-lg border-2 border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                            Previous
-                        </button>
-
-                        <div className="flex gap-2">
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                let pageNum;
-                                if (totalPages <= 5) {
-                                    pageNum = i + 1;
-                                } else if (currentPage <= 3) {
-                                    pageNum = i + 1;
-                                } else if (currentPage >= totalPages - 2) {
-                                    pageNum = totalPages - 4 + i;
-                                } else {
-                                    pageNum = currentPage - 2 + i;
-                                }
-
-                                return (
-                                    <button
-                                        key={i}
-                                        onClick={() => setCurrentPage(pageNum)}
-                                        className={`w-10 h-10 rounded-lg font-bold transition-all ${currentPage === pageNum
-                                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md transform scale-110'
-                                            : 'border-2 border-slate-300 text-slate-700 hover:bg-slate-50'
-                                            }`}
-                                    >
-                                        {pageNum}
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        <button
-                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages}
-                            className="px-4 py-2 rounded-lg border-2 border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                        >
-                            Next
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalQuestions}
+                    itemsPerPage={questionsPerPage}
+                    onPageChange={setCurrentPage}
+                />
             )}
 
             {/* Enhanced Create Quiz Modal */}
@@ -587,7 +558,7 @@ const QuestionBank: React.FC = () => {
                                     placeholder="Add details about the quiz..."
                                 />
                             </div>
-{/* PDF Source Checkbox */}
+                            {/* PDF Source Checkbox */}
                             <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
                                 <label className="flex items-start gap-3 cursor-pointer group">
                                     <div className="flex items-center h-6">
@@ -606,7 +577,7 @@ const QuestionBank: React.FC = () => {
                                             <span className="text-sm font-bold text-amber-900">Include from Uploaded PDF/Book</span>
                                         </div>
                                         <p className="text-xs text-amber-700 leading-relaxed">
-                                            {includeFromPDF 
+                                            {includeFromPDF
                                                 ? '✓ Quiz will be generated only from uploaded PDF materials'
                                                 : '○ Quiz will use open source questions (general knowledge base)'}
                                         </p>
@@ -628,7 +599,7 @@ const QuestionBank: React.FC = () => {
                                 />
                             </div>
 
-                            
+
 
                             <div className="pt-4 border-t-2 border-slate-100 flex justify-end gap-3">
                                 <button

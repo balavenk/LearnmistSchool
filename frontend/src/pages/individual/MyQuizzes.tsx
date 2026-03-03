@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Plus, Play, Trash2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Plus, Play } from 'lucide-react';
 import api from '../../api/axios';
 
 import TakeQuiz from './TakeQuiz';
@@ -25,7 +24,6 @@ const MyQuizzes: React.FC = () => {
     const [description, setDescription] = useState('');
     const [subjectName, setSubjectName] = useState(''); // Text input for typeahead
     const [existingSubjects, setExistingSubjects] = useState<any[]>([]);
-    const [_filteredSubjects, setFilteredSubjects] = useState<any[]>([]);
 
     // New Fields
     const [examType, setExamType] = useState('Quiz'); // Quiz, Exam, Homework
@@ -76,14 +74,7 @@ const MyQuizzes: React.FC = () => {
         }
     };
 
-    // Filter subjects on type (used for datalist suggestions)
-    useEffect(() => {
-        if (subjectName) {
-            setFilteredSubjects(existingSubjects.filter((s: any) => s.name.toLowerCase().includes(subjectName.toLowerCase())));
-        } else {
-            setFilteredSubjects([]);
-        }
-    }, [subjectName, existingSubjects]);
+    // filteredSubjects removed
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -338,7 +329,7 @@ const MyQuizzes: React.FC = () => {
                                 />
                             </div>
 
-                           
+
                             <div className="flex justify-end space-x-3 pt-4">
                                 <button
                                     type="button"

@@ -7,17 +7,19 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/token': 'http://localhost:8000',
-      '/api': 'http://localhost:8000',
-      '/upload': 'http://localhost:8000',
-      '/ws': { target: 'ws://localhost:8000', ws: true },
-      '/docs': 'http://localhost:8000',
-      '/super-admin': { target: 'http://localhost:8000', rewrite: (p) => p },
-      '/school-admin': { target: 'http://localhost:8000', rewrite: (p) => p },
-      '/teacher': { target: 'http://localhost:8000', rewrite: (p) => p },
-      '/student': { target: 'http://localhost:8000', rewrite: (p) => p },
-      '/auth': 'http://localhost:8000',
-      '/individual': 'http://localhost:8000',
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/ws': { 
+        target: 'ws://127.0.0.1:8000', 
+        ws: true, 
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '') // In case ws also uses /api
+      },
+      '/docs': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      '/openapi.json': { target: 'http://127.0.0.1:8000', changeOrigin: true },
     },
   },
   resolve: {
