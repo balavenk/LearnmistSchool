@@ -37,7 +37,6 @@ const QuestionBank: React.FC = () => {
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [difficulty, setDifficulty] = useState<string>('');
     const [searchText, setSearchText] = useState<string>('');
-    const [year, setYear] = useState<string>('');
     const [loading, setLoading] = useState(false);
 
     // Pagination
@@ -89,7 +88,6 @@ const QuestionBank: React.FC = () => {
             };
             if (difficulty) params.difficulty = difficulty;
             if (searchText) params.search = searchText;
-            if (year) params.year = year;
 
             console.log('[QuestionBank] Fetching questions with params:', params);
 
@@ -111,7 +109,7 @@ const QuestionBank: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedGradeId, selectedSubjectId, currentPage, questionsPerPage, difficulty, searchText, year]);
+    }, [selectedGradeId, selectedSubjectId, currentPage, questionsPerPage, difficulty, searchText]);
 
     useEffect(() => {
         fetchGrades();
@@ -133,7 +131,7 @@ const QuestionBank: React.FC = () => {
             setQuestions([]);
             setTotalQuestions(0);
         }
-    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, year]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
 
     // Fetch questions when page changes or filters are ready (with debounce for search)
     useEffect(() => {
@@ -145,7 +143,7 @@ const QuestionBank: React.FC = () => {
         }, searchText ? 500 : 0); // 500ms debounce for search, immediate for others
 
         return () => clearTimeout(timer);
-    }, [fetchQuestions, selectedGradeId, selectedSubjectId, searchText, year]);
+    }, [fetchQuestions, selectedGradeId, selectedSubjectId, searchText]);
 
     const toggleSelection = (id: number) => {
         setSelectedIds(prev => prev.includes(id)
@@ -431,24 +429,6 @@ const QuestionBank: React.FC = () => {
                         </select>
                     </div>
 
-                    <div>
-                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            Year
-                        </label>
-                        <select
-                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium transition-all text-slate-700"
-                            value={year}
-                            onChange={(e) => setYear(e.target.value)}
-                        >
-                            <option value="">All Years</option>
-                            {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).reverse().map(y => (
-                                <option key={y} value={y}>{y}</option>
-                            ))}
-                        </select>
-                    </div>
 
                     <div>
                         <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">

@@ -54,7 +54,8 @@ const TeachersList: React.FC = () => {
                         id: t.id,
                         username: t.username,
                         email: t.email || "",
-                        status: t.active ? 'Active' : 'Inactive'
+                        status: t.active ? 'Active' : 'Inactive',
+                        assigned_grades: t.assigned_grades || []
                     }));
                     setTeachers(data);
                 }

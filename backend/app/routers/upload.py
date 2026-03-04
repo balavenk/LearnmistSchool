@@ -81,6 +81,16 @@ async def upload_training_material(
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
+    # Check for duplicate filename in the same grade
+    existing_file = db.query(models.FileArtifact).filter(
+        models.FileArtifact.grade_id == grade_id,
+        models.FileArtifact.school_id == school_id,
+        models.FileArtifact.original_filename == file.filename
+    ).first()
+
+    if existing_file:
+        raise HTTPException(status_code=400, detail="A file with this name already exists for this grade.")
+
     # Directory Structure: storage/{school_id}/{grade_id}/{subject_id}/
     relative_dir = os.path.join(str(school_id), str(grade_id), str(subject_id))
     abs_dir = os.path.join(STORAGE_ROOT_ABS, relative_dir)

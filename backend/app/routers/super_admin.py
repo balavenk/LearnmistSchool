@@ -20,11 +20,8 @@ def get_current_super_admin(current_user: models.User = Depends(auth.get_current
 def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
     total_schools = db.query(models.School).count()
     
-    # Active Users = Active Students + Active Users (Teachers + Admins)
-    # Note: Super Admin is also a user but usually not counted as "School User"
-    # But for "System Users" count, we can include everyone.
-    
-    total_students = db.query(models.Student).filter(models.Student.active == True).count()
+    # Active Users = Active Users only (Teachers + School Admins)
+    # Students are tracked separately and not included here.
     total_users = db.query(models.User).filter(models.User.active == True).count()
     
     recent_schools = db.query(models.School).order_by(models.School.id.desc()).limit(5).all()
@@ -44,7 +41,7 @@ def get_dashboard_stats(db: Session = Depends(database.get_db), current_user: mo
     
     return {
         "total_schools": total_schools,
-        "active_users": total_students + total_users,
+        "active_users": total_users,
         "total_quizzes": total_quizzes,
         "total_projects": max(0, total_projects),
         "recent_schools": recent_schools

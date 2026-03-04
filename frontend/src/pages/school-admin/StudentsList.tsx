@@ -33,6 +33,8 @@ const StudentsList: React.FC = () => {
     const [editGradeId, setEditGradeId] = useState<number | string>('');
     const [editClassId, setEditClassId] = useState<number | string>('');
     const [editActive, setEditActive] = useState(true);
+    const [editUsername, setEditUsername] = useState('');
+    const [editPassword, setEditPassword] = useState('');
 
     const ITEMS_PER_PAGE = 10;
 
@@ -57,7 +59,7 @@ const StudentsList: React.FC = () => {
                     api.get('/school-admin/grades/', { signal: abortController.signal }),
                     api.get('/school-admin/classes/', { signal: abortController.signal })
                 ]);
-                
+
                 if (isMounted) {
                     setStudents(studentsRes.data);
                     setGrades(gradesRes.data);
@@ -97,8 +99,37 @@ const StudentsList: React.FC = () => {
         setEditGradeId(student.grade_id || '');
         setEditClassId(student.class_id || '');
         setEditActive(student.active);
+        setEditUsername(student.username || '');
+        setEditPassword(''); // Reset password field
         setIsModalOpen(true);
     }, []);
+
+    const handleDeleteStudent = async (studentId: number) => {
+        if (!window.confirm("Are you sure you want to permanently delete this student? This action cannot be undone.")) return;
+
+        try {
+            await api.delete(`/school-admin/students/${studentId}`);
+            setStudents(prev => prev.filter(s => s.id !== studentId));
+            toast.success("Student deleted successfully");
+        } catch (error) {
+            console.error("Failed to delete student", error);
+            toast.error("Failed to delete student.");
+        }
+    };
+
+    const toggleStudentStatus = async (student: Student) => {
+        try {
+            const newStatus = !student.active;
+            await api.patch(`/school-admin/students/${student.id}/status`, {
+                active: newStatus
+            });
+            setStudents(prev => prev.map(s => s.id === student.id ? { ...s, active: newStatus } : s));
+            toast.success(`Student ${newStatus ? 'activated' : 'deactivated'} successfully`);
+        } catch (error) {
+            console.error("Failed to toggle status", error);
+            toast.error("Failed to update status.");
+        }
+    };
 
     const handleUpdateStudent = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -109,7 +140,9 @@ const StudentsList: React.FC = () => {
                 email: editEmail || null,
                 grade_id: editGradeId ? Number(editGradeId) : null,
                 class_id: editClassId ? Number(editClassId) : null,
-                active: editActive
+                active: editActive,
+                username: editUsername || null,
+                password: editPassword || null
             });
             refetchStudents();
             setIsModalOpen(false);
@@ -140,7 +173,7 @@ const StudentsList: React.FC = () => {
     }, [students, debouncedSearchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    
+
     const paginated = useMemo(() => {
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
         const end = start + ITEMS_PER_PAGE;
@@ -169,15 +202,16 @@ const StudentsList: React.FC = () => {
                 header: 'Active',
                 accessorKey: 'active',
                 cell: (info) => {
-                    const active = info.getValue() as boolean;
+                    const student = info.row.original;
+                    const active = student.active;
                     return (
-                        <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}
+                        <button
+                            onClick={() => toggleStudentStatus(student)}
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${active ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                }`}
                         >
                             {active ? 'Active' : 'Inactive'}
-                        </span>
+                        </button>
                     );
                 },
             },
@@ -208,12 +242,24 @@ const StudentsList: React.FC = () => {
                 cell: (info) => {
                     const student = info.row.original;
                     return (
-                        <div className="text-right">
+                        <div className="flex justify-end gap-2">
                             <button
                                 onClick={() => openEditModal(student)}
                                 className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors"
                             >
                                 Edit
+                            </button>
+                            <button
+                                onClick={() => toggleStudentStatus(student)}
+                                className={`${student.active ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'} font-medium text-xs px-3 py-1 rounded-md transition-colors`}
+                            >
+                                {student.active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                                onClick={() => handleDeleteStudent(student.id)}
+                                className="text-red-600 hover:text-red-800 font-medium text-xs px-3 py-1 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                            >
+                                Delete
                             </button>
                         </div>
                     );
@@ -417,6 +463,29 @@ const StudentsList: React.FC = () => {
                                     onChange={(e) => setEditEmail(e.target.value)}
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
                                     placeholder="student@example.com"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={editUsername}
+                                    onChange={(e) => setEditUsername(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500 font-mono text-sm"
+                                    placeholder="Username"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Reset Password <span className="text-slate-400 font-normal">(Leave blank to keep current)</span></label>
+                                <input
+                                    type="password"
+                                    value={editPassword}
+                                    onChange={(e) => setEditPassword(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
+                                    placeholder="Enter new password"
                                 />
                             </div>
 

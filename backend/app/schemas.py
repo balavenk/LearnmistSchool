@@ -220,6 +220,8 @@ class StudentUpdate(BaseModel):
     active: Optional[bool] = None
     email: Optional[str] = None
     school_id: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
 
 class Student(StudentBase):
     id: int
@@ -432,6 +434,8 @@ class ClassStats(BaseModel):
 class DashboardStats(BaseModel):
     total_students: int
     total_classes: int
+    total_assignments: int = 0
+    pending_grading: int = 0
     classes: List[ClassStats]
 
 class GradingOverviewItem(BaseModel):

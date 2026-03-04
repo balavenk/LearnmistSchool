@@ -84,8 +84,8 @@ const AssignmentCard = React.memo(({
                 </span>
             </div>
 
-            <h3 className="text-xl font-bold text-slate-900 mb-2 relative z-10 group-hover:text-indigo-600 transition-colors">{assignment.title}</h3>
-            <p className="text-slate-600 text-sm mb-4 line-clamp-2 relative z-10 leading-relaxed">{assignment.description}</p>
+            <h3 className="text-xl font-bold text-slate-900 mb-2 relative z-10 group-hover:text-indigo-600 transition-colors line-clamp-2 h-14">{assignment.title}</h3>
+            <p className="text-slate-600 text-sm mb-4 line-clamp-2 relative z-10 leading-relaxed line-clamp-3 h-16">{assignment.description}</p>
 
             <div className="space-y-2 relative z-10 mb-4">
                 <div

@@ -311,13 +311,31 @@ def update_student(student_id: int, student_data: schemas.StudentUpdate, db: Ses
     
     update_data = student_data.model_dump(exclude_unset=True)
     
-    # Handle email update (on User object)
+    # Handle User-related updates
     if "email" in update_data:
         email = update_data.pop("email")
         if student.user:
             student.user.email = email
-            # Also, if we want to update username? Not requested yet.
+
+    if "username" in update_data:
+        new_username = update_data.pop("username").strip().lower()
+        if student.user and student.user.username != new_username:
+            # Check for uniqueness
+            existing_user = db.query(models.User).filter(models.User.username == new_username).first()
+            if existing_user:
+                raise HTTPException(status_code=400, detail="Username already taken")
+            student.user.username = new_username
+
+    if "password" in update_data:
+        new_password = update_data.pop("password")
+        if student.user and new_password:
+            student.user.hashed_password = auth.get_password_hash(new_password)
             
+    if "active" in update_data:
+        is_active = update_data["active"]
+        if student.user:
+            student.user.active = is_active
+
     for key, value in update_data.items():
         setattr(student, key, value)
     
@@ -388,7 +406,46 @@ def create_student(student_data: schemas.StudentCreate, db: Session = Depends(da
     db.commit()
     db.refresh(new_student)
     
-    return new_student
+@router.delete("/students/{student_id}")
+def delete_student(student_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    student = db.query(models.Student).filter(
+        models.Student.id == student_id,
+        models.Student.school_id == current_user.school_id
+    ).first()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+        
+    # Delete associated User account
+    if student.user:
+        db.delete(student.user)
+    
+    # Student record will be deleted via cascade or explicitly if needed
+    # In most SQL setups, deleting the user or student might need both if not cascaded
+    db.delete(student)
+    db.commit()
+    return {"message": "Student and associated user account deleted successfully"}
+
+@router.patch("/students/{student_id}/status")
+def update_student_status(student_id: int, status_data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    student = db.query(models.Student).filter(
+        models.Student.id == student_id,
+        models.Student.school_id == current_user.school_id
+    ).first()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+        
+    is_active = status_data.get("active")
+    if is_active is None:
+        raise HTTPException(status_code=400, detail="Missing active field")
+        
+    student.active = is_active
+    if student.user:
+        student.user.active = is_active
+        
+    db.commit()
+    return {"message": f"Student {'activated' if is_active else 'deactivated'} successfully"}
 
 # --- Teacher Assignments ---
 
@@ -506,7 +563,6 @@ def read_questions(
     subject_id: Optional[int] = None,
     difficulty: Optional[str] = None,
     search: Optional[str] = None,
-    year: Optional[int] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     db: Session = Depends(database.get_db),
@@ -531,8 +587,6 @@ def read_questions(
         query = query.filter(models.Question.subject_id == subject_id)
     if difficulty:
         query = query.filter(models.Question.difficulty_level == difficulty)
-    if year:
-        query = query.filter(models.Question.year == year)
     if search:
         search_fmt = f"%{search}%"
         query = query.filter(models.Question.text.ilike(search_fmt))

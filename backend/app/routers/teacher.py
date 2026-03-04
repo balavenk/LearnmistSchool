@@ -26,6 +26,21 @@ def get_current_teacher(current_user: models.User = Depends(auth.get_current_act
     return current_user
 
 
+def validate_teacher_grade_access(db: Session, teacher_id: int, grade_id: int):
+    """
+    Ensures the teacher is assigned to the specified grade.
+    """
+    access = db.query(models.TeacherAssignment).filter(
+        models.TeacherAssignment.teacher_id == teacher_id,
+        models.TeacherAssignment.grade_id == grade_id
+    ).first()
+    if not access:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Access denied: You are not assigned to Grade ID {grade_id}. Please contact your administrator."
+        )
+
+
 @router.get("/settings")
 def get_teacher_settings():
     """Get teacher module settings including pagination defaults"""
@@ -274,6 +289,9 @@ def create_assignment(assignment: schemas.AssignmentCreate, db: Session = Depend
             if not class_obj:
                 raise HTTPException(status_code=404, detail="Grade/Class not found")
         
+    # Validation: Ensure teacher is assigned to this grade
+    validate_teacher_grade_access(db, current_user.id, assignment.grade_id or class_or_grade_id)
+
     new_assignment = models.Assignment(
         title=assignment.title,
         description=assignment.description,
@@ -295,7 +313,16 @@ def create_assignment(assignment: schemas.AssignmentCreate, db: Session = Depend
 
 @router.get("/assignments/", response_model=List[schemas.Assignment])
 def read_assignments(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
-    return db.query(models.Assignment).filter(models.Assignment.teacher_id == current_user.id).all()
+    # Get visible grade IDs for this teacher
+    visible_grade_ids = db.query(models.TeacherAssignment.grade_id).filter(
+        models.TeacherAssignment.teacher_id == current_user.id
+    ).distinct().all()
+    visible_grade_ids = [g[0] for g in visible_grade_ids]
+
+    return db.query(models.Assignment).filter(
+        models.Assignment.teacher_id == current_user.id,
+        models.Assignment.grade_id.in_(visible_grade_ids)
+    ).all()
 
 @router.post("/assignments/ai-generate", response_model=schemas.Assignment)
 async def generate_ai_assignment(
@@ -309,6 +336,9 @@ async def generate_ai_assignment(
     """
     logger.info(f"🚀 [AI GEN] Starting generation for teacher {current_user.id}: {req.topic}")
     
+    # Validation: Ensure teacher is assigned to this grade
+    validate_teacher_grade_access(db, current_user.id, req.grade_id)
+
     # 1. Get Subject Name for RAG Context
     subject = db.query(models.Subject).filter(models.Subject.id == req.subject_id).first()
     subject_name = subject.name if subject else "General Knowledge"
@@ -405,6 +435,10 @@ def create_assignment_from_bank(
     # Support both grade_id (new) and class_id (legacy)
     class_or_grade_id = data.grade_id or data.class_id
     
+    # Validation: Ensure teacher is assigned to this grade
+    if class_or_grade_id:
+        validate_teacher_grade_access(db, current_user.id, class_or_grade_id)
+
     # 1. Create Assignment
     new_assignment = models.Assignment(
         title=data.title,
@@ -513,9 +547,8 @@ from app.utils.pagination import paginate_query
 def read_questions(
     subject_id: Optional[int] = None, 
     class_id: Optional[int] = None, 
-    difficulty: Optional[str] = None, 
+    difficulty: Optional[str] = None,
     search: Optional[str] = None,
-    year: Optional[int] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     db: Session = Depends(database.get_db), 
@@ -542,9 +575,6 @@ def read_questions(
     # Optional Filters
     if difficulty:
         query = query.filter(models.Question.difficulty_level == difficulty)
-        
-    if year:
-        query = query.filter(models.Question.year == year)
          
     if search:
         search_fmt = f"%{search}%"
@@ -863,9 +893,28 @@ def read_dashboard_stats(db: Session = Depends(database.get_db), current_user: m
         ))
         total_students += s_count
 
+    # 2. Total Assignments created by this teacher
+    visible_grade_ids = db.query(models.TeacherAssignment.grade_id).filter(
+        models.TeacherAssignment.teacher_id == current_user.id
+    ).distinct().all()
+    visible_grade_ids = [g[0] for g in visible_grade_ids]
+
+    total_assignments = db.query(models.Assignment).filter(
+        models.Assignment.teacher_id == current_user.id,
+        models.Assignment.grade_id.in_(visible_grade_ids)
+    ).count()
+
+    # 3. Pending Grading (Submissions that are SUBMITTED for assignments by this teacher)
+    pending_grading = db.query(models.Submission).join(models.Assignment).filter(
+        models.Assignment.teacher_id == current_user.id,
+        models.Submission.status == models.SubmissionStatus.SUBMITTED
+    ).count()
+
     return schemas.DashboardStats(
         total_students=total_students,
         total_classes=len(classes),
+        total_assignments=total_assignments,
+        pending_grading=pending_grading,
         classes=class_stats_list
     )
 

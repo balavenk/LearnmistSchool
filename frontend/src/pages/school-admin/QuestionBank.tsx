@@ -33,7 +33,6 @@ const QuestionBank: React.FC = () => {
     // Filters
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
-    const [year, setYear] = useState<string>('');
     const [difficulty, setDifficulty] = useState<string>('');
     const [searchText, setSearchText] = useState<string>('');
     const [loading, setLoading] = useState(false);
@@ -82,7 +81,6 @@ const QuestionBank: React.FC = () => {
             };
             if (difficulty) params.difficulty = difficulty;
             if (searchText) params.search = searchText;
-            if (year) params.year = year;
 
             const res = await api.get('/school-admin/questions/', { params });
 
@@ -101,7 +99,7 @@ const QuestionBank: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, year, currentPage, questionsPerPage]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, currentPage, questionsPerPage]);
 
     useEffect(() => {
         fetchGrades();
@@ -122,7 +120,7 @@ const QuestionBank: React.FC = () => {
         } else {
             setQuestions([]);
         }
-    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, year]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
 
     const toggleSelection = (id: number) => {
         setSelectedIds(prev => prev.includes(id)
@@ -169,12 +167,12 @@ const QuestionBank: React.FC = () => {
         } else {
             setQuestions([]);
         }
-    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, year, currentPage, fetchQuestions]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, currentPage, fetchQuestions]);
 
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, year]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
 
     const totalPages = Math.ceil(totalQuestions / questionsPerPage);
 
@@ -360,19 +358,6 @@ const QuestionBank: React.FC = () => {
                         </select>
                     </div>
 
-                    <div>
-                        <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Year</label>
-                        <select
-                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white outline-none font-medium text-slate-700"
-                            value={year}
-                            onChange={(e) => setYear(e.target.value)}
-                        >
-                            <option value="">All Years</option>
-                            {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i).reverse().map(y => (
-                                <option key={y} value={y}>{y}</option>
-                            ))}
-                        </select>
-                    </div>
 
                     <div>
                         <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Difficulty</label>
