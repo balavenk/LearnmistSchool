@@ -85,7 +85,10 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                         count=question_count,
                         question_type=question_type,
                         use_pdf_context=use_pdf_context,
-                        progress_callback=progress_callback
+                        progress_callback=progress_callback,
+                        subject_id=subject_id,
+                        grade_id=grade_id,
+                        school_id=school_id,
                     )
                 except Exception as e:
                     logger.exception(f"[WS] RAG generation crashed: {e}")

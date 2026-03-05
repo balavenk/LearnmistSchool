@@ -187,6 +187,8 @@ const TeacherAssignments: React.FC = () => {
     const [aiSubjectId, setAiSubjectId] = useState<number | ''>('');
     const [aiGradeId, setAiGradeId] = useState<number | ''>('');
     const [aiUsePdfContext, setAiUsePdfContext] = useState(false);
+    // PDF status check for the AI modal: null | 'checking' | 'no_pdf' | 'not_trained' | 'trained'
+    const [pdfCheckStatus, setPdfCheckStatus] = useState<'checking' | 'no_pdf' | 'not_trained' | 'trained' | null>(null);
 
     // Edit State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -367,7 +369,33 @@ const TeacherAssignments: React.FC = () => {
         setAiGradeId('');
         setAiUsePdfContext(false);
         setIsGenerating(false);
+        setPdfCheckStatus(null);
     };
+
+    // Check PDF training status whenever use_pdf_context is toggled on or subject/grade changes
+    useEffect(() => {
+        if (!aiUsePdfContext || aiGradeId === '' || aiSubjectId === '') {
+            setPdfCheckStatus(null);
+            return;
+        }
+        let cancelled = false;
+        setPdfCheckStatus('checking');
+        api.get(`/upload/training-material/${aiGradeId}`)
+            .then(res => {
+                if (cancelled) return;
+                const materials: { subject_id: number; file_status: string }[] = res.data?.items ?? [];
+                const forSubject = materials.filter((m) => m.subject_id === Number(aiSubjectId));
+                if (forSubject.length === 0) {
+                    setPdfCheckStatus('no_pdf');
+                } else if (forSubject.some((m) => m.file_status === 'Trained')) {
+                    setPdfCheckStatus('trained');
+                } else {
+                    setPdfCheckStatus('not_trained');
+                }
+            })
+            .catch(() => { if (!cancelled) setPdfCheckStatus('no_pdf'); });
+        return () => { cancelled = true; };
+    }, [aiUsePdfContext, aiGradeId, aiSubjectId]);
 
     // Memoized Lookups for O(1) performance
     const gradesMap = useMemo(() => {
@@ -853,6 +881,53 @@ const TeacherAssignments: React.FC = () => {
                                         </p>
                                     </label>
                                 </div>
+
+                                {/* PDF Status Warning Banner */}
+                                {aiUsePdfContext && pdfCheckStatus && pdfCheckStatus !== 'checking' && (
+                                    <div className={`flex items-start gap-3 p-3.5 rounded-xl border-2 text-sm ${
+                                        pdfCheckStatus === 'trained'
+                                            ? 'bg-green-50 border-green-200 text-green-800'
+                                            : pdfCheckStatus === 'not_trained'
+                                            ? 'bg-amber-50 border-amber-300 text-amber-800'
+                                            : 'bg-red-50 border-red-200 text-red-800'
+                                    }`}>
+                                        <div className="mt-0.5 shrink-0">
+                                            {pdfCheckStatus === 'trained' ? (
+                                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold">
+                                                {pdfCheckStatus === 'trained' && '✅ PDF Ready'}
+                                                {pdfCheckStatus === 'not_trained' && '⚠️ PDF Not Trained'}
+                                                {pdfCheckStatus === 'no_pdf' && '❌ No PDF Uploaded'}
+                                            </p>
+                                            <p className="mt-0.5 leading-snug">
+                                                {pdfCheckStatus === 'trained' &&
+                                                    'Trained textbook content found for this subject and grade. Questions will be grounded in your uploaded material.'}
+                                                {pdfCheckStatus === 'not_trained' &&
+                                                    'A PDF has been uploaded for this subject/grade but it has not been trained yet. Go to Upload PDF → Train the file first, or the AI will fall back to general knowledge.'}
+                                                {pdfCheckStatus === 'no_pdf' &&
+                                                    'No PDF has been uploaded for this subject and grade. Go to Upload PDF to add and train a textbook, or the AI will fall back to general knowledge.'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                {aiUsePdfContext && pdfCheckStatus === 'checking' && (
+                                    <div className="flex items-center gap-2 text-sm text-slate-500 px-1">
+                                        <svg className="w-4 h-4 animate-spin text-purple-500" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                        </svg>
+                                        Checking PDF status for this subject/grade...
+                                    </div>
+                                )}
                                 <div className="flex gap-3 pt-6 border-t-2 border-slate-100 mt-6">
                                     <button type="button" onClick={closeAIModal} className="flex-1 px-6 py-3 border-2 border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-all flex items-center justify-center gap-2">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

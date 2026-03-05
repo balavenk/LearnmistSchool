@@ -176,7 +176,11 @@ async def generate_quiz_questions(
     count: int,
     question_type: str = "Mixed",
     use_pdf_context: bool = False,
-    progress_callback: Callable[[str, Dict], Awaitable[None]] = None
+    progress_callback: Callable[[str, Dict], Awaitable[None]] = None,
+    # Exact IDs for precise Qdrant filtering (school/grade/subject isolation)
+    subject_id: int = None,
+    grade_id: int = None,
+    school_id: int = None,
 ) -> List[Dict]:
     """
     Generates quiz questions using RAG.
@@ -225,25 +229,48 @@ async def generate_quiz_questions(
                     await progress_callback("No training materials found in database.", {"step": "search_result", "info": msg})
             else:
                 if progress_callback:
-                    await progress_callback("Searching knowledge base...", {"step": "search", "subject": subject_name})
+                    await progress_callback(
+                        "Searching knowledge base...",
+                        {"step": "search", "subject_id": subject_id, "grade_id": grade_id, "school_id": school_id}
+                    )
 
-                # 'search' missing in current version, using query_points
-                search_response = client_qdrant.query_points(
-                    collection_name=collection_name,
-                    query=query_vector,
-                    limit=5,
-                    query_filter=models.Filter(
+                # Build exact filter using reliable integer IDs (school/grade/subject isolation)
+                # Falls back to subject_name string match if IDs are not provided (legacy support)
+                if subject_id and grade_id and school_id:
+                    qdrant_filter = models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="school_id",
+                                match=models.MatchValue(value=school_id)
+                            ),
+                            models.FieldCondition(
+                                key="grade_id",
+                                match=models.MatchValue(value=grade_id)
+                            ),
+                            models.FieldCondition(
+                                key="subject_id",
+                                match=models.MatchValue(value=subject_id)
+                            ),
+                        ]
+                    )
+                    print(f"[RAG] Using exact ID filter: school_id={school_id}, grade_id={grade_id}, subject_id={subject_id}")
+                else:
+                    # Legacy fallback: filter by subject name string (less reliable)
+                    qdrant_filter = models.Filter(
                         should=[
                             models.FieldCondition(
                                 key="subject",
                                 match=models.MatchValue(value=subject_name)
                             ),
-                            models.FieldCondition(
-                                key="subject_name", # Try alternate key just in case
-                                match=models.MatchValue(value=subject_name)
-                            )
                         ]
                     )
+                    print(f"[RAG] Falling back to subject name filter: subject_name={subject_name}")
+
+                search_response = client_qdrant.query_points(
+                    collection_name=collection_name,
+                    query=query_vector,
+                    limit=5,
+                    query_filter=qdrant_filter
                 )
                 search_results = search_response.points
                 
@@ -251,7 +278,7 @@ async def generate_quiz_questions(
                     context_text += f"{hit.payload.get('text', '')}\n\n"
 
                 if not context_text:
-                    msg = "No specific textbook context found. Using general knowledge."
+                    msg = "No specific textbook context found for this subject/grade. Using general knowledge."
                     print(msg)
                     context_text = msg
                     if progress_callback:
