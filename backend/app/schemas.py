@@ -1,7 +1,17 @@
+from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import Optional, List, Generic, TypeVar
 from datetime import datetime
 from .models import UserRole, AssignmentStatus, SubmissionStatus
+
+T = TypeVar('T')
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 class Token(BaseModel):
     access_token: str
@@ -131,6 +141,9 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
+class UserWithGrades(User):
+    assigned_grades: List[str] = []
+
 class UserStatusUpdate(BaseModel):
     active: bool
 
@@ -144,7 +157,7 @@ class SubjectCreate(SubjectBase):
 class Subject(SubjectBase):
     id: int
     school_id: int
-    active: bool
+    active: Optional[bool] = True
     
     class Config:
         from_attributes = True
@@ -158,7 +171,14 @@ class GradeCreate(GradeBase):
 class Grade(GradeBase):
     id: int
     school_id: int
-    subjects: List['Subject'] = []
+    student_count: Optional[int] = 0
+    class Config:
+        from_attributes = True
+
+class GradeWithSubjects(GradeBase):
+    id: int
+    school_id: int
+    subjects: List[Subject] = []
     student_count: Optional[int] = 0
     class Config:
         from_attributes = True
@@ -180,7 +200,6 @@ class Class(ClassBase):
     school_id: int
     grade_id: int
     class_teacher_id: Optional[int] = None
-    grade: Optional['Grade'] = None
     
     class Config:
         from_attributes = True
@@ -201,6 +220,8 @@ class StudentUpdate(BaseModel):
     active: Optional[bool] = None
     email: Optional[str] = None
     school_id: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
 
 class Student(StudentBase):
     id: int
@@ -216,6 +237,12 @@ class Student(StudentBase):
     class Config:
         from_attributes = True
 
+class StudentWithMetrics(Student):
+    assigned_count: int = 0
+    completed_count: int = 0
+    graded_count: int = 0
+    pending_count: int = 0
+
 class AssignmentBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -227,6 +254,7 @@ class AssignmentBase(BaseModel):
     question_count: Optional[int] = None
     difficulty_level: Optional[str] = None
     question_type: Optional[str] = None
+    grade_id: Optional[int] = None
 
 class AssignmentCreate(AssignmentBase):
     grade_id: Optional[int] = None  # Assign to a grade (frontend sends this)
@@ -240,6 +268,7 @@ class AssignmentAICreate(BaseModel):
     question_count: int
     subject_id: int
     grade_id: int
+    question_type: Optional[str] = "Mixed"
     due_date: Optional[datetime] = None
     use_pdf_context: Optional[bool] = False
 
@@ -247,15 +276,24 @@ class Assignment(AssignmentBase):
     id: int
     teacher_id: int
     class_id: Optional[int]
+    grade_id: Optional[int] = None
     subject_id: Optional[int] = None
     
     class Config:
         from_attributes = True
 
+class AssignmentUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    due_date: Optional[datetime] = None
+    grade_id: Optional[int] = None
+    subject_id: Optional[int] = None
+
 class AssignmentOut(Assignment):
     subject_name: Optional[str] = "General"
+    grade_name: Optional[str] = "N/A"
     teacher_name: Optional[str] = "Unknown"
-    created_at: Optional[datetime] = None # Assuming we might add this to model or map it
+    created_at: Optional[datetime] = None
     submission_id: Optional[int] = None
 
 class QuestionOptionBase(BaseModel):
@@ -283,6 +321,7 @@ class QuestionBase(BaseModel):
     text: str
     points: int
     question_type: str # string representation of Enum
+    year: Optional[int] = None
 
 class QuestionCreate(QuestionBase):
     options: List[QuestionOptionCreate] = []
@@ -395,7 +434,25 @@ class ClassStats(BaseModel):
 class DashboardStats(BaseModel):
     total_students: int
     total_classes: int
+    total_assignments: int = 0
+    pending_grading: int = 0
     classes: List[ClassStats]
+
+class GradingOverviewItem(BaseModel):
+    assignment: Assignment
+    submission: Optional[SubmissionDetail] = None
+    has_questions: bool = False
+    
+    class Config:
+        from_attributes = True
+
+class StudentAssignmentOverviewItem(BaseModel):
+    assignment: AssignmentOut
+    submission: Optional[Submission] = None
+    has_questions: bool = False
+    
+    class Config:
+        from_attributes = True
 
 class SchoolAdminStats(BaseModel):
     total_students: int

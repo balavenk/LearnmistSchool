@@ -7,16 +7,17 @@ import Sidebar from './Sidebar';
 
 
 interface DashboardLayoutProps {
-    children: React.ReactNode;
+    // children: React.ReactNode; // Using Outlet instead
 }
 
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+const DashboardLayout: React.FC<DashboardLayoutProps> = () => {
     const role = localStorage.getItem('role') || ''; // Get role from localStorage (mocking authentication)
     const token = localStorage.getItem('token');
     const navigate = useNavigate();
+    const location = useLocation();
 
     // schoolName is available if needed: localStorage.getItem('schoolName')
-    
+
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -57,13 +58,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         setIsDropdownOpen(false);
     }, [location.pathname]);
 
+
     const handleLogout = () => {
         // Clear all authentication data
         localStorage.removeItem('token');
         localStorage.removeItem('role');
         localStorage.removeItem('username');
         localStorage.removeItem('userId');
-        
+
         // Redirect to login page
         navigate('/login');
     };
@@ -105,7 +107,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                             className="flex items-center gap-2 sm:gap-3 hover:bg-gray-50 rounded-lg px-2 sm:px-3 py-2 transition-colors duration-200"
                         >
                             <span className="capitalize hidden sm:block text-sm font-medium text-gray-700">
-                               {username}
+                                {username}
                             </span>
                             <span className="hidden md:block text-xs text-gray-500">
                                 ({role.replace('_', ' ')})

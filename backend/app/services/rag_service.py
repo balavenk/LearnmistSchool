@@ -382,7 +382,10 @@ async def generate_quiz_questions(
 
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        with open("error_log.txt", "w") as f:
+            f.write("Error occurred:\n")
+            f.write(traceback.format_exc())
+            f.write(f"\nFinal error message: {str(e)}")
         if progress_callback:
              await progress_callback(f"Error: {str(e)}", {"step": "error", "details": str(e)})
         print(f"Quiz generation failed: {e}")

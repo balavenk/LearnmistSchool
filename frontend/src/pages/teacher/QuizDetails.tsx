@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Printer, FilePlus } from 'lucide-react';
 import api from '../../api/axios';
 
 interface QuestionOption {
@@ -22,6 +23,7 @@ const QuizDetails: React.FC = () => {
     const navigate = useNavigate();
     const [questions, setQuestions] = useState<Question[]>([]);
     const [loading, setLoading] = useState(true);
+    const [includeAnswers, setIncludeAnswers] = useState(false);
 
     // Form State (for adding/editing)
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,16 +53,11 @@ const QuizDetails: React.FC = () => {
         if (assignmentId) fetchQuestions();
     }, [assignmentId]);
 
-    const handleGenerateSample = async () => {
-        try {
-            await api.post(`/teacher/assignments/${assignmentId}/seed_questions`);
-            fetchQuestions();
-            toast.success("Sample questions added!");
-        } catch (error) {
-            console.error("Failed to seed questions", error);
-            toast.error("Failed to add sample questions.");
-        }
+    const handlePrint = () => {
+        window.print();
     };
+
+
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -139,13 +136,14 @@ const QuizDetails: React.FC = () => {
     const renderOptions = (q: Question) => {
         if (q.question_type === 'SHORT_ANSWER') {
             const correct = q.options.find(o => o.is_correct);
-            return <p className="text-sm text-green-600">Answer: {correct ? correct.text : 'N/A'}</p>;
+            if (!includeAnswers) return null;
+            return <p className="text-sm text-green-600 font-medium mt-2">Correct Answer: {correct ? correct.text : ''}</p>;
         }
         return (
             <ul className="list-disc pl-5 mt-2 space-y-1">
                 {q.options.map((opt, idx) => (
-                    <li key={idx} className={opt.is_correct ? "text-green-600 font-medium" : "text-slate-500"}>
-                        {opt.text} {opt.is_correct && "(Correct)"}
+                    <li key={idx} className={includeAnswers && opt.is_correct ? "text-green-600 font-medium" : "text-slate-500"}>
+                        {opt.text} {includeAnswers && opt.is_correct && "(Correct)"}
                     </li>
                 ))}
             </ul>
@@ -154,24 +152,68 @@ const QuizDetails: React.FC = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <button onClick={() => navigate('/teacher/assignments')} className="text-slate-500 hover:text-slate-800 mb-2">← Back to Assignments</button>
+
+            {/* Print Only Header */}
+            <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold uppercase tracking-wider">Learnmist School</h1>
+                        <p className="text-sm text-slate-600">Official Assessment Paper</p>
+                    </div>
+                    <div className="text-right">
+                        <h2 className="text-xl font-semibold">Quiz Assessment</h2>
+                        <p className="text-sm text-slate-500">Assignment ID: {assignmentId}</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-3 gap-8 border-t border-slate-100 pt-6">
+                    <div className="border-b border-slate-300 pb-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Student Name:</span>
+                        <div className="h-6"></div>
+                    </div>
+                    <div className="border-b border-slate-300 pb-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Grade / Section:</span>
+                        <div className="h-6"></div>
+                    </div>
+                    <div className="border-b border-slate-300 pb-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Date:</span>
+                        <div className="h-6"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex justify-between items-center no-print">
+                <div className="print-header">
+                    <button onClick={() => navigate('/teacher/assignments')} className="text-slate-500 hover:text-slate-800 mb-2 no-print">← Back to Assignments</button>
                     <h1 className="text-3xl font-bold text-slate-900">Quiz Content</h1>
                     <p className="text-slate-500">Manage questions for this assignment.</p>
                 </div>
                 <div className="flex gap-2">
                     <button
-                        onClick={handleGenerateSample}
-                        className="bg-yellow-50 text-yellow-700 border border-yellow-200 px-4 py-2 rounded-lg hover:bg-yellow-100 transition-colors"
+                        onClick={handlePrint}
+                        disabled={questions.length === 0}
+                        className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        + Add Sample Data
+                        <Printer className="w-4 h-4" />
+                        Print Quiz
                     </button>
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg no-print">
+                        <label className="text-sm font-medium text-slate-600 cursor-pointer flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={includeAnswers}
+                                onChange={(e) => setIncludeAnswers(e.target.checked)}
+                                className="w-4 h-4 rounded text-indigo-600"
+                            />
+                            Include Answers
+                        </label>
+                    </div>
+
                     <button
                         onClick={() => openModal()}
-                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                        className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-md"
                     >
-                        + Add Question
+                        <FilePlus className="w-4 h-4" />
+                        Add Question
                     </button>
                 </div>
             </div>

@@ -38,7 +38,7 @@ const Classes: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [, startTransition] = useTransition();
-    
+
     // Use deferred value for expensive filtering - React 18 feature
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
@@ -78,7 +78,7 @@ const Classes: React.FC = () => {
                     api.get('/school-admin/grades/', { signal: abortController.signal }),
                     api.get('/school-admin/teachers/', { signal: abortController.signal })
                 ]);
-                
+
                 if (isMounted) {
                     setClasses(classesRes.data);
                     setGrades(gradesRes.data);
@@ -124,7 +124,7 @@ const Classes: React.FC = () => {
     const getGradeName = useCallback((id: number) => {
         return gradeMap.get(id) || 'Unknown Grade';
     }, [gradeMap]);
-    
+
     const getTeacherName = useCallback((id?: number | null) => {
         if (!id) return 'Unassigned';
         return teacherMap.get(id) || 'Unknown Teacher';
@@ -187,30 +187,30 @@ const Classes: React.FC = () => {
     // Filter Logic - Optimized to avoid repeated function calls
     const filteredClasses = useMemo(() => {
         if (!deferredSearchTerm.trim()) return classes;
-        
+
         const search = deferredSearchTerm.toLowerCase();
         return classes.filter(cls => {
             if (!cls) return false;
-            
+
             // Check class name
             if (cls.name?.toLowerCase()?.includes(search)) return true;
-            
+
             // Check teacher name using map
-            const teacherName = cls.class_teacher_id ? 
+            const teacherName = cls.class_teacher_id ?
                 (teacherMap.get(cls.class_teacher_id) || '').toLowerCase() : 'unassigned';
             if (teacherName.includes(search)) return true;
-            
+
             // Check grade name using map
             const gradeName = (gradeMap.get(cls.grade_id) || '').toLowerCase();
             if (gradeName.includes(search)) return true;
-            
+
             return false;
         });
     }, [classes, deferredSearchTerm, teacherMap, gradeMap]);
 
     // Pagination Logic
     const totalPages = Math.ceil(filteredClasses.length / ITEMS_PER_PAGE);
-    
+
     const paginatedClasses = useMemo(() => {
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
         const end = start + ITEMS_PER_PAGE;
@@ -384,22 +384,22 @@ const Classes: React.FC = () => {
 
             {/* Create Modal */}
             {isModalOpen && (
-                <div 
+                <div
                     className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black bg-opacity-50"
                     style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
                     onClick={(e) => {
                         if (e.target === e.currentTarget) closeModal();
                     }}
                 >
-                    <div 
+                    <div
                         className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-slate-900">Add New Class</h2>
-                            <button 
+                            <button
                                 type="button"
-                                onClick={closeModal} 
+                                onClick={closeModal}
                                 className="text-slate-400 hover:text-slate-600 text-2xl leading-none w-8 h-8 flex items-center justify-center"
                             >
                                 ✕
@@ -450,17 +450,17 @@ const Classes: React.FC = () => {
                                     <input
                                         type="text"
                                         value={newSection}
-                                         onChange={(e) => {
+                                        onChange={(e) => {
                                             const value = e.target.value;
                                             if (isValidInput(value)) {
                                                 setNewSection(value);
                                             }
-                                         }}
+                                        }}
                                         required
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                         placeholder="e.g. A"
                                     />
-                                      {/* Optionally show a warning */}
+                                    {/* Optionally show a warning */}
                                     {!isValidInput(newSection) && newSection.length > 0 && (
                                         <div className="text-xs text-red-500 mt-1">Special characters are not allowed.</div>
                                     )}
@@ -494,22 +494,22 @@ const Classes: React.FC = () => {
 
             {/* Assign Teacher Modal */}
             {isAssignModalOpen && (
-                <div 
+                <div
                     className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black bg-opacity-50"
                     style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
                     onClick={(e) => {
                         if (e.target === e.currentTarget) closeAssignModal();
                     }}
                 >
-                    <div 
+                    <div
                         className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-slate-900">Assign Teacher</h2>
-                            <button 
+                            <button
                                 type="button"
-                                onClick={closeAssignModal} 
+                                onClick={closeAssignModal}
                                 className="text-slate-400 hover:text-slate-600 text-2xl leading-none w-8 h-8 flex items-center justify-center"
                             >
                                 ✕

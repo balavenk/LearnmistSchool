@@ -9,11 +9,10 @@ import { PaginationControls } from '../../components/PaginationControls';
 
 interface Teacher {
     id: number;
-    username: string; // Changed name to username
+    username: string;
     email: string;
-    // subject: string; // Not in User model
-    status: 'Active' | 'Inactive'; // Mapped from active boolean
-    // assignedGrades: string[]; // Not in User model
+    status: 'Active' | 'Inactive';
+    assigned_grades: string[];
 }
 
 const TeachersList: React.FC = () => {
@@ -22,7 +21,7 @@ const TeachersList: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    
+
     // Use deferred value for expensive filtering - React 18 feature
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
@@ -55,7 +54,8 @@ const TeachersList: React.FC = () => {
                         id: t.id,
                         username: t.username,
                         email: t.email || "",
-                        status: t.active ? 'Active' : 'Inactive'
+                        status: t.active ? 'Active' : 'Inactive',
+                        assigned_grades: t.assigned_grades || []
                     }));
                     setTeachers(data);
                 }
@@ -83,7 +83,8 @@ const TeachersList: React.FC = () => {
                 id: t.id,
                 username: t.username,
                 email: t.email || "",
-                status: t.active ? 'Active' : 'Inactive'
+                status: t.active ? 'Active' : 'Inactive',
+                assigned_grades: t.assigned_grades || []
             }));
             setTeachers(data);
         } catch (error: any) {
@@ -103,7 +104,7 @@ const TeachersList: React.FC = () => {
     const isFilterLoading = useMemo(() => searchTerm !== deferredSearchTerm, [searchTerm, deferredSearchTerm]);
 
     const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-    
+
     const paginated = useMemo(() => {
         return filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
     }, [filtered, currentPage]);
@@ -115,17 +116,17 @@ const TeachersList: React.FC = () => {
     }, []);
 
     // Toggle Status Handler - memoized to prevent column recreation
-    const toggleStatus = async (id: number, currentStatus: string) => {
+    const toggleStatus = useCallback(async (id: number, currentStatus: string) => {
         try {
             const newActive = currentStatus !== 'Active';
             await api.patch(`/school-admin/teachers/${id}/status`, { active: newActive });
-            alert(`Teacher ${newActive ? 'activated' : 'deactivated'} successfully`);
+            toast.success(`Teacher ${newActive ? 'activated' : 'deactivated'} successfully`);
             refetchTeachers();
         } catch (error) {
             console.error("Failed to update teacher status", error);
-            alert("Failed to update teacher status");
+            toast.error("Failed to update teacher status");
         }
-    };
+    }, []);
 
     // Create Handler
     const handleCreate = async (e: React.FormEvent) => {
@@ -164,15 +165,32 @@ const TeachersList: React.FC = () => {
                 ),
             },
             {
+                header: 'Grade',
+                accessorKey: 'assigned_grades',
+                cell: (info) => {
+                    const grades = info.getValue() as string[] || [];
+                    return grades.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                            {grades.map((grade, idx) => (
+                                <span key={idx} className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-medium border border-indigo-100">
+                                    {grade}
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <span className="text-slate-400 italic text-xs">No Grade Assigned</span>
+                    );
+                },
+            },
+            {
                 header: 'Status',
                 accessorKey: 'status',
                 cell: (info) => {
                     const status = info.getValue() as string;
                     return (
                         <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}
+                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}
                         >
                             {status}
                         </span>
@@ -187,16 +205,21 @@ const TeachersList: React.FC = () => {
                     return (
                         <div className="text-right space-x-2">
                             <button
-                                onClick={() => toggleStatus(teacher.id, teacher.status)}
-                                className={`text-xs font-medium ${
-                                    teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'
-                                }`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleStatus(teacher.id, teacher.status);
+                                }}
+                                className={`text-xs font-medium ${teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'
+                                    }`}
                             >
                                 {teacher.status === 'Active' ? 'Deactivate' : 'Activate'}
                             </button>
                             <span className="text-slate-300">|</span>
                             <button
-                                onClick={() => navigate(`/school-admin/teachers/${teacher.id}/classes`)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/school-admin/teachers/${teacher.id}/classes`);
+                                }}
                                 className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
                             >
                                 Change class
@@ -208,6 +231,41 @@ const TeachersList: React.FC = () => {
         ],
         [navigate, toggleStatus]
     );
+
+    const mobileCardRender = useCallback((teacher: Teacher) => (
+        <div className="space-y-2">
+            <div className="flex justify-between items-start">
+                <div>
+                    <h4 className="font-bold text-slate-900">{teacher.username}</h4>
+                    <p className="text-sm text-slate-500">{teacher.email}</p>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${teacher.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {teacher.status}
+                </span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+                {teacher.assigned_grades.map((grade, idx) => (
+                    <span key={idx} className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-medium border border-indigo-100">
+                        {grade}
+                    </span>
+                ))}
+            </div>
+            <div className="flex gap-4 pt-2 border-t border-slate-100">
+                <button
+                    onClick={() => toggleStatus(teacher.id, teacher.status)}
+                    className={`text-xs font-medium ${teacher.status === 'Active' ? 'text-red-600' : 'text-green-600'}`}
+                >
+                    {teacher.status === 'Active' ? 'Deactivate' : 'Activate'}
+                </button>
+                <button
+                    onClick={() => navigate(`/school-admin/teachers/${teacher.id}/classes`)}
+                    className="text-xs font-medium text-indigo-600"
+                >
+                    Change class
+                </button>
+            </div>
+        </div>
+    ), [navigate, toggleStatus]);
 
     return (
         <div className="space-y-6">
@@ -222,50 +280,57 @@ const TeachersList: React.FC = () => {
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <input
-                    type="text"
-                    placeholder="Search teachers..."
-                    className="w-full pl-4 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={searchTerm}
-                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                />
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Search teachers..."
+                        className="w-full pl-4 pr-10 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                        value={searchTerm}
+                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                    />
+                    {isFilterLoading && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="animate-spin h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <DataTable
-                data={paginated}
-                columns={columns}
-                isLoading={loading || isFilterLoading}
-                emptyMessage="No teachers found."
-            />
-
-            {totalPages > 1 && (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <DataTable
+                    data={paginated}
+                    columns={columns}
+                    isLoading={loading}
+                    emptyMessage="No teachers found."
+                    mobileCardRender={mobileCardRender}
+                />
                 <PaginationControls
                     currentPage={currentPage}
                     totalPages={totalPages}
                     totalItems={filtered.length}
                     itemsPerPage={ITEMS_PER_PAGE}
                     onPageChange={setCurrentPage}
-                    isLoading={loading || isFilterLoading}
+                    isLoading={loading}
                 />
-            )}
+            </div>
 
             {/* Create Teacher Modal */}
             {isCreateModalOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[9999]"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) setIsCreateModalOpen(false);
                     }}
-                >  
-                    <div 
+                >
+                    <div
                         className="bg-white rounded-xl shadow-lg w-full max-w-md p-6"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Add Teacher</h2>
-                            <button 
+                            <button
                                 type="button"
-                                onClick={() => setIsCreateModalOpen(false)} 
+                                onClick={() => setIsCreateModalOpen(false)}
                                 className="text-slate-400 hover:text-slate-600 text-2xl leading-none w-8 h-8 flex items-center justify-center"
                             >
                                 ✕

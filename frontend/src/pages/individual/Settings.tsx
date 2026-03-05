@@ -33,8 +33,6 @@ const Settings: React.FC = () => {
 
     useEffect(() => {
         const abortController = new AbortController();
-        let isMounted = true;
-
         const loadUserInfo = async () => {
             await fetchUserInfo(abortController.signal);
         };
@@ -42,7 +40,6 @@ const Settings: React.FC = () => {
         loadUserInfo();
 
         return () => {
-            isMounted = false;
             abortController.abort();
         };
     }, [fetchUserInfo]);

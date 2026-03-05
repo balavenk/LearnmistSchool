@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
 from .. import database, models, schemas, auth
 
@@ -63,12 +63,31 @@ def create_teacher(user: schemas.UserCreate, db: Session = Depends(database.get_
     db.refresh(new_user)
     return new_user
 
-@router.get("/teachers/", response_model=List[schemas.User])
+@router.get("/teachers/", response_model=List[schemas.UserWithGrades])
 def read_teachers(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
-    return db.query(models.User).filter(
+    teachers = db.query(models.User).filter(
         models.User.school_id == current_user.school_id,
         models.User.role == models.UserRole.TEACHER
     ).all()
+    
+    results = []
+    for t in teachers:
+        # Get unique grade names for this teacher
+        grade_names = db.query(models.Grade.name).join(
+            models.TeacherAssignment, models.TeacherAssignment.grade_id == models.Grade.id
+        ).filter(
+            models.TeacherAssignment.teacher_id == t.id
+        ).distinct().all()
+        
+        # Flatten the list of tuples
+        grades_list = [g[0] for g in grade_names]
+        
+        # Map to schema
+        teacher_data = schemas.UserWithGrades.model_validate(t)
+        teacher_data.assigned_grades = grades_list
+        results.append(teacher_data)
+        
+    return results
 
 @router.patch("/teachers/{teacher_id}/status", response_model=schemas.User)
 def update_teacher_status(
@@ -138,7 +157,9 @@ def delete_class(class_id: int, db: Session = Depends(database.get_db), current_
 
 @router.get("/classes/", response_model=List[schemas.Class])
 def read_classes(grade_id: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
-    query = db.query(models.Class).filter(models.Class.school_id == current_user.school_id)
+    query = db.query(models.Class)
+    if current_user.role != models.UserRole.SUPER_ADMIN:
+        query = query.filter(models.Class.school_id == current_user.school_id)
     if grade_id:
         query = query.filter(models.Class.grade_id == grade_id)
     return query.all()
@@ -208,7 +229,7 @@ def create_grade(grade: schemas.GradeCreate, db: Session = Depends(database.get_
     return new_grade
 
 @router.get("/grades/", response_model=List[schemas.Grade])
-def read_grades(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+def read_grades(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
     query = db.query(models.Grade)
     if current_user.role != models.UserRole.SUPER_ADMIN:
         query = query.filter(models.Grade.school_id == current_user.school_id)
@@ -218,9 +239,10 @@ def read_grades(db: Session = Depends(database.get_db), current_user: models.Use
     result = []
     for grade in grades:
         student_count = db.query(models.Student).filter(models.Student.grade_id == grade.id, models.Student.active == True).count()
-        # Attach student_count attribute
-        grade.student_count = student_count
-        result.append(grade)
+        # Explicitly map to schema and add student_count
+        grade_data = schemas.Grade.model_validate(grade)
+        grade_data.student_count = student_count
+        result.append(grade_data)
     return result
 
 @router.put("/classes/{class_id}/teacher/{teacher_id}")
@@ -289,13 +311,31 @@ def update_student(student_id: int, student_data: schemas.StudentUpdate, db: Ses
     
     update_data = student_data.model_dump(exclude_unset=True)
     
-    # Handle email update (on User object)
+    # Handle User-related updates
     if "email" in update_data:
         email = update_data.pop("email")
         if student.user:
             student.user.email = email
-            # Also, if we want to update username? Not requested yet.
+
+    if "username" in update_data:
+        new_username = update_data.pop("username").strip().lower()
+        if student.user and student.user.username != new_username:
+            # Check for uniqueness
+            existing_user = db.query(models.User).filter(models.User.username == new_username).first()
+            if existing_user:
+                raise HTTPException(status_code=400, detail="Username already taken")
+            student.user.username = new_username
+
+    if "password" in update_data:
+        new_password = update_data.pop("password")
+        if student.user and new_password:
+            student.user.hashed_password = auth.get_password_hash(new_password)
             
+    if "active" in update_data:
+        is_active = update_data["active"]
+        if student.user:
+            student.user.active = is_active
+
     for key, value in update_data.items():
         setattr(student, key, value)
     
@@ -366,7 +406,46 @@ def create_student(student_data: schemas.StudentCreate, db: Session = Depends(da
     db.commit()
     db.refresh(new_student)
     
-    return new_student
+@router.delete("/students/{student_id}")
+def delete_student(student_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    student = db.query(models.Student).filter(
+        models.Student.id == student_id,
+        models.Student.school_id == current_user.school_id
+    ).first()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+        
+    # Delete associated User account
+    if student.user:
+        db.delete(student.user)
+    
+    # Student record will be deleted via cascade or explicitly if needed
+    # In most SQL setups, deleting the user or student might need both if not cascaded
+    db.delete(student)
+    db.commit()
+    return {"message": "Student and associated user account deleted successfully"}
+
+@router.patch("/students/{student_id}/status")
+def update_student_status(student_id: int, status_data: dict, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    student = db.query(models.Student).filter(
+        models.Student.id == student_id,
+        models.Student.school_id == current_user.school_id
+    ).first()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+        
+    is_active = status_data.get("active")
+    if is_active is None:
+        raise HTTPException(status_code=400, detail="Missing active field")
+        
+    student.active = is_active
+    if student.user:
+        student.user.active = is_active
+        
+    db.commit()
+    return {"message": f"Student {'activated' if is_active else 'deactivated'} successfully"}
 
 # --- Teacher Assignments ---
 
@@ -433,11 +512,12 @@ def delete_teacher_assignment(assignment_id: int, db: Session = Depends(database
 # --- Grade-Subject Management ---
 
 @router.get("/grades/{grade_id}/subjects", response_model=List[schemas.Subject])
-def read_grade_subjects(grade_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+def read_grade_subjects(grade_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
     # Allow SCHOOL_ADMIN, TEACHER, and SUPER_ADMIN
-    if current_user.role not in [models.UserRole.SCHOOL_ADMIN, models.UserRole.TEACHER, models.UserRole.SUPER_ADMIN]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-        
+    # get_current_school_admin already filters for SCHOOL_ADMIN and SUPER_ADMIN.
+    # If Teachers need this, we might need a broader dependency, but usually subjects are managed by admins.
+    # Looking at the original code, it was auth.get_current_active_user.
+    
     query = db.query(models.Grade).filter(models.Grade.id == grade_id)
     
     # If not super admin, restrict to user's school
@@ -475,17 +555,21 @@ def update_grade_subjects(grade_id: int, subject_data: schemas.GradeSubjectUpdat
 
 # --- Question Bank Endpoints ---
 
-@router.get("/questions/", response_model=List[schemas.QuestionOut])
+from app.utils.pagination import paginate_query
+
+@router.get("/questions/", response_model=schemas.PaginatedResponse[schemas.QuestionOut])
 def read_questions(
     grade_id: Optional[int] = None,
     subject_id: Optional[int] = None,
     difficulty: Optional[str] = None,
     search: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_current_school_admin)
 ):
     """
-    Get all questions for the current school with optional filters.
+    Get all questions for the current school with optional filters and pagination.
     Available to School Admins.
     """
     query = db.query(models.Question).join(models.Assignment, models.Question.assignment_id == models.Assignment.id)
@@ -507,7 +591,7 @@ def read_questions(
         search_fmt = f"%{search}%"
         query = query.filter(models.Question.text.ilike(search_fmt))
         
-    return query.all()
+    return paginate_query(query, page, page_size)
 
 @router.post("/assignments/from-bank", response_model=schemas.AssignmentOut)
 def create_assignment_from_bank(
@@ -526,7 +610,11 @@ def create_assignment_from_bank(
         status=models.AssignmentStatus.DRAFT,
         teacher_id=current_user.id, # Admin is the creator
         class_id=data.grade_id or data.class_id,
-        subject_id=data.subject_id
+        subject_id=data.subject_id,
+        exam_type="Quiz",
+        question_count=len(data.question_ids) if data.question_ids else 0,
+        difficulty_level="Medium",
+        question_type="Mixed"
     )
     db.add(new_assignment)
     db.commit()

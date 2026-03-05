@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { Smile, Zap, ShieldAlert } from 'lucide-react';
+import { DataTable } from '../../components/DataTable';
+import { PaginationControls } from '../../components/PaginationControls';
+import type { ColumnDef } from '@tanstack/react-table';
+import PAGINATION_CONFIG from '../../config/pagination';
 
 interface Grade {
     id: number;
@@ -33,7 +38,9 @@ const QuestionBank: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
     const [totalQuestions, setTotalQuestions] = useState(0);
+    const questionsPerPage = PAGINATION_CONFIG.QUESTIONS_PER_PAGE;
 
     // Selection
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -69,20 +76,22 @@ const QuestionBank: React.FC = () => {
             const params: any = {
                 grade_id: selectedGradeId,
                 subject_id: selectedSubjectId,
-                // backend uses skip/limit if needed, but endpoint I added ignores them for now to match simplicity
-                // search: searchText
+                page: currentPage,
+                page_size: questionsPerPage
             };
             if (difficulty) params.difficulty = difficulty;
             if (searchText) params.search = searchText;
 
             const res = await api.get('/school-admin/questions/', { params });
 
-            // Assuming simple array for now matching the backend endpoint I wrote
-            if (Array.isArray(res.data)) {
+            if (res.data && res.data.items !== undefined) {
+                setQuestions(res.data.items);
+                setTotalQuestions(res.data.total);
+            } else if (Array.isArray(res.data)) {
                 setQuestions(res.data);
                 setTotalQuestions(res.data.length);
             } else {
-                setQuestions(res.data.questions || res.data.items || []);
+                setQuestions(res.data.questions || []);
                 setTotalQuestions(res.data.total || 0);
             }
         } catch (error) {
@@ -90,7 +99,7 @@ const QuestionBank: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, currentPage, questionsPerPage]);
 
     useEffect(() => {
         fetchGrades();
@@ -107,11 +116,11 @@ const QuestionBank: React.FC = () => {
 
     useEffect(() => {
         if (selectedGradeId && selectedSubjectId) {
-            fetchQuestions();
+            // Handled mostly by combining with pagination inputs below, but kept for symmetry
         } else {
             setQuestions([]);
         }
-    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, fetchQuestions]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
 
     const toggleSelection = (id: number) => {
         setSelectedIds(prev => prev.includes(id)
@@ -148,14 +157,132 @@ const QuestionBank: React.FC = () => {
         }
     };
 
-    const getDifficultyStats = () => {
+    useEffect(() => {
+        if (selectedGradeId && selectedSubjectId) {
+            // Debounce search text changes
+            const timer = setTimeout(() => {
+                fetchQuestions();
+            }, searchText ? 500 : 0);
+            return () => clearTimeout(timer);
+        } else {
+            setQuestions([]);
+        }
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText, currentPage, fetchQuestions]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
+
+    const totalPages = Math.ceil(totalQuestions / questionsPerPage);
+
+    const stats = useMemo(() => {
         const easy = questions.filter(q => q.difficulty_level === 'Easy').length;
         const medium = questions.filter(q => q.difficulty_level === 'Medium').length;
         const hard = questions.filter(q => q.difficulty_level === 'Hard').length;
         return { easy, medium, hard };
-    };
+    }, [questions]);
 
-    const stats = getDifficultyStats();
+    const columns = useMemo<ColumnDef<Question>[]>(() => [
+        {
+            id: 'selection',
+            header: () => (
+                <div className="flex items-center justify-center w-12">
+                    <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                </div>
+            ),
+            cell: ({ row }) => (
+                <div className="flex items-center justify-center">
+                    <input
+                        type="checkbox"
+                        checked={selectedIds.includes(row.original.id)}
+                        onChange={() => toggleSelection(row.original.id)}
+                        className="rounded-lg border-2 border-slate-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500 w-5 h-5 cursor-pointer transition-all"
+                    />
+                </div>
+            ),
+        },
+        {
+            header: 'Question Text',
+            accessorKey: 'text',
+            cell: ({ row }) => (
+                <div className="font-medium text-slate-800 text-sm leading-relaxed max-w-md">
+                    {row.original.text}
+                </div>
+            ),
+        },
+        {
+            header: 'Difficulty',
+            accessorKey: 'difficulty_level',
+            cell: ({ row }) => {
+                const level = row.original.difficulty_level;
+                return (
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm
+                        ${level === 'Easy' ? 'bg-green-100 text-green-700 border-2 border-green-200' :
+                            level === 'Hard' ? 'bg-red-100 text-red-700 border-2 border-red-200' :
+                                'bg-yellow-100 text-yellow-700 border-2 border-yellow-200'}`}>
+                        {level === 'Easy' && <Smile className="w-3.5 h-3.5" />}
+                        {level === 'Medium' && <Zap className="w-3.5 h-3.5" />}
+                        {level === 'Hard' && <ShieldAlert className="w-3.5 h-3.5" />}
+                        {level || 'N/A'}
+                    </span>
+                );
+            },
+        },
+        {
+            header: 'Points',
+            accessorKey: 'points',
+            cell: ({ row }) => (
+                <div className="bg-indigo-100 text-indigo-700 rounded-lg px-3 py-1.5 font-bold text-sm inline-block">
+                    {row.original.points}
+                </div>
+            ),
+        },
+        {
+            header: 'Type',
+            accessorKey: 'question_type',
+            cell: ({ row }) => (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    {row.original.question_type}
+                </span>
+            ),
+        },
+    ], [selectedIds]);
+
+    const mobileCardRender = useCallback((q: Question) => (
+        <div className="space-y-4">
+            <div className="flex justify-between items-start gap-4">
+                <div className="flex-1">
+                    <h3 className="font-bold text-slate-900 leading-snug mb-2">{q.text}</h3>
+                    <div className="flex flex-wrap gap-2">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider
+                            ${q.difficulty_level === 'Easy' ? 'bg-green-100 text-green-700' :
+                                q.difficulty_level === 'Hard' ? 'bg-red-100 text-red-700' :
+                                    'bg-yellow-100 text-yellow-700'}`}>
+                            {q.difficulty_level}
+                        </span>
+                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                            {q.question_type}
+                        </span>
+                        <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                            {q.points} pts
+                        </span>
+                    </div>
+                </div>
+                <input
+                    type="checkbox"
+                    checked={selectedIds.includes(q.id)}
+                    onChange={() => toggleSelection(q.id)}
+                    className="rounded-lg border-2 border-slate-300 text-indigo-600 w-6 h-6 cursor-pointer flex-shrink-0"
+                />
+            </div>
+        </div>
+    ), [selectedIds]);
 
     return (
         <div className="space-y-6">
@@ -205,7 +332,7 @@ const QuestionBank: React.FC = () => {
             )}
 
             <div className="bg-white p-6 rounded-2xl shadow-md border-2 border-slate-200">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
                         <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Grade</label>
                         <select
@@ -230,6 +357,7 @@ const QuestionBank: React.FC = () => {
                             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
                     </div>
+
 
                     <div>
                         <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Difficulty</label>
@@ -258,56 +386,24 @@ const QuestionBank: React.FC = () => {
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead>
-                        <tr className="bg-slate-50 border-b-2 border-slate-200">
-                            <th className="p-4 w-16">
-                                <span className="sr-only">Select</span>
-                            </th>
-                            <th className="p-4 text-xs uppercase text-slate-700 font-bold">Question Text</th>
-                            <th className="p-4 w-32 text-xs uppercase text-slate-700 font-bold">Difficulty</th>
-                            <th className="p-4 w-24 text-xs uppercase text-slate-700 font-bold">Points</th>
-                            <th className="p-4 w-40 text-xs uppercase text-slate-700 font-bold">Type</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {loading ? (
-                            <tr><td colSpan={5} className="p-12 text-center text-slate-500 font-medium">Loading questions...</td></tr>
-                        ) : questions.length === 0 ? (
-                            <tr><td colSpan={5} className="p-12 text-center text-slate-500">Select Grade and Subject to view questions.</td></tr>
-                        ) : (
-                            questions.map(q => (
-                                <tr key={q.id} className={`hover:bg-slate-50 ${selectedIds.includes(q.id) ? 'bg-indigo-50/50' : ''}`}>
-                                    <td className="p-4">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.includes(q.id)}
-                                            onChange={() => toggleSelection(q.id)}
-                                            className="w-5 h-5 cursor-pointer rounded border-slate-300 text-indigo-600"
-                                        />
-                                    </td>
-                                    <td className="p-4 font-medium text-slate-800 text-sm">{q.text}</td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold ${q.difficulty_level === 'Easy' ? 'bg-green-100 text-green-700' :
-                                            q.difficulty_level === 'Hard' ? 'bg-red-100 text-red-700' :
-                                                'bg-yellow-100 text-yellow-700'
-                                            }`}>
-                                            {q.difficulty_level || 'N/A'}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 font-bold text-slate-700 text-sm">{q.points}</td>
-                                    <td className="p-4">
-                                        <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-semibold">
-                                            {q.question_type}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            <DataTable
+                columns={columns}
+                data={questions}
+                isLoading={loading}
+                mobileCardRender={mobileCardRender}
+                emptyMessage={selectedGradeId && selectedSubjectId ? "No questions found matching your criteria" : "Please select a grade and subject to view questions"}
+                rowClassName={(row) => selectedIds.includes(row.original.id) ? 'bg-gradient-to-r from-indigo-50 to-purple-50 border-l-4 border-indigo-500' : ''}
+            />
+
+            {!loading && questions.length > 0 && totalPages > 1 && (
+                <PaginationControls
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalQuestions}
+                    itemsPerPage={questionsPerPage}
+                    onPageChange={setCurrentPage}
+                />
+            )}
 
             {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">

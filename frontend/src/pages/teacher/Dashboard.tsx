@@ -14,6 +14,8 @@ interface ClassStats {
 interface DashboardStats {
     total_students: number;
     total_classes: number;
+    total_assignments: number;
+    pending_grading: number;
     classes: ClassStats[];
 }
 
@@ -128,7 +130,7 @@ const TeacherDashboard: React.FC = () => {
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Assignments</p>
-                            <h3 className="text-3xl font-bold text-white mb-2">{(stats?.classes?.length ?? 0) * 3}</h3>
+                            <h3 className="text-3xl font-bold text-white mb-2">{stats?.total_assignments || 0}</h3>
                             <div className="flex items-center gap-1 text-white/80 text-xs">
                                 <ClipboardList className="w-3 h-3" />
                                 <span>Created</span>
@@ -145,7 +147,7 @@ const TeacherDashboard: React.FC = () => {
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Pending Grading</p>
-                            <h3 className="text-3xl font-bold text-white mb-2">0</h3>
+                            <h3 className="text-3xl font-bold text-white mb-2">{stats?.pending_grading || 0}</h3>
                             <div className="flex items-center gap-1 text-white/80 text-xs">
                                 <Award className="w-3 h-3" />
                                 <span>To Review</span>

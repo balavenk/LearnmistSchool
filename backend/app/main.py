@@ -40,8 +40,13 @@ app = FastAPI(
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "*" # Fallback for development, though specific origins are preferred
 ]
 
 app.add_middleware(
@@ -90,16 +95,6 @@ async def serve_root():
             return FileResponse(index_path)
         logger.error(f"index.html not found at {index_path}")
         return {"error": "index.html missing", "path": index_path}
-    return {"error": "Frontend build not found"}
-
-# Root Handler
-@app.get("/")
-async def serve_root():
-    if frontend_dist:
-        index_path = os.path.join(frontend_dist, "index.html")
-        if os.path.exists(index_path):
-            return FileResponse(index_path)
-        logger.error(f"index.html not found: {index_path}")
     return {"error": "Frontend build not found"}
 
 # SPA Support: Handle unknown routes by serving index.html

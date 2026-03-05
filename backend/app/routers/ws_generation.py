@@ -106,7 +106,11 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                             teacher_id=teacher_id,
                             subject_id=subject_id,
                             class_id=grade_id,  # Frontend sends grade_id, map to class_id for backward compatibility
-                            due_date=datetime.utcnow() # Default
+                            due_date=datetime.utcnow(), # Default
+                            exam_type="Quiz",
+                            question_count=question_count or 0,
+                            difficulty_level=difficulty or "Medium",
+                            question_type=question_type or "Mixed"
                         )
                         db.add(new_assignment)
                         db.commit()

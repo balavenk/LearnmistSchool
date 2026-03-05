@@ -43,8 +43,6 @@ const TrainViaLLM: React.FC = () => {
 
     useEffect(() => {
         const abortController = new AbortController();
-        let isMounted = true;
-
         const loadFiles = async () => {
             await fetchFiles(abortController.signal);
         };
@@ -52,7 +50,6 @@ const TrainViaLLM: React.FC = () => {
         loadFiles();
 
         return () => {
-            isMounted = false;
             abortController.abort();
         };
     }, [fetchFiles]);
@@ -99,13 +96,13 @@ const TrainViaLLM: React.FC = () => {
             const matchesTab = activeTab === 'NOT_TRAINED'
                 ? (f.file_status === 'Uploaded' || f.file_status === 'Skipped' || f.file_status === 'Processing')
                 : f.file_status === 'Trained';
-            
-            const matchesSearch = deferredSearchQuery === '' || 
+
+            const matchesSearch = deferredSearchQuery === '' ||
                 f.original_filename.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
                 f.subject_name.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
                 f.school_name.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
                 f.grade_name.toLowerCase().includes(deferredSearchQuery.toLowerCase());
-            
+
             return matchesTab && matchesSearch;
         });
     }, [files, activeTab, deferredSearchQuery]);
@@ -185,21 +182,19 @@ const TrainViaLLM: React.FC = () => {
                 accessorKey: 'file_status',
                 header: 'Status',
                 cell: ({ row }) => (
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${
-                        row.original.file_status === 'Trained'
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${row.original.file_status === 'Trained'
                             ? 'bg-green-50 text-green-700 border-green-200'
                             : row.original.file_status === 'Skipped'
-                            ? 'bg-slate-100 text-slate-700 border-slate-300'
-                            : row.original.file_status === 'Processing'
-                            ? 'bg-amber-50 text-amber-700 border-amber-200'
-                            : 'bg-blue-50 text-blue-700 border-blue-200'
-                    }`}>
-                        <span className={`w-2 h-2 rounded-full ${
-                            row.original.file_status === 'Trained' ? 'bg-green-500' :
-                            row.original.file_status === 'Skipped' ? 'bg-slate-500' :
-                            row.original.file_status === 'Processing' ? 'bg-amber-500 animate-pulse' :
-                            'bg-blue-500'
-                        }`}></span>
+                                ? 'bg-slate-100 text-slate-700 border-slate-300'
+                                : row.original.file_status === 'Processing'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}>
+                        <span className={`w-2 h-2 rounded-full ${row.original.file_status === 'Trained' ? 'bg-green-500' :
+                                row.original.file_status === 'Skipped' ? 'bg-slate-500' :
+                                    row.original.file_status === 'Processing' ? 'bg-amber-500 animate-pulse' :
+                                        'bg-blue-500'
+                            }`}></span>
                         {row.original.file_status || 'Uploaded'}
                     </span>
                 ),
@@ -293,8 +288,7 @@ const TrainViaLLM: React.FC = () => {
                 <div className="flex border-b-2 border-slate-200">
                     <button
                         onClick={() => handleTabChange('NOT_TRAINED')}
-                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${
-                            activeTab === 'NOT_TRAINED'
+                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'NOT_TRAINED'
                                 ? 'border-indigo-600 bg-white text-indigo-600 shadow-sm'
                                 : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100'
                             }`}
@@ -311,8 +305,7 @@ const TrainViaLLM: React.FC = () => {
                     </button>
                     <button
                         onClick={() => handleTabChange('TRAINED')}
-                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${
-                            activeTab === 'TRAINED'
+                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'TRAINED'
                                 ? 'border-indigo-600 bg-white text-indigo-600 shadow-sm'
                                 : 'border-transparent bg-slate-50 text-slate-500 hover:bg-slate-100'
                             }`}

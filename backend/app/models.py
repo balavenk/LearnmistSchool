@@ -134,6 +134,14 @@ class Grade(Base):
     assignments = relationship("TeacherAssignment", back_populates="grade")
     subjects = relationship("Subject", secondary=grade_subjects, back_populates="grades")
 
+    @property
+    def student_count(self):
+        return getattr(self, "_student_count", 0)
+
+    @student_count.setter
+    def student_count(self, value):
+        self._student_count = value
+
 class Class(Base):
     __tablename__ = "classes"
 
@@ -206,6 +214,7 @@ class Assignment(Base):
     
     teacher_id = Column(Integer, ForeignKey("users.id"))
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True) # Null means assigned to who? Maybe all classes of teacher? Let's say specific class for now.
+    grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True)
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True) # Optional link to subject
 
     # New Fields for Individual/Quiz Generation
@@ -215,6 +224,7 @@ class Assignment(Base):
     question_type = Column(String(50), nullable=True)
 
     teacher = relationship("User", back_populates="created_assignments")
+    grade = relationship("Grade")
     assigned_class = relationship("Class", back_populates="assignments")
     submissions = relationship("Submission", back_populates="assignment")
     submissions = relationship("Submission", back_populates="assignment")
@@ -290,6 +300,8 @@ class Question(Base):
     difficulty_level = Column(String(50), nullable=True)
     assignment_id = Column(Integer, ForeignKey("assignments.id"))
     parent_question_id = Column(Integer, ForeignKey("questions.id"), nullable=True)
+    year = Column(Integer, nullable=True)
+
     
     # Context columns
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=True) # Making nullable for easier migration, but logic will populate

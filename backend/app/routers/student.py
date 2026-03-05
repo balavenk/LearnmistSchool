@@ -38,10 +38,11 @@ def read_open_assignments(db: Session = Depends(database.get_db), student: model
     if not student.class_id:
          return [] 
          
-    # Get assignments for the student's class that are PUBLISHED
+    # Get assignments for the student's class OR grade (if no specific class) 
     assignments = db.query(models.Assignment).filter(
-        models.Assignment.class_id == student.class_id,
-        models.Assignment.status == models.AssignmentStatus.PUBLISHED
+        models.Assignment.status == models.AssignmentStatus.PUBLISHED,
+        (models.Assignment.class_id == student.class_id) | 
+        ((models.Assignment.class_id == None) & (models.Assignment.grade_id == student.grade_id))
     ).order_by(models.Assignment.due_date.desc()).all()
 
     # Filter out ones that are already submitted
@@ -108,19 +109,73 @@ def read_my_assignments(db: Session = Depends(database.get_db), student: models.
     if not student.class_id:
          return [] 
          
-    # Get assignments for the student's class
+    # Get assignments for the student's class or grade
     return db.query(models.Assignment).filter(
-        models.Assignment.class_id == student.class_id,
-        models.Assignment.status == models.AssignmentStatus.PUBLISHED
+        models.Assignment.status == models.AssignmentStatus.PUBLISHED,
+        (models.Assignment.class_id == student.class_id) | 
+        ((models.Assignment.class_id == None) & (models.Assignment.grade_id == student.grade_id))
     ).all()
+
+
+@router.get("/assignments/overview", response_model=List[schemas.StudentAssignmentOverviewItem])
+def read_assignments_overview(db: Session = Depends(database.get_db), student: models.Student = Depends(get_current_student_profile)):
+    if not student.class_id:
+        return []
+
+    # Get all published assignments for the student's class OR grade (where class is NULL)
+    assignments = db.query(models.Assignment).filter(
+        models.Assignment.status == models.AssignmentStatus.PUBLISHED,
+        (models.Assignment.class_id == student.class_id) | 
+        ((models.Assignment.class_id == None) & (models.Assignment.grade_id == student.grade_id))
+    ).order_by(models.Assignment.due_date.desc()).all()
+
+    # Get all submissions for this student
+    submissions = db.query(models.Submission).filter(
+        models.Submission.student_id == student.id
+    ).all()
+    sub_map = {s.assignment_id: s for s in submissions}
+
+    overview = []
+    for a in assignments:
+        subject_name = a.subject.name if a.subject else "General"
+        teacher_name = a.teacher.username if a.teacher else "Unknown"
+
+        a_out = schemas.AssignmentOut(
+            id=a.id,
+            title=a.title,
+            description=a.description,
+            due_date=a.due_date,
+            status=a.status,
+            teacher_id=a.teacher_id,
+            class_id=a.class_id,
+            subject_id=a.subject_id,
+            subject_name=subject_name,
+            teacher_name=teacher_name,
+            exam_type=a.exam_type,
+            question_count=a.question_count,
+            difficulty_level=a.difficulty_level,
+            question_type=a.question_type,
+        )
+
+        has_questions = len(a.questions) > 0 if a.questions else False
+        sub = sub_map.get(a.id)
+
+        overview.append(schemas.StudentAssignmentOverviewItem(
+            assignment=a_out,
+            submission=sub,
+            has_questions=has_questions
+        ))
+
+    return overview
 
 @router.get("/assignments/{assignment_id}/take", response_model=schemas.AssignmentDetail)
 def take_assignment(assignment_id: int, db: Session = Depends(database.get_db), student: models.Student = Depends(get_current_student_profile)):
     # Check if student is in the class
     assignment = db.query(models.Assignment).filter(
         models.Assignment.id == assignment_id,
-        models.Assignment.class_id == student.class_id,
-        models.Assignment.status == models.AssignmentStatus.PUBLISHED
+        models.Assignment.status == models.AssignmentStatus.PUBLISHED,
+        (models.Assignment.class_id == student.class_id) | 
+        ((models.Assignment.class_id == None) & (models.Assignment.grade_id == student.grade_id))
     ).first()
     
     if not assignment:
@@ -193,10 +248,11 @@ def read_student_grades(db: Session = Depends(database.get_db), student: models.
     # 1. Get all subjects for the school (or specific to grade if we tracked that, but usually subjects are global per school or linked to assignments)
     # Better approach: Find all assignments for this student's class, grouping by subject.
     
-    # Get all published assignments for the class
+    # Get all published assignments for the class/grade
     assignments = db.query(models.Assignment).filter(
-        models.Assignment.class_id == student.class_id,
-        models.Assignment.status == models.AssignmentStatus.PUBLISHED
+        models.Assignment.status == models.AssignmentStatus.PUBLISHED,
+        (models.Assignment.class_id == student.class_id) | 
+        ((models.Assignment.class_id == None) & (models.Assignment.grade_id == student.grade_id))
     ).all()
     
     # Get all submissions for this student
