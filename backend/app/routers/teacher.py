@@ -354,7 +354,10 @@ async def generate_ai_assignment(
             difficulty=req.difficulty,
             count=req.question_count,
             question_type=req.question_type,
-            use_pdf_context=req.use_pdf_context
+            use_pdf_context=req.use_pdf_context,
+            subject_id=req.subject_id,
+            grade_id=req.grade_id,
+            school_id=current_user.school_id,
         )
     except Exception as e:
         logger.error(f"❌ [AI GEN] RAG Service failed: {str(e)}")
