@@ -2,7 +2,7 @@ from app import database, models, auth
 from sqlalchemy.orm import Session
 
 def seed():
-    db = database.SessionLocal()
+    db = database.get_session_local()
     try:
         password = "password123"
         hashed_pwd = auth.get_password_hash(password)
@@ -22,7 +22,32 @@ def seed():
         else:
             print("Super Admin already exists")
 
-        # 2. Create School
+        # 2. Create Country, Curriculum, and SchoolType
+        country = db.query(models.Country).filter(models.Country.name == "India").first()
+        if not country:
+            country = models.Country(name="India")
+            db.add(country)
+            db.commit()
+            db.refresh(country)
+            print("Created Country: India")
+
+        curriculum = db.query(models.Curriculum).filter(models.Curriculum.name == "Matriculation", models.Curriculum.country_id == country.id).first()
+        if not curriculum:
+            curriculum = models.Curriculum(name="Matriculation", country_id=country.id)
+            db.add(curriculum)
+            db.commit()
+            db.refresh(curriculum)
+            print("Created Curriculum: Matriculation")
+
+        school_type = db.query(models.SchoolType).filter(models.SchoolType.name == "HigherSecondary", models.SchoolType.country_id == country.id).first()
+        if not school_type:
+            school_type = models.SchoolType(name="HigherSecondary", country_id=country.id)
+            db.add(school_type)
+            db.commit()
+            db.refresh(school_type)
+            print("Created SchoolType: HigherSecondary")
+
+        # 3. Create School
         school = db.query(models.School).filter(models.School.name == "Learnmist Demo School").first()
         if not school:
             school = models.School(
@@ -30,7 +55,10 @@ def seed():
                 address="123 Education Lane, Tech City",
                 max_teachers=10,
                 max_students=100,
-                max_classes=5
+                max_classes=5,
+                country_id=country.id,
+                curriculum_id=curriculum.id,
+                school_type_id=school_type.id
             )
             db.add(school)
             db.commit() # Commit to get ID
