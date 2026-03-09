@@ -6,13 +6,14 @@ from typing import List, Dict, Callable, Awaitable
 import uuid
 import json
 import asyncio
+from app.services.llm_router import router
 
 # Initialize clients (ensure env vars are set)
 # OPENAI_API_KEY
 
-async def classify_chunk(client: AsyncOpenAI, text: str) -> Dict:
+async def classify_chunk(text: str) -> Dict:
     """
-    Classifies the text chunk using GPT.
+    Classifies the text chunk using the LLM router.
     """
     prompt = f"""
     You are analyzing a textbook.
@@ -40,16 +41,8 @@ async def classify_chunk(client: AsyncOpenAI, text: str) -> Dict:
     # Truncate text to avoid context limits if chunk is too huge, currently 800 tokens is fine.
 
     try:
-        completion = await client.chat.completions.create(
-            model="gpt-4o", # Or gpt-3.5-turbo if cost is concern
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that classifies educational content."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={ "type": "json_object" }
-        )
-        content = completion.choices[0].message.content
-        return json.loads(content)
+        system_prompt = "You are a helpful assistant that classifies educational content."
+        return await router.generate_json(system_prompt, prompt)
     except Exception as e:
         print(f"Classification failed: {e}")
         return {}
@@ -67,7 +60,7 @@ def get_qdrant_client():
 async def process_chunks_async(
     chunks: List[str], 
     metadata: Dict, 
-    collection_name: str = "learnmist-school",
+    collection_name: str = "learnmist-school-small",
     progress_callback: Callable[[str], Awaitable[None]] = None
 ):
     """
@@ -98,7 +91,7 @@ async def process_chunks_async(
     if not client_qdrant.collection_exists(collection_name):
         client_qdrant.create_collection(
             collection_name=collection_name,
-            vectors_config=models.VectorParams(size=3072, distance=models.Distance.COSINE) # text-embedding-3-large is 3072d
+            vectors_config=models.VectorParams(size=1536, distance=models.Distance.COSINE) # text-embedding-3-small is 1536d
         )
         if progress_callback: await progress_callback(f"Created new collection '{collection_name}'.")
 
@@ -118,7 +111,7 @@ async def process_chunks_async(
             for idx, chunk in enumerate(batch_chunks):
                 # Optionally report individual chunk progress? Might be too chatty.
                 # if progress_callback: await progress_callback(f"Batch {batch_num}: Classifying chunk {idx+1}/{len(batch_chunks)}...")
-                classification = await classify_chunk(client_openai, chunk)
+                classification = await classify_chunk(chunk)
                 classified_chunks_metadata.append(classification)
             
             if progress_callback: await progress_callback(f"Batch {batch_num}: Classification done. Generating embeddings...")
@@ -126,7 +119,7 @@ async def process_chunks_async(
             # 2. Generate Embeddings
             response = await client_openai.embeddings.create(
                 input=batch_chunks,
-                model="text-embedding-3-large"
+                model="text-embedding-3-small"
             )
             embeddings = [data.embedding for data in response.data]
             
@@ -204,7 +197,7 @@ async def generate_quiz_questions(
         client_openai = AsyncOpenAI(api_key=openai_api_key)
 
     client_qdrant = get_qdrant_client()
-    collection_name = "learnmist-school"
+    collection_name = "learnmist-school-small"
 
     try:
         # 1. Embed the query (topic) - only if using PDF context
@@ -216,7 +209,7 @@ async def generate_quiz_questions(
                 
             emb_response = await client_openai.embeddings.create(
                 input=topic,
-                model="text-embedding-3-large"
+                model="text-embedding-3-small"
             )
             query_vector = emb_response.data[0].embedding
 
@@ -347,7 +340,7 @@ async def generate_quiz_questions(
         """
         
         if progress_callback:
-            await progress_callback("Generating questions with OpenAI...", {"step": "llm_request", "prompt_preview": prompt[:200] + "..."})
+            await progress_callback("Generating questions with LLM router...", {"step": "llm_request", "prompt_preview": prompt[:200] + "..."})
 
         # Choose system prompt based on whether PDF context is being used
         if use_pdf_context:
@@ -364,41 +357,13 @@ async def generate_quiz_questions(
         else:
             system_prompt = "You are a helpful educational assistant. Output valid JSON only."
 
-        completion = await client_openai.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={ "type": "json_object" }
-        )
-        content = completion.choices[0].message.content
-        print(f"DEBUG: Raw response from OpenAI: {content[:1000]}")
-        
-        if progress_callback:
-             await progress_callback("Received response from OpenAI.", {"step": "llm_response", "raw_content_preview": content[:200] + "..."})
-             
         try:
-            data = json.loads(content)
-        except json.JSONDecodeError:
-            # Attempt to clean markdown
-            cleaned_content = content.strip()
-            if cleaned_content.startswith("```json"):
-                cleaned_content = cleaned_content[7:]
-            if cleaned_content.startswith("```"):
-                cleaned_content = cleaned_content[3:]
-            if cleaned_content.endswith("```"):
-                cleaned_content = cleaned_content[:-3]
-            cleaned_content = cleaned_content.strip()
-            
-            try:
-                data = json.loads(cleaned_content)
-            except json.JSONDecodeError as e:
-                print(f"JSON Parse Error: {e}")
-                print(f"Raw Content: {content}")
-                if progress_callback:
-                     await progress_callback(f"Failed to parse AI response. Raw: {content[:100]}...", {"step": "error", "details": "JSON Parse Error"})
-                return []
+            data = await router.generate_json(system_prompt, prompt)
+        except Exception as e:
+            print(f"LLM Generation failed via router: {e}")
+            if progress_callback:
+                await progress_callback(f"Failed to generate questions. Error: {e}", {"step": "error", "details": str(e)})
+            return []
 
         questions = data.get("questions", [])
         
