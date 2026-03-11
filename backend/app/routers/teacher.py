@@ -687,7 +687,9 @@ def create_question(assignment_id: int, question: schemas.QuestionCreate, db: Se
         text=question.text,
         points=question.points,
         question_type=q_type,
-        assignment_id=assignment_id
+        assignment_id=assignment_id,
+        media_url=question.media_url,
+        media_type=question.media_type,
     )
     db.add(new_question)
     db.commit()
@@ -726,6 +728,11 @@ def update_question(question_id: int, question_update: schemas.QuestionUpdate, d
             question.question_type = models.QuestionType(question_update.question_type)
         except ValueError:
             pass
+    # Update media — allow explicit None to clear the media
+    if 'media_url' in question_update.model_fields_set or question_update.media_url is not None:
+        question.media_url = question_update.media_url
+    if 'media_type' in question_update.model_fields_set or question_update.media_type is not None:
+        question.media_type = question_update.media_type
 
     if question_update.options is not None:
         # Replace options strategy: Delete all and recreate

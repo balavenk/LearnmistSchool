@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Printer, FilePlus } from 'lucide-react';
+import { Printer, FilePlus, Image, X, Loader2 } from 'lucide-react';
 import api from '../../api/axios';
 
 interface QuestionOption {
@@ -16,6 +16,8 @@ interface Question {
     points: number;
     question_type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'SHORT_ANSWER';
     options: QuestionOption[];
+    media_url?: string;
+    media_type?: string; // "image" | "video"
 }
 
 const QuizDetails: React.FC = () => {
@@ -35,6 +37,27 @@ const QuizDetails: React.FC = () => {
     const [qPoints, setQPoints] = useState(1);
     const [qType, setQType] = useState('MULTIPLE_CHOICE');
     const [qOptions, setQOptions] = useState<QuestionOption[]>([{ text: '', is_correct: false }]);
+
+    // Media state
+    const [qMediaUrl, setQMediaUrl] = useState<string | undefined>(undefined);
+    const [qMediaType, setQMediaType] = useState<string | undefined>(undefined);
+    const [mediaUploading, setMediaUploading] = useState(false);
+    const [mediaPreview, setMediaPreview] = useState<string | undefined>(undefined);
+    const mediaInputRef = useRef<HTMLInputElement>(null);
+
+    // Helper to get full media URL
+    const getMediaUrl = (url?: string) => {
+        if (!url) return '';
+        if (url.startsWith('blob:')) return url;
+
+        // If URL is already absolute, return it
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+
+        const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+        const relativePath = url.startsWith('/') ? url : `/${url}`;
+
+        return `${baseUrl}${relativePath}`;
+    };
 
 
     const fetchQuestions = async () => {
@@ -66,7 +89,9 @@ const QuizDetails: React.FC = () => {
                 text: qText,
                 points: qPoints,
                 question_type: qType,
-                options: qOptions
+                options: qOptions,
+                media_url: qMediaUrl ?? null,
+                media_type: qMediaType ?? null,
             };
 
             if (editingQuestion) {
@@ -91,12 +116,18 @@ const QuizDetails: React.FC = () => {
             setQPoints(q.points);
             setQType(q.question_type);
             setQOptions(q.options.length > 0 ? q.options : [{ text: '', is_correct: false }]);
+            setQMediaUrl(q.media_url);
+            setQMediaType(q.media_type);
+            setMediaPreview(q.media_url);
         } else {
             setEditingQuestion(null);
             setQText('');
             setQPoints(1);
             setQType('MULTIPLE_CHOICE');
             setQOptions([{ text: '', is_correct: false }]);
+            setQMediaUrl(undefined);
+            setQMediaType(undefined);
+            setMediaPreview(undefined);
         }
         setIsModalOpen(true);
     };
@@ -104,6 +135,9 @@ const QuizDetails: React.FC = () => {
     const closeModal = () => {
         setIsModalOpen(false);
         setEditingQuestion(null);
+        setQMediaUrl(undefined);
+        setQMediaType(undefined);
+        setMediaPreview(undefined);
     };
 
     const handleOptionChange = (index: number, field: keyof QuestionOption, value: any) => {
@@ -119,6 +153,70 @@ const QuizDetails: React.FC = () => {
 
     const removeOption = (index: number) => {
         setQOptions(qOptions.filter((_, i) => i !== index));
+    };
+
+    // ---- Media Upload ----
+    const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm'];
+    const MAX_IMAGE_BYTES = 2 * 1024 * 1024;   // 2 MB
+    const MAX_VIDEO_BYTES = 10 * 1024 * 1024;  // 10 MB
+
+    const handleMediaFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
+        const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type);
+
+        if (!isImage && !isVideo) {
+            toast.error('Unsupported file type. Use JPEG, PNG, GIF, WebP, MP4, or WebM.');
+            return;
+        }
+
+        const maxBytes = isImage ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES;
+        const maxLabel = isImage ? '2 MB' : '10 MB';
+        if (file.size > maxBytes) {
+            toast.error(`File too large. Maximum size is ${maxLabel}.`);
+            return;
+        }
+
+        // Show local preview immediately
+        const localUrl = URL.createObjectURL(file);
+        setMediaPreview(localUrl);
+        setQMediaType(isImage ? 'image' : 'video');
+        setMediaUploading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('assignment_id', assignmentId!);
+
+            const res = await api.post('/upload/question-media', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+
+            setQMediaUrl(res.data.media_url);
+            setQMediaType(res.data.media_type);
+            setMediaPreview(res.data.media_url); // Switch to served URL
+            toast.success('Media uploaded!');
+        } catch (err: any) {
+            const msg = err?.response?.data?.detail || 'Failed to upload media.';
+            toast.error(msg);
+            setMediaPreview(undefined);
+            setQMediaUrl(undefined);
+            setQMediaType(undefined);
+        } finally {
+            setMediaUploading(false);
+            // Reset file input so the same file can be re-selected if needed
+            if (mediaInputRef.current) mediaInputRef.current.value = '';
+        }
+    };
+
+    const clearMedia = () => {
+        setQMediaUrl(undefined);
+        setQMediaType(undefined);
+        setMediaPreview(undefined);
+        if (mediaInputRef.current) mediaInputRef.current.value = '';
     };
 
     const handleDelete = async (id: number) => {
@@ -229,13 +327,28 @@ const QuizDetails: React.FC = () => {
                                 </div>
                                 <div className="flex items-start gap-4">
                                     <span className="bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded text-sm">Q{index + 1}</span>
-                                    <div>
+                                    <div className="flex-1">
                                         <h3 className="text-lg font-medium text-slate-900">{q.text}</h3>
                                         <div className="flex gap-2 text-xs text-uppercase tracking-wider text-slate-400 mt-1 mb-3">
                                             <span>{q.question_type.replace('_', ' ')}</span>
                                             <span>•</span>
                                             <span>{q.points} Points</span>
                                         </div>
+                                        {/* Question media inline display */}
+                                        {q.media_url && q.media_type === 'image' && (
+                                            <img
+                                                src={getMediaUrl(q.media_url)}
+                                                alt="Question media"
+                                                className="mb-3 rounded-lg max-h-48 object-contain border border-slate-200"
+                                            />
+                                        )}
+                                        {q.media_url && q.media_type === 'video' && (
+                                            <video
+                                                src={getMediaUrl(q.media_url)}
+                                                controls
+                                                className="mb-3 rounded-lg max-h-48 w-full border border-slate-200"
+                                            />
+                                        )}
                                         {renderOptions(q)}
                                     </div>
                                 </div>
@@ -319,6 +432,61 @@ const QuizDetails: React.FC = () => {
                                         <button type="button" onClick={addOption} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium mt-1">+ Add Option</button>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Media Upload Section */}
+                            <div className="border-t border-slate-100 pt-4">
+                                <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+                                    <Image className="w-4 h-4" />
+                                    Attach Image or Video <span className="text-slate-400 font-normal">(optional)</span>
+                                </label>
+
+                                {/* Preview */}
+                                {mediaPreview && (
+                                    <div className="relative inline-block mb-3">
+                                        {qMediaType === 'image' ? (
+                                            <img
+                                                src={getMediaUrl(mediaPreview)}
+                                                alt="Preview"
+                                                className="rounded-lg border border-slate-200 max-h-36 max-w-full object-contain"
+                                            />
+                                        ) : (
+                                            <video
+                                                src={getMediaUrl(mediaPreview)}
+                                                controls
+                                                className="rounded-lg border border-slate-200 max-h-36 w-full"
+                                            />
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={clearMedia}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600 shadow"
+                                            title="Remove media"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* File Picker */}
+                                {!mediaPreview && (
+                                    <label className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors text-sm text-slate-500 ${mediaUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        {mediaUploading ? (
+                                            <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
+                                        ) : (
+                                            <><Image className="w-4 h-4" /> Click to pick an image or video</>
+                                        )}
+                                        <input
+                                            ref={mediaInputRef}
+                                            type="file"
+                                            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm"
+                                            className="hidden"
+                                            onChange={handleMediaFileChange}
+                                            disabled={mediaUploading}
+                                        />
+                                    </label>
+                                )}
+                                <p className="text-xs text-slate-400 mt-1">Images: JPEG/PNG/GIF/WebP, max 2 MB · Videos: MP4/WebM, max 10 MB</p>
                             </div>
 
                             <div className="flex gap-3 pt-4 border-t border-slate-100 mt-4">

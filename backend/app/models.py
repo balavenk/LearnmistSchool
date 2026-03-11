@@ -302,6 +302,10 @@ class Question(Base):
     parent_question_id = Column(Integer, ForeignKey("questions.id"), nullable=True)
     year = Column(Integer, nullable=True)
 
+    # Optional media attachment
+    media_url = Column(String(500), nullable=True)   # local static path or S3 URL later
+    media_type = Column(String(20), nullable=True)   # "image" or "video"
+
     
     # Context columns
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=True) # Making nullable for easier migration, but logic will populate

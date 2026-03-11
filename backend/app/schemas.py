@@ -322,6 +322,8 @@ class QuestionBase(BaseModel):
     points: int
     question_type: str # string representation of Enum
     year: Optional[int] = None
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None  # "image" | "video"
 
 class QuestionCreate(QuestionBase):
     options: List[QuestionOptionCreate] = []
@@ -331,6 +333,12 @@ class QuestionUpdate(BaseModel):
     points: Optional[int] = None
     question_type: Optional[str] = None
     options: Optional[List[QuestionOptionCreate]] = None
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None  # "image" | "video" | None to clear
+
+class QuestionMediaOut(BaseModel):
+    media_url: str
+    media_type: str  # "image" | "video"
 
 class QuestionOut(QuestionBase):
     id: int

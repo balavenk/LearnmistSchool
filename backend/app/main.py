@@ -85,6 +85,12 @@ print(f"DEBUG: frontend_dist resolved to: {frontend_dist}")
 if frontend_dist:
     app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
 
+# Serve uploaded media files (question images, videos, training PDFs)
+_storage_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "storage")
+if not os.path.exists(_storage_root):
+    os.makedirs(_storage_root, exist_ok=True)
+app.mount("/storage", StaticFiles(directory=_storage_root), name="storage")
+
 # Root Handler
 @app.get("/")
 async def serve_root():

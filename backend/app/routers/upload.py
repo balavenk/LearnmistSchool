@@ -11,6 +11,12 @@ import asyncio
 
 from .. import database, models, schemas, auth
 
+# Media upload constants
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm"}
+MAX_IMAGE_SIZE = 2 * 1024 * 1024   # 2 MB
+MAX_VIDEO_SIZE = 10 * 1024 * 1024  # 10 MB
+
 router = APIRouter(
     prefix="/upload",
     tags=["upload"],
@@ -465,3 +471,64 @@ def download_training_material(
         filename=artifact.original_filename,
         media_type=artifact.mime_type or "application/pdf"
     )
+
+
+# --- Question Media Upload ---
+
+@router.post("/question-media", response_model=schemas.QuestionMediaOut)
+async def upload_question_media(
+    file: UploadFile = File(...),
+    assignment_id: int = Form(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_upload_user)
+):
+    """
+    Upload an image or video to attach to a quiz question.
+    Images: JPEG, PNG, GIF, WebP — max 2 MB.
+    Videos: MP4, WebM — max 10 MB.
+    """
+    allowed_types = ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES
+    content_type = file.content_type or ""
+
+    if content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Allowed: JPEG, PNG, GIF, WebP (images) or MP4, WebM (videos)."
+        )
+
+    is_image = content_type in ALLOWED_IMAGE_TYPES
+    max_size = MAX_IMAGE_SIZE if is_image else MAX_VIDEO_SIZE
+    media_type_label = "image" if is_image else "video"
+    size_label = "2 MB" if is_image else "10 MB"
+
+    # Read file into memory with size guard (+1 to detect over-limit)
+    contents = await file.read(max_size + 1)
+    if len(contents) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size for {media_type_label}s is {size_label}."
+        )
+
+    # Determine storage directory: storage/question-media/{school_id}/{assignment_id}/
+    school_id = current_user.school_id or 0
+    rel_dir = os.path.join("question-media", str(school_id), str(assignment_id))
+    abs_dir = os.path.join(STORAGE_ROOT_ABS, rel_dir)
+    os.makedirs(abs_dir, exist_ok=True)
+
+    # Unique filename
+    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    ext = os.path.splitext(file.filename or "")[1].lower() or (".jpg" if is_image else ".mp4")
+    stored_filename = f"{timestamp}_{media_type_label}{ext}"
+    file_path = os.path.join(abs_dir, stored_filename)
+
+    # Save to disk
+    try:
+        with open(file_path, "wb") as f:
+            f.write(contents)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
+
+    # Build the URL the frontend will use to display the file
+    media_url = f"/storage/question-media/{school_id}/{assignment_id}/{stored_filename}"
+
+    return {"media_url": media_url, "media_type": media_type_label}
