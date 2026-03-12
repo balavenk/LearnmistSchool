@@ -168,6 +168,9 @@ def seed():
     except Exception as e:
         print(f"Error seeding database: {e}")
         db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise
     finally:
         db.close()
 

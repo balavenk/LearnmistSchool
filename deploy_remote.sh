@@ -1,16 +1,46 @@
 #!/bin/bash
 set -e
 
+echo "=== [0] Stop Docker web container (keep Postgres) ==="
+# Stop any Docker web/app containers that bind port 8000 to avoid traffic conflicts.
+# The Postgres DB container is kept running so the backend can connect to it.
+WEB_IDS=$(sudo docker ps -q --filter "publish=8000" --filter "publish=8080" 2>/dev/null || true)
+if [ -n "$WEB_IDS" ]; then
+    echo "    Stopping Docker containers on port 8000/8080: $WEB_IDS"
+    sudo docker stop $WEB_IDS
+else
+    echo "    No conflicting Docker containers found on port 8000/8080"
+fi
+
+# Ensure the Postgres DB container is running (named app_db_1 or similar)
+DB_ID=$(sudo docker ps -q --filter "ancestor=postgres:15" 2>/dev/null || true)
+STOPPED_DB=$(sudo docker ps -aq --filter "ancestor=postgres:15" --filter "status=exited" 2>/dev/null || true)
+if [ -z "$DB_ID" ] && [ -n "$STOPPED_DB" ]; then
+    echo "    Restarting stopped Postgres container: $STOPPED_DB"
+    sudo docker start $STOPPED_DB
+    sleep 4
+elif [ -n "$DB_ID" ]; then
+    echo "    Postgres container already running: $DB_ID"
+else
+    echo "    WARNING: No Postgres container found — DB may need manual setup"
+fi
+
 echo "=== [1] Extracting new build ==="
 rm -rf ~/app_new
 mkdir ~/app_new
 tar -xzf ~/deploy_pack.tar.gz -C ~/app_new
 
 echo "=== [2] Syncing files into ~/app ==="
-mkdir -p ~/app/backend ~/app/frontend/dist
+mkdir -p ~/app/backend
 
-rsync -a --exclude=".env" --exclude="learnmistschool.db" ~/app_new/backend/ ~/app/backend/
-rsync -a ~/app_new/frontend/dist/ ~/app/frontend/dist/
+# Backend: rsync excluding .env and database (preserve those on server)
+rsync -a --checksum --exclude=".env" --exclude="learnmistschool.db" ~/app_new/backend/ ~/app/backend/
+
+# Frontend: force-replace entirely so stale files are never left behind
+echo "    Replacing frontend/dist..."
+rm -rf ~/app/frontend/dist
+cp -a ~/app_new/frontend/dist ~/app/frontend/dist
+echo "    Frontend dist replaced OK"
 
 echo "=== [3] Installing Python dependencies ==="
 cd ~/app/backend
@@ -46,8 +76,17 @@ sudo systemctl enable learnmist.service
 
 echo "=== [5] Restarting learnmist.service ==="
 sudo systemctl restart learnmist.service
-sleep 3
+sleep 4
 sudo systemctl status learnmist.service --no-pager
+
+# Quick health check — verify the live server is returning the new bundle
+echo ""
+echo "=== [5b] Health check ==="
+SERVED=$(curl -s http://localhost:8000/ | grep -o 'index-[A-Za-z0-9_-]*\.js' | head -1)
+echo "    Server is now serving: $SERVED"
+if [ -z "$SERVED" ]; then
+    echo "    WARNING: Could not detect JS bundle — check service logs"
+fi
 
 echo "=== [6] Cleanup ==="
 rm -rf ~/app_new ~/deploy_pack.tar.gz ~/deploy_remote.sh
