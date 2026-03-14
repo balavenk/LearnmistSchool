@@ -79,9 +79,37 @@ const Students: React.FC = () => {
 
     // Form State
     const [newName, setNewName] = useState('');
+    const [newUsername, setNewUsername] = useState('');
+    const [newPassword, setNewPassword] = useState('');
     const [newEmail, setNewEmail] = useState('');
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
+
+    // Auto-generate username from name
+    const generateUsername = (name: string): string => {
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return `${parts[0]}${parts[parts.length - 1][0]}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+        return parts[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    };
+
+    // When name changes, auto-fill username (only if user hasn't manually edited it)
+    const [usernameManuallyEdited, setUsernameManuallyEdited] = useState(false);
+    useEffect(() => {
+        if (!usernameManuallyEdited && newName) {
+            setNewUsername(generateUsername(newName));
+        }
+        if (!newName) {
+            setNewUsername('');
+            setUsernameManuallyEdited(false);
+        }
+    }, [newName, usernameManuallyEdited]);
+
+    // Check username uniqueness against already-loaded students
+    // Note: Teacher may not have all students loaded, but this helps prevent obvious duplicates in their current view
+    const usernameIsTaken = newUsername.length > 0 &&
+        students.some(s => (s as any).username?.toLowerCase() === newUsername.toLowerCase());
 
     // Helpers
     const getGradeName = (id: number) => grades.find(g => g.id === id)?.name || 'Unknown';
@@ -414,16 +442,25 @@ const Students: React.FC = () => {
     const closeModal = () => {
         setIsModalOpen(false);
         setNewName('');
+        setNewUsername('');
+        setNewPassword('');
         setNewEmail('');
         setSelectedGradeId('');
         setSelectedClassId('');
+        setUsernameManuallyEdited(false);
     };
 
     const handleCreateStudent = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (usernameIsTaken) {
+            toast.error("Username is already taken. Please choose a different one.");
+            return;
+        }
         try {
             await api.post('/teacher/students/', {
                 name: newName,
+                username: newUsername || null,
+                password: newPassword || null,
                 email: newEmail || null,
                 grade_id: Number(selectedGradeId),
                 class_id: selectedClassId ? Number(selectedClassId) : null
@@ -431,9 +468,10 @@ const Students: React.FC = () => {
             await fetchData(1); // Refresh and go to first page
             closeModal();
             toast.success("Student added successfully");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create student", error);
-            toast.error("Failed to create student");
+            const detail = error?.response?.data?.detail;
+            toast.error(detail || "Failed to create student");
         }
     };
 
@@ -842,6 +880,61 @@ const Students: React.FC = () => {
                                     required
                                     className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                     placeholder="Enter student's full name"
+                                />
+                            </div>
+
+                            {/* Username Field */}
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+                                    <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    Username
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newUsername}
+                                        onChange={(e) => {
+                                            setUsernameManuallyEdited(true);
+                                            setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                                        }}
+                                        className={`w-full px-4 py-3 border-2 rounded-xl outline-none font-mono text-sm pr-24 transition-all ${usernameIsTaken
+                                                ? 'border-red-400 focus:border-red-500 bg-red-50 focus:ring-2 focus:ring-red-500'
+                                                : newUsername
+                                                    ? 'border-green-400 focus:border-green-500 focus:ring-2 focus:ring-green-500'
+                                                    : 'border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500'
+                                            }`}
+                                        placeholder="auto-generated"
+                                    />
+                                    {newUsername && (
+                                        <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold ${usernameIsTaken ? 'text-red-500' : 'text-green-500'
+                                            }`}>
+                                            {usernameIsTaken ? '✗ Taken' : '✓ Available'}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-1.5 ml-1">
+                                    Auto-generated from name. Only letters & numbers.
+                                </p>
+                            </div>
+
+                            {/* Password Field */}
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+                                    <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                    Password <span className="text-slate-400 text-xs font-normal">(default: password123)</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                    placeholder="Leave blank to use default"
+                                    autoComplete="new-password"
                                 />
                             </div>
                             <div>
