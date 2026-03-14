@@ -211,7 +211,9 @@ class StudentCreate(StudentBase):
     grade_id: Optional[int] = None
     class_id: Optional[int] = None
     email: Optional[str] = None
-    school_id: Optional[int] = None # For manual creation if needed
+    school_id: Optional[int] = None  # For manual creation if needed
+    username: Optional[str] = None   # If provided, use instead of auto-generating
+    password: Optional[str] = None   # If provided, use instead of default 'password123'
 
 class StudentUpdate(BaseModel):
     name: Optional[str] = None

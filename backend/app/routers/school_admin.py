@@ -356,30 +356,31 @@ def create_student(student_data: schemas.StudentCreate, db: Session = Depends(da
         if not cls:
             raise HTTPException(status_code=404, detail="Class not found")
 
-    # 2. Username Generation
-    # Logic: First Name + First Char of Last Name. Lowercase to be standard.
-    parts = student_data.name.strip().split()
-    if len(parts) >= 2:
-        # e.g. "John Doe" -> "johnd"
-        base_username = f"{parts[0]}{parts[-1][0]}".lower()
+    # 2. Username — use supplied one or auto-generate
+    if student_data.username:
+        # Validate and use the provided username
+        username = student_data.username.strip().lower()
+        username = "".join(c for c in username if c.isalnum())
+        if not username:
+            raise HTTPException(status_code=400, detail="Invalid username")
+        if db.query(models.User).filter(models.User.username == username).first():
+            raise HTTPException(status_code=400, detail=f"Username '{username}' is already taken")
     else:
-        # e.g. "Cher" -> "cher"
-        base_username = parts[0].lower()
-    
-    # Ensure simplified alphanumeric? (Optional but good practice, doing minimal to satisfy req)
-    base_username = "".join(c for c in base_username if c.isalnum())
-    
-    username = base_username
-    counter = 1
-    
-    # Check uniqueness
-    while db.query(models.User).filter(models.User.username == username).first():
-        username = f"{base_username}{counter}"
-        counter += 1
-        
+        # Auto-generate: firstname + first char of lastname
+        parts = student_data.name.strip().split()
+        if len(parts) >= 2:
+            base_username = f"{parts[0]}{parts[-1][0]}".lower()
+        else:
+            base_username = parts[0].lower()
+        base_username = "".join(c for c in base_username if c.isalnum())
+        username = base_username
+        counter = 1
+        while db.query(models.User).filter(models.User.username == username).first():
+            username = f"{base_username}{counter}"
+            counter += 1
+
     # 3. Create User
-    # Default password 'password123'
-    hashed_password = auth.get_password_hash("password123")
+    hashed_password = auth.get_password_hash(student_data.password or "password123")
     
     new_user = models.User(
         username=username,
@@ -405,7 +406,10 @@ def create_student(student_data: schemas.StudentCreate, db: Session = Depends(da
     db.add(new_student)
     db.commit()
     db.refresh(new_student)
-    
+    # Populate email from the linked user (same pattern as read_students)
+    if new_student.user:
+        new_student.email = new_student.user.email
+    return new_student
 @router.delete("/students/{student_id}")
 def delete_student(student_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
     student = db.query(models.Student).filter(
