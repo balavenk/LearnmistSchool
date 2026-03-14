@@ -272,9 +272,36 @@ const StudentsList: React.FC = () => {
     // Add Student State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [newStudentName, setNewStudentName] = useState('');
+    const [newStudentUsername, setNewStudentUsername] = useState('');
+    const [newStudentPassword, setNewStudentPassword] = useState('');
     const [newStudentEmail, setNewStudentEmail] = useState('');
     const [newStudentGradeId, setNewStudentGradeId] = useState<number | ''>('');
     const [newStudentClassId, setNewStudentClassId] = useState<number | ''>('');
+
+    // Auto-generate username from name
+    const generateUsername = (name: string): string => {
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return `${parts[0]}${parts[parts.length - 1][0]}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+        return parts[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    };
+
+    // When name changes, auto-fill username (only if user hasn't manually edited it)
+    const [usernameManuallyEdited, setUsernameManuallyEdited] = useState(false);
+    useEffect(() => {
+        if (!usernameManuallyEdited && newStudentName) {
+            setNewStudentUsername(generateUsername(newStudentName));
+        }
+        if (!newStudentName) {
+            setNewStudentUsername('');
+            setUsernameManuallyEdited(false);
+        }
+    }, [newStudentName, usernameManuallyEdited]);
+
+    // Check username uniqueness against already-loaded students
+    const usernameIsTaken = newStudentUsername.length > 0 &&
+        students.some(s => s.username?.toLowerCase() === newStudentUsername.toLowerCase());
 
     // Memoize filtered classes for modals to avoid inline filtering on every render
     const filteredClassesForNewStudent = useMemo(() => {
@@ -287,25 +314,38 @@ const StudentsList: React.FC = () => {
         return classes.filter(c => c.grade_id === Number(editGradeId));
     }, [classes, editGradeId]);
 
+    const closeAddModal = () => {
+        setIsAddModalOpen(false);
+        setNewStudentName('');
+        setNewStudentUsername('');
+        setNewStudentPassword('');
+        setNewStudentEmail('');
+        setNewStudentGradeId('');
+        setNewStudentClassId('');
+        setUsernameManuallyEdited(false);
+    };
+
     const handleAddStudent = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (usernameIsTaken) {
+            toast.error("Username is already taken. Please choose a different one.");
+            return;
+        }
         try {
             await api.post('/school-admin/students/', {
                 name: newStudentName,
+                username: newStudentUsername || null,
+                password: newStudentPassword || null,
                 email: newStudentEmail || null,
                 grade_id: Number(newStudentGradeId),
                 class_id: newStudentClassId ? Number(newStudentClassId) : null
             });
             refetchStudents();
-            setIsAddModalOpen(false);
-            setNewStudentName('');
-            setNewStudentEmail('');
-            setNewStudentGradeId('');
-            setNewStudentClassId('');
+            closeAddModal();
             toast.success("Student created successfully!");
-        } catch (error) {
-            console.error("Failed to create student", error);
-            toast.error("Failed to create student.");
+        } catch (error: any) {
+            const detail = error?.response?.data?.detail;
+            toast.error(detail || "Failed to create student.");
         }
     };
 
@@ -355,13 +395,14 @@ const StudentsList: React.FC = () => {
             {/* Add Student Modal */}
             {isAddModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">Add New Student</h2>
-                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+                            <button onClick={closeAddModal} className="text-slate-400 hover:text-slate-600">✕</button>
                         </div>
 
                         <form onSubmit={handleAddStudent} className="space-y-4">
+                            {/* Full Name */}
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
                                 <input
@@ -372,9 +413,56 @@ const StudentsList: React.FC = () => {
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
                                     placeholder="e.g. John Doe"
                                 />
-                                <p className="text-xs text-slate-400 mt-1">Username will be auto-generated (e.g. johnd)</p>
                             </div>
 
+                            {/* Username */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newStudentUsername}
+                                        onChange={(e) => {
+                                            setUsernameManuallyEdited(true);
+                                            setNewStudentUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                                        }}
+                                        className={`w-full px-4 py-2 border rounded-lg outline-none font-mono text-sm pr-24 ${usernameIsTaken
+                                                ? 'border-red-400 focus:border-red-500 bg-red-50'
+                                                : newStudentUsername
+                                                    ? 'border-green-400 focus:border-green-500'
+                                                    : 'focus:border-indigo-500'
+                                            }`}
+                                        placeholder="auto-generated"
+                                    />
+                                    {newStudentUsername && (
+                                        <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium ${usernameIsTaken ? 'text-red-600' : 'text-green-600'
+                                            }`}>
+                                            {usernameIsTaken ? '✗ Taken' : '✓ Available'}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-slate-400 mt-1">
+                                    Auto-generated from name. Only letters and numbers allowed.
+                                </p>
+                            </div>
+
+                            {/* Password */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Password <span className="text-slate-400 font-normal">(default: password123)</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    value={newStudentPassword}
+                                    onChange={(e) => setNewStudentPassword(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
+                                    placeholder="Leave blank to use default"
+                                    autoComplete="new-password"
+                                />
+                            </div>
+
+                            {/* Email */}
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Email <span className="text-slate-400 font-normal">(Optional)</span></label>
                                 <input
@@ -386,6 +474,7 @@ const StudentsList: React.FC = () => {
                                 />
                             </div>
 
+                            {/* Grade */}
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
                                 <select
@@ -403,8 +492,9 @@ const StudentsList: React.FC = () => {
                                 </select>
                             </div>
 
+                            {/* Class */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Class (Optional)</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Class <span className="text-slate-400 font-normal">(Optional)</span></label>
                                 <select
                                     value={newStudentClassId}
                                     onChange={(e) => {
@@ -422,8 +512,14 @@ const StudentsList: React.FC = () => {
                             </div>
 
                             <div className="flex gap-3 pt-4 border-t border-slate-100 mt-4">
-                                <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 font-medium">Cancel</button>
-                                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md">Create Student</button>
+                                <button type="button" onClick={closeAddModal} className="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50 font-medium">Cancel</button>
+                                <button
+                                    type="submit"
+                                    disabled={usernameIsTaken}
+                                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Create Student
+                                </button>
                             </div>
                         </form>
                     </div>

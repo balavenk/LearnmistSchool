@@ -73,22 +73,31 @@ def create_student(student: schemas.StudentCreate, db: Session = Depends(databas
         if class_obj.grade_id != student.grade_id:
             raise HTTPException(status_code=400, detail="Class does not belong to the selected grade")
 
-    # 1. Username Generation
-    parts = student.name.strip().split()
-    if len(parts) >= 2:
-        base_username = f"{parts[0]}{parts[-1][0]}".lower()
+    # 1. Username — use supplied one or auto-generate
+    if student.username:
+        # Validate and use the provided username
+        username = student.username.strip().lower()
+        username = "".join(c for c in username if c.isalnum())
+        if not username:
+            raise HTTPException(status_code=400, detail="Invalid username")
+        if db.query(models.User).filter(models.User.username == username).first():
+            raise HTTPException(status_code=400, detail=f"Username '{username}' is already taken")
     else:
-        base_username = parts[0].lower()
-    base_username = "".join(c for c in base_username if c.isalnum())
-    
-    username = base_username
-    counter = 1
-    while db.query(models.User).filter(models.User.username == username).first():
-        username = f"{base_username}{counter}"
-        counter += 1
+        # Auto-generate: firstname + first char of lastname
+        parts = student.name.strip().split()
+        if len(parts) >= 2:
+            base_username = f"{parts[0]}{parts[-1][0]}".lower()
+        else:
+            base_username = parts[0].lower()
+        base_username = "".join(c for c in base_username if c.isalnum())
+        username = base_username
+        counter = 1
+        while db.query(models.User).filter(models.User.username == username).first():
+            username = f"{base_username}{counter}"
+            counter += 1
 
     # 2. Create User record for login
-    hashed_password = auth.get_password_hash("password123")
+    hashed_password = auth.get_password_hash(student.password or "password123")
     new_user = models.User(
         username=username,
         email=student.email,

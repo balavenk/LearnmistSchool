@@ -1,6 +1,0 @@
-﻿src/components/DashboardLayout.tsx(18,11): error TS6133: 'schoolName' is declared but its value is never read.
-src/pages/individual/MyQuizzes.tsx(3,22): error TS6133: 'Trash2' is declared but its value is never read.
-src/pages/individual/MyQuizzes.tsx(5,1): error TS6133: 'format' is declared but its value is never read.
-src/pages/individual/MyQuizzes.tsx(27,12): error TS6133: 'filteredSubjects' is declared but its value is never read.
-src/pages/individual/Settings.tsx(10,12): error TS6133: 'schoolName' is declared but its value is never read.
-src/pages/individual/Settings.tsx(10,24): error TS6133: 'setSchoolName' is declared but its value is never read.
