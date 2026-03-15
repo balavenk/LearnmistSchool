@@ -586,7 +586,7 @@ def read_questions(
     
     # Optional Filters
     if grade_id:
-        query = query.filter(models.Question.class_id == grade_id) # In this schema class_id maps to grade for assignments
+        query = query.filter(models.Assignment.grade_id == grade_id)
     if subject_id:
         query = query.filter(models.Question.subject_id == subject_id)
     if difficulty:

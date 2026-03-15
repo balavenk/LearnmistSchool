@@ -271,11 +271,11 @@ async def generate_quiz_questions(
                     context_text += f"{hit.payload.get('text', '')}\n\n"
 
                 if not context_text:
-                    msg = "No specific textbook context found for this subject/grade. Using general knowledge."
+                    msg = "No specific textbook context found for this subject/grade in the database. Please upload training materials or disable 'Use PDF Context'."
                     print(msg)
-                    context_text = msg
                     if progress_callback:
-                         await progress_callback("No direct matches found.", {"step": "search_result", "info": msg})
+                         await progress_callback(msg, {"step": "search_result", "info": msg})
+                    raise ValueError(msg)
                 else:
                      if progress_callback:
                          await progress_callback(f"Found {len(search_results)} relevant chunks.", {"step": "search_result", "chunks_found": len(search_results)})
