@@ -1,11 +1,34 @@
 # Run Local Environment
 Write-Host "Starting LearnmistSchool Locally..."
 
-# Check if Docker is running
+# Check if Docker is running, launch it if not
 docker info > $null 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Docker is NOT running. Please start Docker Desktop and try again."
-    exit 1
+    Write-Host "Docker is not running. Launching Docker Desktop..." -ForegroundColor Yellow
+    $dockerDesktopPath = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+    if (Test-Path $dockerDesktopPath) {
+        Start-Process $dockerDesktopPath
+    } else {
+        Write-Error "Docker Desktop not found at '$dockerDesktopPath'. Please install or start Docker Desktop manually."
+        exit 1
+    }
+
+    Write-Host "Waiting for Docker to start (up to 120 seconds)..." -ForegroundColor Yellow
+    $timeout = 120
+    $elapsed = 0
+    do {
+        Start-Sleep -Seconds 5
+        $elapsed += 5
+        docker info > $null 2>&1
+        if ($LASTEXITCODE -eq 0) { break }
+        Write-Host "  Still waiting... ($elapsed/$timeout seconds)" -ForegroundColor Gray
+    } while ($elapsed -lt $timeout)
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Docker did not start within $timeout seconds. Please start Docker Desktop manually and try again."
+        exit 1
+    }
+    Write-Host "Docker is ready!" -ForegroundColor Green
 }
 
 # Stop existing
