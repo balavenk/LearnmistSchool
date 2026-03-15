@@ -368,6 +368,9 @@ async def generate_ai_assignment(
             grade_id=req.grade_id,
             school_id=current_user.school_id,
         )
+    except ValueError as ve:
+        logger.warning(f"⚠️ [AI GEN] RAG Service validation error: {str(ve)}")
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"❌ [AI GEN] RAG Service failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
@@ -580,7 +583,7 @@ def read_questions(
     
     # Context Filters (populated in models now)
     if class_id:
-        query = query.filter(models.Question.class_id == class_id)
+        query = query.filter(models.Assignment.class_id == class_id)
     if subject_id:
         query = query.filter(models.Question.subject_id == subject_id)
         
