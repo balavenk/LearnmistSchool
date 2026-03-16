@@ -22,50 +22,109 @@ def get_current_individual_user(current_user: models.User = Depends(auth.get_cur
 # --- Public Registration Endpoint ---
 # Placed here or in auth_routes? Placing here for cohesion with "Individual" feature, 
 # but frontend will call this openly.
+INDIVIDUAL_SCHOOL_NAME = "Generic School for Individual users"
+
+def get_or_create_individual_school(db: Session) -> models.School:
+    """
+    Ensures the Generic Individual school exists with all required master data.
+    Idempotent: safe to call on every registration.
+    Uses flush() for intermediate inserts so parent session controls the commit.
+    """
+    school = db.query(models.School).filter(models.School.name == INDIVIDUAL_SCHOOL_NAME).first()
+    if school:
+        return school
+
+    # --- Ensure Country: USA ---
+    country = db.query(models.Country).filter(models.Country.name == "USA").first()
+    if not country:
+        country = models.Country(name="USA")
+        db.add(country)
+        db.flush()  # Get the ID without committing
+
+    # --- Ensure Curriculum: Generic ---
+    curriculum = db.query(models.Curriculum).filter(
+        models.Curriculum.name == "Generic",
+        models.Curriculum.country_id == country.id
+    ).first()
+    if not curriculum:
+        curriculum = models.Curriculum(name="Generic", country_id=country.id)
+        db.add(curriculum)
+        db.flush()
+
+    # --- Ensure SchoolType: Individual ---
+    school_type = db.query(models.SchoolType).filter(
+        models.SchoolType.name == "Individual",
+        models.SchoolType.country_id == country.id
+    ).first()
+    if not school_type:
+        school_type = models.SchoolType(name="Individual", country_id=country.id)
+        db.add(school_type)
+        db.flush()
+
+    # --- Create the School ---
+    school = models.School(
+        name=INDIVIDUAL_SCHOOL_NAME,
+        address=INDIVIDUAL_SCHOOL_NAME,
+        active=True,
+        max_teachers=100,
+        max_students=10000,
+        max_classes=100,
+        country_id=country.id,
+        curriculum_id=curriculum.id,
+        school_type_id=school_type.id,
+    )
+    db.add(school)
+    db.flush()  # Get school ID; caller will commit everything together
+    return school
+
+
+
 @router.post("/register", response_model=schemas.User)
 def register_individual(user_data: schemas.UserCreate, name: str, db: Session = Depends(database.get_db)):
-    # 1. Check existing
-    if db.query(models.User).filter(models.User.username == user_data.username).first():
-        raise HTTPException(status_code=400, detail="Username already registered")
-        
-    # 1.5 Find 'Individual' School
-    individual_school_name = "Individual"
-    individual_school = db.query(models.School).filter(models.School.name == individual_school_name).first()
-    
-    # If not found, log warning or create? Seed script should have run.
-    # We'll just proceed with None if not found, or raise 500?
-    # Better to be robust:
-    individual_school_id = individual_school.id if individual_school else None
+    try:
+        # 1. Check existing username
+        if db.query(models.User).filter(models.User.username == user_data.username).first():
+            raise HTTPException(status_code=400, detail="Username already registered")
 
-        
-    # 2. Create User
-    hashed_password = auth.get_password_hash(user_data.password)
-    new_user = models.User(
-        username=user_data.username,
-        email=user_data.email,
-        hashed_password=hashed_password,
-        role=models.UserRole.INDIVIDUAL,
-        active=True,
-        school_id=individual_school_id # Link User to specific school
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    # 3. Create Linked Student Profile (Essential for taking quizzes)
-    # School/Grade/Class are None initially
-    new_student = models.Student(
-        name=name,
-        user_id=new_user.id,
-        active=True,
-        school_id=individual_school_id, # Link Student to specific school
-        grade_id=None,
-        class_id=None
-    )
-    db.add(new_student)
-    db.commit()
-    
-    return new_user
+        # 2. Find or auto-create the Generic Individual school (idempotent)
+        individual_school = get_or_create_individual_school(db)
+        individual_school_id = individual_school.id
+
+        # 3. Create User
+        hashed_password = auth.get_password_hash(user_data.password)
+        new_user = models.User(
+            username=user_data.username,
+            email=user_data.email,
+            hashed_password=hashed_password,
+            role=models.UserRole.INDIVIDUAL,
+            active=True,
+            school_id=individual_school_id,
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+
+        # 4. Create Linked Student Profile
+        new_student = models.Student(
+            name=name,
+            user_id=new_user.id,
+            active=True,
+            school_id=individual_school_id,
+            grade_id=None,
+            class_id=None,
+        )
+        db.add(new_student)
+        db.commit()
+
+        return new_user
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logger.error("register_individual FAILED: %s\n%s", str(e), traceback.format_exc())
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
 
 # --- Quiz Management for Individual ---
 

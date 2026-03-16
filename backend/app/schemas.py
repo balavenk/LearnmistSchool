@@ -128,7 +128,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-    role: UserRole
+    role: Optional[UserRole] = None   # Optional; individual registration doesn't send this
     # school_id: Optional[int] = None # Generally inferred from admin or current user
 
 class User(UserBase):
