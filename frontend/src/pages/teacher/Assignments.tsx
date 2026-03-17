@@ -190,6 +190,8 @@ const TeacherAssignments: React.FC = () => {
     // PDF status check for the AI modal: null | 'checking' | 'no_pdf' | 'not_trained' | 'trained'
     const [pdfCheckStatus, setPdfCheckStatus] = useState<'checking' | 'no_pdf' | 'not_trained' | 'trained' | null>(null);
 
+    const today = new Date().toISOString().split('T')[0];
+
     // Edit State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
@@ -645,7 +647,7 @@ const TeacherAssignments: React.FC = () => {
                                         </svg>
                                         Due Date
                                     </label>
-                                    <input type="date" required value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
+                                    <input type="date" required min={today} value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
                                 </div>
                             </div>
                             <div>
@@ -841,6 +843,7 @@ const TeacherAssignments: React.FC = () => {
                                         <input
                                             type="date"
                                             required
+                                            min={today}
                                             value={aiDueDate}
                                             onChange={(e) => setAiDueDate(e.target.value)}
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
@@ -884,13 +887,12 @@ const TeacherAssignments: React.FC = () => {
 
                                 {/* PDF Status Warning Banner */}
                                 {aiUsePdfContext && pdfCheckStatus && pdfCheckStatus !== 'checking' && (
-                                    <div className={`flex items-start gap-3 p-3.5 rounded-xl border-2 text-sm ${
-                                        pdfCheckStatus === 'trained'
-                                            ? 'bg-green-50 border-green-200 text-green-800'
-                                            : pdfCheckStatus === 'not_trained'
+                                    <div className={`flex items-start gap-3 p-3.5 rounded-xl border-2 text-sm ${pdfCheckStatus === 'trained'
+                                        ? 'bg-green-50 border-green-200 text-green-800'
+                                        : pdfCheckStatus === 'not_trained'
                                             ? 'bg-amber-50 border-amber-300 text-amber-800'
                                             : 'bg-red-50 border-red-200 text-red-800'
-                                    }`}>
+                                        }`}>
                                         <div className="mt-0.5 shrink-0">
                                             {pdfCheckStatus === 'trained' ? (
                                                 <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -981,6 +983,7 @@ const TeacherAssignments: React.FC = () => {
                                 <input
                                     type="date"
                                     required
+                                    min={today}
                                     value={editDueDate}
                                     onChange={(e) => setEditDueDate(e.target.value)}
                                     className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"

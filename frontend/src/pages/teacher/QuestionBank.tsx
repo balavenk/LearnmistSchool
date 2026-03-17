@@ -573,6 +573,7 @@ const QuestionBank: React.FC = () => {
                                 </label>
                                 <input
                                     type="datetime-local"
+                                    min={new Date().toISOString().slice(0, 16)}
                                     className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium transition-all"
                                     value={dueDate}
                                     onChange={e => setDueDate(e.target.value)}
