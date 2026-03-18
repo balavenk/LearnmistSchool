@@ -233,7 +233,7 @@ const TeacherAssignments: React.FC = () => {
                 title: newTitle,
                 description: newDesc,
                 due_date: newDueDate ? new Date(newDueDate).toISOString() : null,
-                status: 'PUBLISHED',
+                status: 'DRAFT',
                 grade_id: selectedGradeId !== '' ? Number(selectedGradeId) : null,
                 subject_id: selectedSubjectId !== '' ? Number(selectedSubjectId) : null
             });
