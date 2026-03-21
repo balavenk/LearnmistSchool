@@ -82,8 +82,10 @@ def get_or_create_individual_school(db: Session) -> models.School:
 @router.post("/register", response_model=schemas.User)
 def register_individual(user_data: schemas.UserCreate, name: str, db: Session = Depends(database.get_db)):
     try:
+        username = user_data.username.strip().lower()
+        from sqlalchemy import func
         # 1. Check existing username
-        if db.query(models.User).filter(models.User.username == user_data.username).first():
+        if db.query(models.User).filter(func.lower(models.User.username) == username).first():
             raise HTTPException(status_code=400, detail="Username already registered")
 
         # 2. Find or auto-create the Generic Individual school (idempotent)
@@ -93,7 +95,8 @@ def register_individual(user_data: schemas.UserCreate, name: str, db: Session = 
         # 3. Create User
         hashed_password = auth.get_password_hash(user_data.password)
         new_user = models.User(
-            username=user_data.username,
+            username=username,
+            full_name=user_data.full_name or name,
             email=user_data.email,
             hashed_password=hashed_password,
             role=models.UserRole.INDIVIDUAL,
@@ -123,7 +126,7 @@ def register_individual(user_data: schemas.UserCreate, name: str, db: Session = 
         import traceback
         logger.error("register_individual FAILED: %s\n%s", str(e), traceback.format_exc())
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="OOPS!! system did not work as expected please try again later.")
 
 
 # --- Quiz Management for Individual ---
@@ -213,7 +216,7 @@ def create_personal_quiz(quiz_data: IndividualQuizCreate, db: Session = Depends(
     except Exception as exc:
         db.rollback()
         logger.error("[create_personal_quiz] DB ERROR creating assignment for user=%s: %s", current_user.username, exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to create quiz: {exc}")
+        raise HTTPException(status_code=500, detail="OOPS!! system did not work as expected please try again later.")
 
 @router.get("/subjects", response_model=List[schemas.Subject])
 def read_individual_subjects(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_individual_user)):

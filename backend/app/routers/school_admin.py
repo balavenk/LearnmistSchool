@@ -45,13 +45,16 @@ def create_teacher(user: schemas.UserCreate, db: Session = Depends(database.get_
     if not current_user.school_id:
         raise HTTPException(status_code=400, detail="Admin must belong to a school")
         
-    existing_user = db.query(models.User).filter(models.User.username == user.username).first()
+    username = user.username.strip().lower()
+    from sqlalchemy import func
+    existing_user = db.query(models.User).filter(func.lower(models.User.username) == username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already registered")
     
     hashed_password = auth.get_password_hash(user.password)
     new_user = models.User(
-        username=user.username,
+        username=username,
+        full_name=user.full_name,
         email=user.email,
         hashed_password=hashed_password,
         role=models.UserRole.TEACHER,

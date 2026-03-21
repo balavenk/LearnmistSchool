@@ -124,6 +124,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 class UserBase(BaseModel):
     username: str
+    full_name: Optional[str] = None
     email: Optional[str] = None
 
 class UserCreate(UserBase):
