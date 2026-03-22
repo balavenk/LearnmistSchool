@@ -29,6 +29,7 @@ const Register: React.FC = () => {
             await api.post('/individual/register',
                 {
                     username,
+                    full_name: name,
                     email,
                     password,
                     role: 'INDIVIDUAL' // Though backend forces it for this endpoint usually, schema might need it

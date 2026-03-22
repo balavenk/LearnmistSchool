@@ -142,7 +142,7 @@ const UserManagement: React.FC = () => {
 
         return list.filter(item => {
             const searchLower = deferredSearchTerm.toLowerCase();
-            const name = (item.name || item.username || '').toLowerCase();
+            const name = (item.name || item.full_name || item.username || '').toLowerCase();
             const email = (item.email || '').toLowerCase();
             return name.includes(searchLower) || email.includes(searchLower);
         });
@@ -181,22 +181,27 @@ const UserManagement: React.FC = () => {
     // --- Action Handlers ---
     // Add Admin Modal State
     const [addAdminModalOpen, setAddAdminModalOpen] = useState(false);
-    const [newAdminForm, setNewAdminForm] = useState({ username: '', email: '', password: '' });
+    const [newAdminForm, setNewAdminForm] = useState({ full_name: '', username: '', email: '', password: '', confirm_password: '' });
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [addAdminLoading, setAddAdminLoading] = useState(false);
 
     const handleAddAdmin = useCallback(async () => {
-        if (!newAdminForm.username || !newAdminForm.password || !selectedSchoolId) return;
+        if (!newAdminForm.full_name || !newAdminForm.username || !newAdminForm.password || !newAdminForm.confirm_password || !selectedSchoolId) return;
+        if (newAdminForm.password !== newAdminForm.confirm_password) {
+            toast.error("Passwords do not match");
+            return;
+        }
         setAddAdminLoading(true);
         try {
             await api.post(`/super-admin/schools/${selectedSchoolId}/admin`, {
+                full_name: newAdminForm.full_name,
                 username: newAdminForm.username,
                 email: newAdminForm.email || null,
                 password: newAdminForm.password,
             });
             toast.success(`School admin "${newAdminForm.username}" created successfully!`);
             setAddAdminModalOpen(false);
-            setNewAdminForm({ username: '', email: '', password: '' });
+            setNewAdminForm({ full_name: '', username: '', email: '', password: '', confirm_password: '' });
             // Refresh the users list
             const res = await api.get(`/super-admin/schools/${selectedSchoolId}/users`, { params: { role: 'SCHOOL_ADMIN' } });
             setUsers(res.data);
@@ -215,6 +220,7 @@ const UserManagement: React.FC = () => {
     const [resetModalOpen, setResetModalOpen] = useState(false);
     const [selectedUserForReset, setSelectedUserForReset] = useState<number | null>(null);
     const [newPassword, setNewPassword] = useState('');
+    const [confirmResetPassword, setConfirmResetPassword] = useState('');
 
     const handleDeactivate = useCallback(async (userId: number, currentStatus: boolean) => {
         if (!userId) {
@@ -270,22 +276,28 @@ const UserManagement: React.FC = () => {
         }
         setSelectedUserForReset(userId);
         setNewPassword('');
+        setConfirmResetPassword('');
         setResetModalOpen(true);
     }, []);
 
     const handleSavePassword = useCallback(async () => {
-        if (!selectedUserForReset || !newPassword) return;
+        if (!selectedUserForReset || !newPassword || !confirmResetPassword) return;
+        if (newPassword !== confirmResetPassword) {
+            toast.error("Passwords do not match.");
+            return;
+        }
         try {
             await api.post(`/super-admin/users/${selectedUserForReset}/reset-password`, { password: newPassword });
             toast.success("Password reset successfully.");
             setResetModalOpen(false);
             setNewPassword('');
+            setConfirmResetPassword('');
             setSelectedUserForReset(null);
         } catch (error) {
             console.error("Reset failed", error);
             toast.error("Failed to reset password.");
         }
-    }, [selectedUserForReset, newPassword]);
+    }, [selectedUserForReset, newPassword, confirmResetPassword]);
 
     const columns: ColumnDef<any>[] = useMemo(() => {
         const baseColumns: ColumnDef<any>[] = [
@@ -294,12 +306,14 @@ const UserManagement: React.FC = () => {
                 accessorKey: 'name',
                 cell: (info) => {
                     const item = info.row.original;
+                    const displayName = item.name || item.full_name || '-';
+                    const initialsSource = item.name || item.full_name || item.username || 'U';
                     return (
                         <div className="flex items-center gap-3">
                             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl p-2.5 font-bold text-sm shadow-md">
-                                {(item.name || item.username || 'U').substring(0, 2).toUpperCase()}
+                                {initialsSource.substring(0, 2).toUpperCase()}
                             </div>
-                            <span className="font-bold text-slate-900">{item.name || '-'}</span>
+                            <span className="font-bold text-slate-900">{displayName}</span>
                         </div>
                     );
                 },
@@ -497,7 +511,7 @@ const UserManagement: React.FC = () => {
                             {activeTab === 'SCHOOL_ADMIN' && (
                                 <button
                                     id="add-school-admin-btn"
-                                    onClick={() => { setNewAdminForm({ username: '', email: '', password: '' }); setAddAdminModalOpen(true); }}
+                                    onClick={() => { setNewAdminForm({ full_name: '', username: '', email: '', password: '', confirm_password: '' }); setAddAdminModalOpen(true); }}
                                     className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-bold rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -567,6 +581,18 @@ const UserManagement: React.FC = () => {
 
                         <div className="space-y-4">
                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                                <input
+                                    id="new-admin-fullname"
+                                    type="text"
+                                    value={newAdminForm.full_name}
+                                    onChange={(e) => setNewAdminForm(f => ({ ...f, full_name: e.target.value }))}
+                                    placeholder="e.g. John Doe"
+                                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm"
+                                />
+                            </div>
+
+                            <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1.5">Username <span className="text-red-500">*</span></label>
                                 <input
                                     id="new-admin-username"
@@ -614,6 +640,20 @@ const UserManagement: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1.5">Confirm Password <span className="text-red-500">*</span></label>
+                                <div className="relative">
+                                    <input
+                                        id="new-admin-confirm-password"
+                                        type={showNewPassword ? 'text' : 'password'}
+                                        value={newAdminForm.confirm_password}
+                                        onChange={(e) => setNewAdminForm(f => ({ ...f, confirm_password: e.target.value }))}
+                                        placeholder="Confirm your secure password"
+                                        className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex gap-4 pt-6 mt-6 border-t-2 border-slate-200">
@@ -626,7 +666,7 @@ const UserManagement: React.FC = () => {
                             <button
                                 id="create-school-admin-submit"
                                 onClick={handleAddAdmin}
-                                disabled={!newAdminForm.username || !newAdminForm.password || addAdminLoading}
+                                disabled={!newAdminForm.full_name || !newAdminForm.username || !newAdminForm.password || !newAdminForm.confirm_password || addAdminLoading}
                                 className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 font-bold shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {addAdminLoading ? (
@@ -654,15 +694,27 @@ const UserManagement: React.FC = () => {
                         </div>
                         <p className="text-slate-500 mb-5 text-sm">Enter a new password for the selected user. Make sure it's secure and memorable.</p>
 
-                        <div className="mb-6">
-                            <label className="block text-sm font-bold text-slate-700 mb-2">New Password *</label>
-                            <input
-                                type="text"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                placeholder="Enter new password"
-                                className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                            />
+                        <div className="mb-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">New Password *</label>
+                                <input
+                                    type="text"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Enter new password"
+                                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Confirm Password *</label>
+                                <input
+                                    type="text"
+                                    value={confirmResetPassword}
+                                    onChange={(e) => setConfirmResetPassword(e.target.value)}
+                                    placeholder="Confirm new password"
+                                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                />
+                            </div>
                         </div>
 
                         <div className="flex gap-4 pt-4 border-t-2 border-slate-200">
@@ -674,7 +726,7 @@ const UserManagement: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleSavePassword}
-                                disabled={!newPassword}
+                                disabled={!newPassword || !confirmResetPassword}
                                 className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Save Password

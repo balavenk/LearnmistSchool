@@ -31,6 +31,7 @@ const TeachersList: React.FC = () => {
     const [newFullName, setNewFullName] = useState('');
     const [newEmail, setNewEmail] = useState('');
     const [newPassword, setNewPassword] = useState('');
+    const [newConfirmPassword, setNewConfirmPassword] = useState('');
     // const [newSubject, setNewSubject] = useState(''); // Kept for UI but not sent to API yet
 
     // Assign Grade Modal State (Placeholder implementation)
@@ -135,6 +136,10 @@ const TeachersList: React.FC = () => {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (newPassword !== newConfirmPassword) {
+            toast.error("Passwords do not match");
+            return;
+        }
         try {
             await api.post('/school-admin/teachers/', {
                 username: newUsername,
@@ -145,7 +150,7 @@ const TeachersList: React.FC = () => {
             });
             refetchTeachers();
             setIsCreateModalOpen(false);
-            setNewUsername(''); setNewFullName(''); setNewEmail(''); setNewPassword(''); // setNewSubject('');
+            setNewUsername(''); setNewFullName(''); setNewEmail(''); setNewPassword(''); setNewConfirmPassword(''); // setNewSubject('');
             toast.success("Teacher created successfully");
         } catch (error) {
             console.error("Failed to create teacher", error);
@@ -354,6 +359,7 @@ const TeachersList: React.FC = () => {
                             <input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="Username" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
                             <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Email" type="email" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
                             <input value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Password" type="password" required minLength={6} className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
+                            <input value={newConfirmPassword} onChange={e => setNewConfirmPassword(e.target.value)} placeholder="Confirm Password" type="password" required minLength={6} className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
                             <div className="flex gap-2 pt-4">
                                 <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">Cancel</button>
                                 <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Add</button>

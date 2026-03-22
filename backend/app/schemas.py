@@ -123,8 +123,8 @@ class PaginatedResponse(BaseModel, Generic[T]):
     total_pages: int
 
 class UserBase(BaseModel):
-    username: str
-    full_name: Optional[str] = None
+    username: str = Field(..., pattern=r'^\S+$', description="Username cannot contain any spaces")
+    full_name: str
     email: Optional[str] = None
 
 class UserCreate(UserBase):
