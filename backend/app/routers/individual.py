@@ -87,6 +87,10 @@ def register_individual(user_data: schemas.UserCreate, name: str, db: Session = 
         # 1. Check existing username
         if db.query(models.User).filter(func.lower(models.User.username) == username).first():
             raise HTTPException(status_code=400, detail="Username already registered")
+            
+        if user_data.email:
+            if db.query(models.User).filter(func.lower(models.User.email) == user_data.email.strip().lower()).first():
+                raise HTTPException(status_code=400, detail="Email ID already exists")
 
         # 2. Find or auto-create the Generic Individual school (idempotent)
         individual_school = get_or_create_individual_school(db)

@@ -50,6 +50,9 @@ fi
 source venv/bin/activate
 pip install -r requirements.txt -q
 
+echo "=== [3b] Applying DB updates ==="
+python scripts/apply_cloud_db_updates.py
+
 echo "=== [4] Writing Systemd service file ==="
 USER_HOME=$(eval echo ~$USER)
 USERNAME=$(whoami)

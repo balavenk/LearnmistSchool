@@ -82,6 +82,11 @@ def create_student(student: schemas.StudentCreate, db: Session = Depends(databas
             raise HTTPException(status_code=400, detail="Invalid username")
         if db.query(models.User).filter(models.User.username == username).first():
             raise HTTPException(status_code=400, detail=f"Username '{username}' is already taken")
+            
+    if student.email:
+        from sqlalchemy import func
+        if db.query(models.User).filter(func.lower(models.User.email) == student.email.strip().lower()).first():
+            raise HTTPException(status_code=400, detail="Email ID already exists")
     else:
         # Auto-generate: firstname + first char of lastname
         parts = student.name.strip().split()

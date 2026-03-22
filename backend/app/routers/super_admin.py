@@ -130,6 +130,10 @@ def create_school_admin(school_id: int, user: schemas.UserCreate, db: Session = 
     existing_user = db.query(models.User).filter(func.lower(models.User.username) == username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already registered")
+        
+    if user.email:
+        if db.query(models.User).filter(func.lower(models.User.email) == user.email.strip().lower()).first():
+            raise HTTPException(status_code=400, detail="Email ID already exists")
     
     hashed_password = auth.get_password_hash(user.password)
     new_user = models.User(
