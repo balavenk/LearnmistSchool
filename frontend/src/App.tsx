@@ -130,8 +130,8 @@ const App: React.FC = () => {
           <Route path="individual" element={<IndividualDashboard />} />
           <Route path="individual/quizzes" element={<IndividualQuizzes />} />
           <Route path="individual/settings" element={<IndividualSettings />} />
-          {/* Reuse QuizDetails/Taking logic? Need separate or conditional logic components. For verify: basic dashboard. */}
-          {/* <Route path="individual/quizzes/:quizId" element={<EditQuiz />} /> */}
+          {/* Reuse QuizDetails/Taking logic */}
+          <Route path="individual/quizzes/:assignmentId" element={<QuizDetails />} />
           {/* <Route path="individual/quizzes/:quizId/take" element={<TakeQuiz />} /> */}
         </Route>
 

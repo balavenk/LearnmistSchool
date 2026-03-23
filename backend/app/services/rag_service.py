@@ -382,3 +382,226 @@ async def generate_quiz_questions(
              await progress_callback(f"Error: {str(e)}", {"step": "error", "details": str(e)})
         print(f"Quiz generation failed: {e}")
         return []
+
+
+async def generate_individual_quiz_questions(
+    topic: str,
+    subject_name: str,
+    grade_level: str,
+    difficulty: str,
+    count: int,
+    question_type: str = "Mixed",
+    use_pdf_context: bool = False,
+    progress_callback: Callable[[str, Dict], Awaitable[None]] = None,
+    # Exact IDs for precise Qdrant filtering (school/grade/subject isolation)
+    subject_id: int = None,
+    grade_id: int = None,
+    school_id: int = None,
+) -> List[Dict]:
+    """
+    Generates quiz questions using RAG.
+    If use_pdf_context is False, skips RAG and generates from general knowledge.
+    """
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    print(f"DEBUG: OPENAI_API_KEY found: {bool(openai_api_key)}")
+
+    if not openai_api_key:
+        print("DEBUG: Missing OPENAI_API_KEY, trying load_dotenv")
+        # Try loading explicitly
+        from dotenv import load_dotenv
+        load_dotenv()
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        
+        if not openai_api_key:
+             return []
+        # Re-init client
+        client_openai = AsyncOpenAI(api_key=openai_api_key)
+    else:
+        client_openai = AsyncOpenAI(api_key=openai_api_key)
+
+    client_qdrant = get_qdrant_client()
+    collection_name = "learnmist-school-small"
+
+    try:
+        # 1. Embed the query (topic) - only if using PDF context
+        context_text = ""
+        
+        if use_pdf_context:
+            if progress_callback:
+                await progress_callback("Creating embeddings for topic...", {"step": "embedding", "topic": topic})
+                
+            emb_response = await client_openai.embeddings.create(
+                input=topic,
+                model="text-embedding-3-small"
+            )
+            query_vector = emb_response.data[0].embedding
+
+            # 2. Search Qdrant (check if collection exists first)
+            if not client_qdrant.collection_exists(collection_name):
+                msg = "No training materials uploaded yet. Collection not found. Using general knowledge."
+                print(msg)
+                context_text = msg
+                if progress_callback:
+                    await progress_callback("No training materials found in database.", {"step": "search_result", "info": msg})
+            else:
+                if progress_callback:
+                    await progress_callback(
+                        "Searching knowledge base...",
+                        {"step": "search", "subject_id": subject_id, "grade_id": grade_id, "school_id": school_id}
+                    )
+
+                # Build exact filter using reliable integer IDs (school/grade/subject isolation)
+                # Falls back to subject_name string match if IDs are not provided (legacy support)
+                if subject_id and grade_id and school_id:
+                    qdrant_filter = models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="school_id",
+                                match=models.MatchValue(value=school_id)
+                            ),
+                            models.FieldCondition(
+                                key="grade_id",
+                                match=models.MatchValue(value=grade_id)
+                            ),
+                            models.FieldCondition(
+                                key="subject_id",
+                                match=models.MatchValue(value=subject_id)
+                            ),
+                        ]
+                    )
+                    print(f"[RAG] Using exact ID filter: school_id={school_id}, grade_id={grade_id}, subject_id={subject_id}")
+                else:
+                    # Legacy fallback: filter by subject name string (less reliable)
+                    qdrant_filter = models.Filter(
+                        should=[
+                            models.FieldCondition(
+                                key="subject",
+                                match=models.MatchValue(value=subject_name)
+                            ),
+                        ]
+                    )
+                    print(f"[RAG] Falling back to subject name filter: subject_name={subject_name}")
+
+                search_response = client_qdrant.query_points(
+                    collection_name=collection_name,
+                    query=query_vector,
+                    limit=5,
+                    query_filter=qdrant_filter
+                )
+                search_results = search_response.points
+                
+                for hit in search_results:
+                    context_text += f"{hit.payload.get('text', '')}\n\n"
+
+                if not context_text:
+                    msg = "No specific textbook context found for this subject/grade in the database. Please upload training materials or disable 'Use PDF Context'."
+                    print(msg)
+                    if progress_callback:
+                         await progress_callback(msg, {"step": "search_result", "info": msg})
+                    raise ValueError(msg)
+                else:
+                     if progress_callback:
+                         await progress_callback(f"Found {len(search_results)} relevant chunks.", {"step": "search_result", "chunks_found": len(search_results)})
+        else:
+            # Skip RAG, use general knowledge
+            context_text = "Using general knowledge base (no PDF/textbook context)."
+            if progress_callback:
+                await progress_callback("Generating from general knowledge (PDF context disabled).", {"step": "search_result", "info": context_text})
+
+        normalized_question_type = (question_type or "Mixed").strip()
+        question_type_map = {
+            "Multiple Choice": "MULTIPLE_CHOICE",
+            "True/False": "TRUE_FALSE",
+            "Short Answer": "SHORT_ANSWER",
+            "Mixed": "MIXED",
+            "MULTIPLE_CHOICE": "MULTIPLE_CHOICE",
+            "TRUE_FALSE": "TRUE_FALSE",
+            "SHORT_ANSWER": "SHORT_ANSWER",
+            "MIXED": "MIXED",
+        }
+        normalized_question_type = question_type_map.get(normalized_question_type, "MIXED")
+
+        question_type_instruction = "You may generate a mix of MULTIPLE_CHOICE, TRUE_FALSE, and SHORT_ANSWER questions."
+        if normalized_question_type == "TRUE_FALSE":
+            question_type_instruction = "Generate ONLY TRUE_FALSE questions. Do not generate MULTIPLE_CHOICE or SHORT_ANSWER questions."
+        elif normalized_question_type == "MULTIPLE_CHOICE":
+            question_type_instruction = "Generate ONLY MULTIPLE_CHOICE questions. Do not generate TRUE_FALSE or SHORT_ANSWER questions."
+        elif normalized_question_type == "SHORT_ANSWER":
+            question_type_instruction = "Generate ONLY SHORT_ANSWER questions. Do not generate MULTIPLE_CHOICE or TRUE_FALSE questions."
+
+        # 3. Generate Questions via LLM
+        prompt = f"""
+        You are a teacher creating a quiz.
+        
+        Topic: {topic}
+        Subject: {subject_name}
+        Grade Level: {grade_level}
+        Difficulty: {difficulty}
+        Number of Questions: {count}
+        Requested Question Type: {normalized_question_type}
+        Type Rule: {question_type_instruction}
+        
+        Context from textbooks:
+        {context_text[:10000]} # Limit context size
+        
+        Generate {count} questions in strict JSON format.
+        The output must be a JSON object with a key "questions" containing a list of questions.
+        
+        Each question object must look like this:
+        {{
+            "text": "Question text",
+            "question_type": "MULTIPLE_CHOICE", # or TRUE_FALSE, SHORT_ANSWER
+            "points": 5,
+            "options": [
+                {{ "text": "Option 1", "is_correct": false }},
+                {{ "text": "Option 2", "is_correct": true }}
+            ]
+        }}
+        
+        For TRUE_FALSE, provide exactly two options: True and False.
+        For SHORT_ANSWER, provide one option with is_correct=true containing the intended answer.
+        """
+        
+        if progress_callback:
+            await progress_callback("Generating questions with LLM router...", {"step": "llm_request", "prompt_preview": prompt[:200] + "..."})
+
+        # Choose system prompt based on whether PDF context is being used
+        if use_pdf_context:
+            system_prompt = (
+                "You must generate questions ONLY from the provided book content.\n"
+                "Use exclusively the information contained in the supplied context.\n\n"
+                "Do NOT use prior knowledge.\n"
+                "Do NOT add external facts.\n"
+                "Do NOT infer beyond what is explicitly written.\n"
+                "If the answer cannot be found in the provided text, respond with:\n"
+                "\"Insufficient information in provided material.\"\n\n"
+                "Output valid JSON only."
+            )
+        else:
+            system_prompt = "You are a helpful educational assistant. Output valid JSON only."
+
+        try:
+            data = await router.generate_json(system_prompt, prompt)
+        except Exception as e:
+            print(f"LLM Generation failed via router: {e}")
+            if progress_callback:
+                await progress_callback(f"Failed to generate questions. Error: {e}", {"step": "error", "details": str(e)})
+            return []
+
+        questions = data.get("questions", [])
+        
+        if progress_callback:
+             await progress_callback(f"Successfully generated {len(questions)} questions.", {"step": "complete", "questions_count": len(questions)})
+             
+        return questions
+
+    except Exception as e:
+        import traceback
+        with open("error_log.txt", "w") as f:
+            f.write("Error occurred:\n")
+            f.write(traceback.format_exc())
+            f.write(f"\nFinal error message: {str(e)}")
+        if progress_callback:
+             await progress_callback(f"Error: {str(e)}", {"step": "error", "details": str(e)})
+        print(f"Quiz generation failed: {e}")
+        return []
