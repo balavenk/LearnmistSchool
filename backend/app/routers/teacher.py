@@ -21,7 +21,12 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 def get_current_teacher(current_user: models.User = Depends(auth.get_current_active_user)):
-    if current_user.role not in [models.UserRole.TEACHER, models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN]:
+    if current_user.role != models.UserRole.TEACHER:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return current_user
+
+def get_current_teacher_or_individual(current_user: models.User = Depends(auth.get_current_active_user)):
+    if current_user.role not in [models.UserRole.TEACHER, models.UserRole.INDIVIDUAL]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
 
@@ -82,6 +87,11 @@ def create_student(student: schemas.StudentCreate, db: Session = Depends(databas
             raise HTTPException(status_code=400, detail="Invalid username")
         if db.query(models.User).filter(models.User.username == username).first():
             raise HTTPException(status_code=400, detail=f"Username '{username}' is already taken")
+            
+    if student.email:
+        from sqlalchemy import func
+        if db.query(models.User).filter(func.lower(models.User.email) == student.email.strip().lower()).first():
+            raise HTTPException(status_code=400, detail="Email ID already exists")
     else:
         # Auto-generate: firstname + first char of lastname
         parts = student.name.strip().split()
@@ -665,7 +675,7 @@ def read_grades(db: Session = Depends(database.get_db), current_user: models.Use
 # --- Question Endpoints ---
 
 @router.get("/assignments/{assignment_id}/questions", response_model=List[schemas.Question])
-def read_assignment_questions(assignment_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+def read_assignment_questions(assignment_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher_or_individual)):
     """
     Get all questions for a specific assignment.
     Verifies that the assignment belongs to the current teacher.
@@ -681,7 +691,7 @@ def read_assignment_questions(assignment_id: int, db: Session = Depends(database
     return db.query(models.Question).filter(models.Question.assignment_id == assignment_id).all()
 
 @router.post("/assignments/{assignment_id}/questions", response_model=schemas.Question)
-def create_question(assignment_id: int, question: schemas.QuestionCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+def create_question(assignment_id: int, question: schemas.QuestionCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher_or_individual)):
     assignment = db.query(models.Assignment).filter(
         models.Assignment.id == assignment_id,
         models.Assignment.teacher_id == current_user.id
@@ -721,7 +731,7 @@ def create_question(assignment_id: int, question: schemas.QuestionCreate, db: Se
     return new_question
 
 @router.put("/questions/{question_id}", response_model=schemas.Question)
-def update_question(question_id: int, question_update: schemas.QuestionUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+def update_question(question_id: int, question_update: schemas.QuestionUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher_or_individual)):
     # Find question and verify teacher owns the assignment
     question = db.query(models.Question).join(models.Assignment).filter(
         models.Question.id == question_id,
@@ -762,7 +772,7 @@ def update_question(question_id: int, question_update: schemas.QuestionUpdate, d
     return question
 
 @router.delete("/questions/{question_id}")
-def delete_question(question_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher)):
+def delete_question(question_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_teacher_or_individual)):
     question = db.query(models.Question).join(models.Assignment).filter(
         models.Question.id == question_id,
         models.Assignment.teacher_id == current_user.id

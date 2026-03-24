@@ -1,12 +1,12 @@
 # publish.ps1
-# ONE-COMMAND deploy to http://34.173.65.197:8000
+# ONE-COMMAND deploy to http://35.226.218.109:8000
 $ErrorActionPreference = "Stop"
 
 $PROJECT_ID  = "project-7b2578b2-0b43-448e-80c"
 $VM_NAME     = "learnmist-server"
 $ZONE        = "us-central1-a"
 $PACK        = "deploy_pack.tar.gz"
-$SERVER_IP   = "34.173.65.197"
+$SERVER_IP   = "35.226.218.109"
 $SERVER_PORT = "8000"
 
 function Step([string]$n, [string]$msg) {
