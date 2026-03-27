@@ -10,6 +10,7 @@ import { PaginationControls } from '../../components/PaginationControls';
 interface Teacher {
     id: number;
     username: string;
+    full_name: string;
     email: string;
     status: 'Active' | 'Inactive';
     assigned_grades: string[];
@@ -25,10 +26,12 @@ const TeachersList: React.FC = () => {
     // Use deferred value for expensive filtering - React 18 feature
     const deferredSearchTerm = useDeferredValue(searchTerm);
 
-    // Create Modal State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [newUsername, setNewUsername] = useState('');
+    const [newFullName, setNewFullName] = useState('');
     const [newEmail, setNewEmail] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [newConfirmPassword, setNewConfirmPassword] = useState('');
     // const [newSubject, setNewSubject] = useState(''); // Kept for UI but not sent to API yet
 
     // Assign Grade Modal State (Placeholder implementation)
@@ -53,6 +56,7 @@ const TeachersList: React.FC = () => {
                     const data = response.data.map((t: any) => ({
                         id: t.id,
                         username: t.username,
+                        full_name: t.full_name || "",
                         email: t.email || "",
                         status: t.active ? 'Active' : 'Inactive',
                         assigned_grades: t.assigned_grades || []
@@ -82,6 +86,7 @@ const TeachersList: React.FC = () => {
             const data = response.data.map((t: any) => ({
                 id: t.id,
                 username: t.username,
+                full_name: t.full_name || "",
                 email: t.email || "",
                 status: t.active ? 'Active' : 'Inactive',
                 assigned_grades: t.assigned_grades || []
@@ -96,6 +101,7 @@ const TeachersList: React.FC = () => {
     const filtered = useMemo(() => {
         return teachers.filter(t =>
             t.username.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+            t.full_name.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
             t.email.toLowerCase().includes(deferredSearchTerm.toLowerCase())
         );
     }, [teachers, deferredSearchTerm]);
@@ -128,20 +134,24 @@ const TeachersList: React.FC = () => {
         }
     }, []);
 
-    // Create Handler
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (newPassword !== newConfirmPassword) {
+            toast.error("Passwords do not match");
+            return;
+        }
         try {
             await api.post('/school-admin/teachers/', {
                 username: newUsername,
+                full_name: newFullName,
                 email: newEmail,
-                password: 'password123', // Default password
+                password: newPassword, // Custom password
                 role: 'TEACHER'
             });
             refetchTeachers();
             setIsCreateModalOpen(false);
-            setNewUsername(''); setNewEmail(''); // setNewSubject('');
-            toast.success("Teacher created successfully (Default password: password123)");
+            setNewUsername(''); setNewFullName(''); setNewEmail(''); setNewPassword(''); setNewConfirmPassword(''); // setNewSubject('');
+            toast.success("Teacher created successfully");
         } catch (error) {
             console.error("Failed to create teacher", error);
             toast.error("Failed to create teacher. Username/Email might be duplicate.");
@@ -155,6 +165,13 @@ const TeachersList: React.FC = () => {
                 accessorKey: 'username',
                 cell: (info) => (
                     <span className="font-medium text-slate-900">{info.getValue() as string}</span>
+                ),
+            },
+            {
+                header: 'Full Name',
+                accessorKey: 'full_name',
+                cell: (info) => (
+                    <span className="text-slate-700">{info.getValue() as string || <span className="text-slate-300 italic">Not provided</span>}</span>
                 ),
             },
             {
@@ -237,6 +254,7 @@ const TeachersList: React.FC = () => {
             <div className="flex justify-between items-start">
                 <div>
                     <h4 className="font-bold text-slate-900">{teacher.username}</h4>
+                    {teacher.full_name && <p className="text-sm font-medium text-slate-700">{teacher.full_name}</p>}
                     <p className="text-sm text-slate-500">{teacher.email}</p>
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${teacher.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -337,8 +355,11 @@ const TeachersList: React.FC = () => {
                             </button>
                         </div>
                         <form onSubmit={handleCreate} className="space-y-4">
+                            <input value={newFullName} onChange={e => setNewFullName(e.target.value)} placeholder="Full Name" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
                             <input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="Username" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
                             <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Email" type="email" required className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
+                            <input value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Password" type="password" required minLength={6} className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
+                            <input value={newConfirmPassword} onChange={e => setNewConfirmPassword(e.target.value)} placeholder="Confirm Password" type="password" required minLength={6} className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500" />
                             <div className="flex gap-2 pt-4">
                                 <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 px-4 py-2 border rounded-lg hover:bg-slate-50">Cancel</button>
                                 <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Add</button>

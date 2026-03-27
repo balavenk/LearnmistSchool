@@ -35,7 +35,7 @@ def get_current_school_admin(current_user: models.User = Depends(auth.get_curren
 
 
 def get_upload_user(current_user: models.User = Depends(auth.get_current_active_user)):
-    if current_user.role not in [models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN, models.UserRole.TEACHER]:
+    if current_user.role not in [models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN, models.UserRole.TEACHER, models.UserRole.INDIVIDUAL]:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
 
