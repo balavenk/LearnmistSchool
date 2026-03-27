@@ -54,6 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
                 { to: '/school-admin/students', label: 'Students', icon: <StudentsIcon /> },
                 { to: '/school-admin/grades', label: 'Grades', icon: <GradeIcon /> },
                 { to: '/school-admin/subjects', label: 'Subjects', icon: <SubjectIcon /> },
+                { to: '/school-admin/exam-types', label: 'Exam Types', icon: <SubjectIcon /> },
                 { to: '/school-admin/question-bank', label: 'Question Bank', icon: <QuestionIcon /> },
                 { to: '/school-admin/upload-pdf', label: 'Upload PDF', icon: <UploadIcon /> },
             ],
@@ -63,6 +64,8 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
                 { to: '/teacher/students', label: 'Students', icon: <StudentsIcon /> },
                 { to: '/teacher/grading', label: 'Grading', icon: <GradingIcon /> },
                 { to: '/teacher/question-bank', label: 'Question Bank', icon: <QuestionIcon /> },
+                { to: '/teacher/templates', label: 'Templates', icon: <TemplateIcon /> },
+                { to: '/teacher/papers', label: 'Question Paper', icon: <CreateIcon /> },
                 { to: '/teacher/upload', label: 'Upload PDF', icon: <UploadIcon /> },
             ],
             STUDENT: [
@@ -237,6 +240,12 @@ const CreateIcon = () => (
 const QuizIcon = () => (
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+    </svg>
+);
+
+const TemplateIcon = () => (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
     </svg>
 );
 

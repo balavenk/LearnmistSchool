@@ -24,6 +24,13 @@ interface Question {
     points: number;
     question_type: string;
     difficulty_level: string;
+    source_year?: string;
+    source_type?: string;
+}
+
+interface YearCount {
+    year: string;
+    count: number;
 }
 
 const QuestionBank: React.FC = () => {
@@ -36,8 +43,10 @@ const QuestionBank: React.FC = () => {
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [difficulty, setDifficulty] = useState<string>('');
+    const [sourceYear, setSourceYear] = useState<string>('');
     const [searchText, setSearchText] = useState<string>('');
     const [loading, setLoading] = useState(false);
+    const [availableYears, setAvailableYears] = useState<YearCount[]>([]);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -54,6 +63,64 @@ const QuestionBank: React.FC = () => {
     const [dueDate, setDueDate] = useState('');
     const [includeFromPDF, setIncludeFromPDF] = useState(false);
     const [creating, setCreating] = useState(false);
+
+    // Upload Modal
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploadMode, setUploadMode] = useState<'manual' | 'bulk'>('manual');
+    const [newQuestion, setNewQuestion] = useState({
+        text: '',
+        points: 1,
+        question_type: 'SHORT_ANSWER',
+        difficulty_level: 'Medium',
+        source_year: '',
+        subject_id: ''
+    });
+    const [bulkText, setBulkText] = useState('');
+    const [uploading, setUploading] = useState(false);
+
+    const handleUploadSubmit = async () => {
+        setUploading(true);
+        try {
+            if (uploadMode === 'manual') {
+                const payload = {
+                    ...newQuestion,
+                    source_year: newQuestion.source_year ? newQuestion.source_year.toString() : null,
+                    subject_id: newQuestion.subject_id ? parseInt(newQuestion.subject_id) : null,
+                    options: []
+                };
+                await api.post('/teacher/bank-questions', payload);
+                toast.success('Question added to bank!');
+            } else {
+                let parsed = [];
+                try {
+                    parsed = JSON.parse(bulkText);
+                } catch (e) {
+                    toast.error('Invalid JSON format');
+                    setUploading(false);
+                    return;
+                }
+                if (!Array.isArray(parsed)) {
+                    toast.error('JSON must be an array of questions');
+                    setUploading(false);
+                    return;
+                }
+                await api.post('/teacher/bank-questions/bulk', parsed);
+                toast.success(`Successfully uploaded ${parsed.length} questions!`);
+            }
+            setShowUploadModal(false);
+            setNewQuestion({
+                text: '', points: 1, question_type: 'SHORT_ANSWER',
+                difficulty_level: 'Medium', source_year: '', subject_id: ''
+            });
+            setBulkText('');
+            fetchQuestions();
+            fetchYears();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.detail || 'Failed to upload questions');
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const fetchGrades = async () => {
         try {
@@ -77,6 +144,15 @@ const QuestionBank: React.FC = () => {
         }
     };
 
+    const fetchYears = async () => {
+        try {
+            const res = await api.get('/teacher/questions/years');
+            setAvailableYears(res.data);
+        } catch (error) {
+            console.error('[QuestionBank] Failed to fetch years:', error);
+        }
+    };
+
     const fetchQuestions = useCallback(async () => {
         setLoading(true);
         try {
@@ -87,6 +163,7 @@ const QuestionBank: React.FC = () => {
                 page_size: questionsPerPage
             };
             if (difficulty) params.difficulty = difficulty;
+            if (sourceYear) params.source_year = sourceYear;
             if (searchText) params.search = searchText;
 
             console.log('[QuestionBank] Fetching questions with params:', params);
@@ -109,10 +186,11 @@ const QuestionBank: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedGradeId, selectedSubjectId, currentPage, questionsPerPage, difficulty, searchText]);
+    }, [selectedGradeId, selectedSubjectId, currentPage, questionsPerPage, difficulty, sourceYear, searchText]);
 
     useEffect(() => {
         fetchGrades();
+        fetchYears();
     }, []);
 
     useEffect(() => {
@@ -131,7 +209,7 @@ const QuestionBank: React.FC = () => {
             setQuestions([]);
             setTotalQuestions(0);
         }
-    }, [selectedGradeId, selectedSubjectId, difficulty, searchText]);
+    }, [selectedGradeId, selectedSubjectId, difficulty, sourceYear, searchText]);
 
     // Fetch questions when page changes or filters are ready (with debounce for search)
     useEffect(() => {
@@ -264,6 +342,22 @@ const QuestionBank: React.FC = () => {
                 </span>
             ),
         },
+        {
+            header: 'Source Year',
+            accessorKey: 'source_year',
+            cell: ({ row }) => (
+                row.original.source_year ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-100">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {row.original.source_year}
+                    </span>
+                ) : (
+                    <span className="text-slate-400 text-xs font-medium italic">-</span>
+                )
+            ),
+        },
     ], [selectedIds]);
 
     const mobileCardRender = useCallback((q: Question) => (
@@ -284,6 +378,11 @@ const QuestionBank: React.FC = () => {
                         <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
                             {q.points} pts
                         </span>
+                        {q.source_year && (
+                            <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                                {q.source_year}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <input
@@ -330,6 +429,15 @@ const QuestionBank: React.FC = () => {
                             </button>
                         </div>
                     )}
+                    <button
+                        onClick={() => setShowUploadModal(true)}
+                        className={`bg-white text-indigo-600 border-2 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 px-6 py-3 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 ${selectedIds.length > 0 ? 'ml-4' : ''}`}
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Upload Questions
+                    </button>
                 </div>
             </div>
 
@@ -393,7 +501,7 @@ const QuestionBank: React.FC = () => {
                     </svg>
                     <h3 className="text-lg font-bold text-slate-800">Filters</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <div>
                         <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -446,6 +554,27 @@ const QuestionBank: React.FC = () => {
                             <option value="Easy">Easy</option>
                             <option value="Medium">Medium</option>
                             <option value="Hard">Hard</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Source Year
+                        </label>
+                        <select
+                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium transition-all"
+                            value={sourceYear}
+                            onChange={(e) => setSourceYear(e.target.value)}
+                        >
+                            <option value="">All Years</option>
+                            {availableYears.map(y => (
+                                <option key={y.year} value={y.year}>
+                                    {y.year} ({y.count})
+                                </option>
+                            ))}
                         </select>
                     </div>
 
@@ -612,6 +741,160 @@ const QuestionBank: React.FC = () => {
                                     )}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Upload Questions Modal */}
+            {showUploadModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border-2 border-slate-200">
+                        <div className="h-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 flex-shrink-0"></div>
+
+                        <div className="p-6 border-b border-slate-100 flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl p-3">
+                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Upload Questions</h2>
+                                    <p className="text-sm text-slate-500">Add questions to your school's question bank</p>
+                                </div>
+                            </div>
+
+                            <div className="flex bg-slate-100 p-1 rounded-xl mt-6">
+                                <button onClick={() => setUploadMode('manual')}
+                                    className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${uploadMode === 'manual' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                                    Manual Entry
+                                </button>
+                                <button onClick={() => setUploadMode('bulk')}
+                                    className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${uploadMode === 'bulk' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    Bulk Upload (JSON)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                            {uploadMode === 'manual' ? (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Question Type</label>
+                                            <select
+                                                className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium"
+                                                value={newQuestion.question_type}
+                                                onChange={e => setNewQuestion({ ...newQuestion, question_type: e.target.value })}
+                                            >
+                                                <option value="SHORT_ANSWER">Short Answer</option>
+                                                <option value="LONG_ANSWER">Long Answer</option>
+                                                <option value="MULTIPLE_CHOICE">Multiple Choice</option>
+                                                <option value="TRUE_FALSE">True / False</option>
+                                                <option value="CASE_BASED">Case Based</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Subject</label>
+                                            <select
+                                                className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium"
+                                                value={newQuestion.subject_id}
+                                                onChange={e => setNewQuestion({ ...newQuestion, subject_id: e.target.value })}
+                                            >
+                                                <option value="">Select Subject</option>
+                                                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Difficulty</label>
+                                            <select
+                                                className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium"
+                                                value={newQuestion.difficulty_level}
+                                                onChange={e => setNewQuestion({ ...newQuestion, difficulty_level: e.target.value })}
+                                            >
+                                                <option value="Easy">Easy</option>
+                                                <option value="Medium">Medium</option>
+                                                <option value="Hard">Hard</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Source Year (Optional)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium"
+                                                placeholder="e.g. 2023"
+                                                value={newQuestion.source_year}
+                                                onChange={e => setNewQuestion({ ...newQuestion, source_year: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Points / Marks</label>
+                                            <input
+                                                type="number" min="1" max="25"
+                                                className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium"
+                                                value={newQuestion.points}
+                                                onChange={e => setNewQuestion({ ...newQuestion, points: parseInt(e.target.value) || 1 })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Question Text</label>
+                                        <textarea
+                                            rows={4}
+                                            className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium resize-none"
+                                            placeholder="Enter the question text here..."
+                                            value={newQuestion.text}
+                                            onChange={e => setNewQuestion({ ...newQuestion, text: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+                                        <ShieldAlert className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                                        <p className="text-sm text-amber-800">
+                                            Paste an array of question objects in JSON format. Ensure all required fields (<code>text</code>, <code>points</code>) are present.
+                                        </p>
+                                    </div>
+                                    <textarea
+                                        rows={10}
+                                        className="w-full p-3 font-mono text-xs border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+                                        placeholder={`[\n  {\n    "text": "What is 2+2?",\n    "points": 1,\n    "question_type": "MULTIPLE_CHOICE",\n    "difficulty_level": "Easy",\n    "source_year": "2023",\n    "subject_id": 1\n  }\n]`}
+                                        value={bulkText}
+                                        onChange={e => setBulkText(e.target.value)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3 flex-shrink-0">
+                            <button
+                                onClick={() => setShowUploadModal(false)}
+                                className="px-6 py-3 border-2 border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleUploadSubmit}
+                                disabled={uploading || (uploadMode === 'manual' ? !newQuestion.text : !bulkText)}
+                                className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {uploading ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Uploading...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        </svg>
+                                        Complete Upload
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -187,6 +187,7 @@ const TeacherAssignments: React.FC = () => {
     const [aiSubjectId, setAiSubjectId] = useState<number | ''>('');
     const [aiGradeId, setAiGradeId] = useState<number | ''>('');
     const [aiUsePdfContext, setAiUsePdfContext] = useState(false);
+    const [aiPoints, setAiPoints] = useState<number>(5);
     // PDF status check for the AI modal: null | 'checking' | 'no_pdf' | 'not_trained' | 'trained'
     const [pdfCheckStatus, setPdfCheckStatus] = useState<'checking' | 'no_pdf' | 'not_trained' | 'trained' | null>(null);
 
@@ -266,7 +267,8 @@ const TeacherAssignments: React.FC = () => {
             due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
             subject_id: Number(aiSubjectId),
             grade_id: Number(aiGradeId),
-            use_pdf_context: aiUsePdfContext
+            use_pdf_context: aiUsePdfContext,
+            points: aiPoints
         };
 
         try {
@@ -370,6 +372,7 @@ const TeacherAssignments: React.FC = () => {
         setAiSubjectId('');
         setAiGradeId('');
         setAiUsePdfContext(false);
+        setAiPoints(5);
         setIsGenerating(false);
         setPdfCheckStatus(null);
     };
@@ -849,7 +852,18 @@ const TeacherAssignments: React.FC = () => {
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                         />
                                     </div>
-
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Marks per Question</label>
+                                        <select
+                                            value={aiPoints}
+                                            onChange={(e) => setAiPoints(Number(e.target.value))}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        >
+                                            {[1, 2, 3, 4, 5, 10].map(m => (
+                                                <option key={m} value={m}>{m} {m === 1 ? 'Mark' : 'Marks'}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Topic / Content</label>

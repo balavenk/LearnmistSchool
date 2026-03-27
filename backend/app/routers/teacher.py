@@ -1,8 +1,9 @@
 from fastapi import Body, Query, APIRouter, Depends, HTTPException
 import logging
+import json
 
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, or_, and_
 from typing import List, Optional
 from datetime import datetime
 from app import database
@@ -11,6 +12,10 @@ from app import schemas
 from app import auth
 from app.services import rag_service
 from app.config import settings
+from app.utils.pagination import paginate_query
+from sqlalchemy import func, or_, and_
+from app.services.pdf_generator import CBSEPaperGenerator
+from fastapi.responses import Response
 
 router = APIRouter(
     prefix="/teacher",
@@ -397,7 +402,8 @@ async def generate_ai_assignment(
         exam_type="Quiz",
         question_count=req.question_count or 0,
         difficulty_level=req.difficulty or "Medium",
-        question_type=getattr(req, 'question_type', "Mixed") or "Mixed"
+        question_type=getattr(req, 'question_type', "Mixed") or "Mixed",
+        generation_type="AI Generated"
     )
     db.add(new_assignment)
     db.commit()
@@ -416,7 +422,7 @@ async def generate_ai_assignment(
             
         new_q = models.Question(
             text=q_data.get("text", "Question Text"),
-            points=q_data.get("points", 5),
+            points=req.points,
             question_type=q_type,
             assignment_id=new_assignment.id,
             school_id=current_user.school_id,
@@ -467,7 +473,8 @@ def create_assignment_from_bank(
         exam_type="Quiz",
         question_count=len(data.question_ids) if data.question_ids else 0,
         difficulty_level="Medium",
-        question_type="Mixed"
+        question_type="Mixed",
+        generation_type="Question Bank"
     )
     db.add(new_assignment)
     db.commit()
@@ -556,34 +563,54 @@ def update_assignment(
     db.refresh(assignment)
     return assignment
 
-from app.utils.pagination import paginate_query
-
 @router.get("/questions/", response_model=schemas.PaginatedResponse[schemas.QuestionOut])
 def read_questions(
     subject_id: Optional[int] = None, 
     class_id: Optional[int] = None, 
+    grade_id: Optional[int] = None,
     difficulty: Optional[str] = None,
     search: Optional[str] = None,
+    source_year: Optional[str] = None,
+    points: Optional[int] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
+    page_size: int = Query(25, ge=1, le=500),
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(get_current_teacher)
 ):
     """
-    Get all questions for the current teacher with optional filters and pagination.
-    Used for question bank browsing and filtering.
+    Get all questions for the current teacher. Includes assignment questions and school bank questions.
     """
-    query = db.query(models.Question).join(models.Assignment, models.Question.assignment_id == models.Assignment.id)
+    query = db.query(models.Question).outerjoin(
+        models.Assignment, models.Question.assignment_id == models.Assignment.id
+    ).outerjoin(
+        models.Class, models.Question.class_id == models.Class.id
+    )
     
-    # Filter by Teacher (security)
-    query = query.filter(models.Assignment.teacher_id == current_user.id)
+    # Filter: Either it's a teacher's assignment question OR it's a bank question for their school
+    query = query.filter(
+        or_(
+            models.Assignment.teacher_id == current_user.id,
+            and_(
+                models.Question.assignment_id == None,
+                models.Question.school_id == current_user.school_id
+            )
+        )
+    )
     
     # Exclude derived questions (only show originals)
     query = query.filter(models.Question.parent_question_id == None)
     
     # Context Filters (populated in models now)
     if class_id:
-        query = query.filter(models.Assignment.class_id == class_id)
+        query = query.filter(or_(models.Assignment.class_id == class_id, models.Question.class_id == class_id))
+    if grade_id:
+        query = query.filter(
+            or_(
+                models.Assignment.grade_id == grade_id, 
+                models.Class.grade_id == grade_id,
+                and_(models.Question.assignment_id == None, models.Question.class_id == None)
+            )
+        )
     if subject_id:
         query = query.filter(models.Question.subject_id == subject_id)
         
@@ -595,7 +622,156 @@ def read_questions(
         search_fmt = f"%{search}%"
         query = query.filter(models.Question.text.ilike(search_fmt))
         
+    if source_year:
+        query = query.filter(models.Question.source_year == source_year)
+        
+    if points is not None:
+        query = query.filter(models.Question.points == points)
+        
     return paginate_query(query, page, page_size)
+
+@router.get("/questions/years", response_model=List[dict])
+def get_available_question_years(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+
+    query = db.query(
+        models.Question.source_year.label("year"),
+        func.count(models.Question.id).label("count")
+    ).outerjoin(
+        models.Assignment, models.Question.assignment_id == models.Assignment.id
+    ).filter(
+        models.Question.source_year != None,
+        models.Question.source_year != "",
+        or_(
+            models.Assignment.teacher_id == current_user.id,
+            and_(
+                models.Question.assignment_id == None,
+                models.Question.school_id == current_user.school_id
+            )
+        )
+    ).group_by(models.Question.source_year).order_by(models.Question.source_year.desc())
+    
+    return [{"year": row.year, "count": row.count} for row in query.all()]
+
+@router.post("/bank-questions", response_model=schemas.QuestionOut)
+def create_bank_question(
+    question_in: schemas.BankQuestionCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    new_q = models.Question(
+        text=question_in.text,
+        points=question_in.points,
+        question_type=question_in.question_type,
+        difficulty_level=question_in.difficulty_level,
+        source_year=question_in.source_year,
+        source_type=question_in.source_type or "BANK",
+        bloom_level=question_in.bloom_level,
+        chapter_name=question_in.chapter_name,
+        answer_key=question_in.answer_key,
+        correct_answer=question_in.correct_answer,
+        subject_id=question_in.subject_id,
+        school_id=current_user.school_id,
+        assignment_id=None
+    )
+    db.add(new_q)
+    db.flush()
+    
+    for opt in question_in.options:
+        new_opt = models.QuestionOption(
+            text=opt.text,
+            is_correct=opt.is_correct,
+            question_id=new_q.id
+        )
+        db.add(new_opt)
+        
+    db.commit()
+    db.refresh(new_q)
+    return new_q
+
+@router.post("/bank-questions/bulk")
+def create_bank_questions_bulk(
+    questions_in: List[schemas.BankQuestionCreate],
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    created_count = 0
+    for q_in in questions_in:
+        new_q = models.Question(
+            text=q_in.text,
+            points=q_in.points,
+            question_type=q_in.question_type,
+            difficulty_level=q_in.difficulty_level,
+            source_year=q_in.source_year,
+            source_type=q_in.source_type or "BANK",
+            bloom_level=q_in.bloom_level,
+            chapter_name=q_in.chapter_name,
+            answer_key=q_in.answer_key,
+            correct_answer=q_in.correct_answer,
+            subject_id=q_in.subject_id,
+            school_id=current_user.school_id,
+            assignment_id=None
+        )
+        db.add(new_q)
+        db.flush()
+        
+        for opt in q_in.options:
+            db.add(models.QuestionOption(
+                text=opt.text,
+                is_correct=opt.is_correct,
+                question_id=new_q.id
+            ))
+        created_count += 1
+        
+    db.commit()
+    return {"message": f"Successfully created {created_count} questions"}
+
+@router.put("/bank-questions/{question_id}", response_model=schemas.QuestionOut)
+def update_bank_question(
+    question_id: int,
+    question_in: schemas.BankQuestionCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    q = db.query(models.Question).filter(
+        models.Question.id == question_id,
+        models.Question.school_id == current_user.school_id,
+        models.Question.assignment_id == None
+    ).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Bank question not found")
+        
+    for key, value in question_in.model_dump(exclude={"options"}, exclude_unset=True).items():
+        setattr(q, key, value)
+        
+    if question_in.options is not None:
+        db.query(models.QuestionOption).filter(models.QuestionOption.question_id == q.id).delete()
+        for opt in question_in.options:
+            db.add(models.QuestionOption(text=opt.text, is_correct=opt.is_correct, question_id=q.id))
+            
+    db.commit()
+    db.refresh(q)
+    return q
+
+@router.delete("/bank-questions/{question_id}")
+def delete_bank_question(
+    question_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    q = db.query(models.Question).filter(
+        models.Question.id == question_id,
+        models.Question.school_id == current_user.school_id,
+        models.Question.assignment_id == None
+    ).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Bank question not found")
+        
+    db.delete(q)
+    db.commit()
+    return {"ok": True}
 
 @router.put("/assignments/{assignment_id}/due-date", response_model=schemas.Assignment)
 def update_assignment_due_date(
@@ -950,4 +1126,489 @@ def read_grade_subjects(grade_id: int, db: Session = Depends(database.get_db), c
     ).distinct().all()
     
     return subjects
+
+# --- Exam Types ---
+
+@router.get("/exam-types/", response_model=List[schemas.ExamType])
+def read_teacher_exam_types(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    """Get exam types configured for the teacher's school"""
+    return db.query(models.ExamType).filter(
+        models.ExamType.school_id == current_user.school_id
+    ).all()
+
+
+# --- Question Paper Builder ---
+
+@router.get("/questions/years")
+def get_question_years(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    """Get distinct years in the question bank for this school."""
+    # Group by `source_year` (string)
+    results = db.query(
+        models.Question.source_year,
+        func.count(models.Question.id).label('count')
+    ).join(models.Assignment).filter(
+        models.Assignment.teacher_id == current_user.id,
+        models.Question.source_year.isnot(None),
+        models.Question.source_year != ""
+    ).group_by(models.Question.source_year).all()
+
+    return [{"year": r[0], "count": r[1]} for r in results if r[0]]
+
+@router.post("/papers", response_model=schemas.QuestionPaper)
+def create_question_paper(
+    paper: schemas.QuestionPaperCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    new_paper = models.QuestionPaper(
+        title=paper.title,
+        board=paper.board,
+        grade=paper.grade,
+        subject=paper.subject,
+        exam_type=paper.exam_type,
+        academic_year=paper.academic_year,
+        total_marks=paper.total_marks,
+        duration=paper.duration,
+        set_number=paper.set_number,
+        sections_config=paper.sections_config,
+        general_instructions=paper.general_instructions,
+        created_by_id=current_user.id,
+        created_by_role=current_user.role.value,
+    )
+    db.add(new_paper)
+    db.commit()
+    db.refresh(new_paper)
+    return new_paper
+
+@router.get("/papers", response_model=List[schemas.QuestionPaper])
+def list_question_papers(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    papers = db.query(models.QuestionPaper).filter(
+        models.QuestionPaper.created_by_id == current_user.id
+    ).order_by(models.QuestionPaper.created_at.desc()).all()
+    # Attach mapping_count for each paper
+    for p in papers:
+        p.mapping_count = len(p.mappings)
+    return papers
+
+@router.get("/papers/{paper_id}", response_model=schemas.QuestionPaperDetail)
+def get_question_paper(
+    paper_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    paper = db.query(models.QuestionPaper).filter(
+        models.QuestionPaper.id == paper_id,
+        models.QuestionPaper.created_by_id == current_user.id
+    ).first()
+    
+    if not paper:
+        raise HTTPException(status_code=404, detail="Question paper not found")
+        
+    return paper
+
+@router.delete("/papers/{paper_id}")
+def delete_question_paper(
+    paper_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    paper = db.query(models.QuestionPaper).filter(
+        models.QuestionPaper.id == paper_id,
+        models.QuestionPaper.created_by_id == current_user.id
+    ).first()
+    
+    if not paper:
+        raise HTTPException(status_code=404, detail="Question paper not found")
+        
+    db.delete(paper)
+    db.commit()
+    return {"ok": True}
+
+@router.post("/papers/{paper_id}/map-question", response_model=schemas.PaperQuestionMappingDetail)
+def map_question_to_paper(
+    paper_id: int,
+    mapping: schemas.PaperQuestionMappingCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    # Verify paper ownership
+    paper = db.query(models.QuestionPaper).filter(
+        models.QuestionPaper.id == paper_id,
+        models.QuestionPaper.created_by_id == current_user.id
+    ).first()
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    # Enforce section limits (from paper.sections_config)
+    try:
+        sections = json.loads(paper.sections_config or "[]")
+        target_section = next((s for s in sections if s.get('name') == mapping.section_name), None)
+        if target_section:
+            limit = target_section.get('target_questions', 0)
+            # Count how many questions are already in this section
+            # (exclude the current question if it's already in this paper to allow re-ordering)
+            current_count = db.query(models.PaperQuestionMapping).filter(
+                models.PaperQuestionMapping.paper_id == paper_id,
+                models.PaperQuestionMapping.section_name == mapping.section_name,
+                models.PaperQuestionMapping.question_id != mapping.question_id
+            ).count()
+            
+            if current_count >= limit:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Section {mapping.section_name} already has {limit} questions. Cannot add more."
+                )
+    except (json.JSONDecodeError, TypeError):
+        # If config is corrupted, we skip limit check or log it
+        pass
+        
+    # Check if this exact mapping already exists
+    existing = db.query(models.PaperQuestionMapping).filter(
+        models.PaperQuestionMapping.paper_id == paper_id,
+        models.PaperQuestionMapping.question_id == mapping.question_id
+    ).first()
+    if existing:
+        # Just update the section if it changed
+        existing.section_name = mapping.section_name
+        existing.order_in_section = mapping.order_in_section
+        db.commit()
+        db.refresh(existing)
+        # Ensure question is loaded
+        existing = db.query(models.PaperQuestionMapping).options(joinedload(models.PaperQuestionMapping.question)).filter(models.PaperQuestionMapping.id == existing.id).first()
+        return existing
+
+    new_map = models.PaperQuestionMapping(
+        paper_id=paper_id,
+        question_id=mapping.question_id,
+        section_name=mapping.section_name,
+        order_in_section=mapping.order_in_section
+    )
+    db.add(new_map)
+    db.commit()
+    db.refresh(new_map)
+    # Ensure question is loaded
+    new_map = db.query(models.PaperQuestionMapping).options(joinedload(models.PaperQuestionMapping.question)).filter(models.PaperQuestionMapping.id == new_map.id).first()
+    return new_map
+
+@router.delete("/papers/{paper_id}/map-question/{mapping_id}")
+def delete_paper_question_mapping(
+    paper_id: int,
+    mapping_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    mapping = db.query(models.PaperQuestionMapping).join(
+        models.QuestionPaper, models.PaperQuestionMapping.paper_id == models.QuestionPaper.id
+    ).filter(
+        models.PaperQuestionMapping.id == mapping_id,
+        models.PaperQuestionMapping.paper_id == paper_id,
+        models.QuestionPaper.created_by_id == current_user.id
+    ).first()
+    
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+        
+    db.delete(mapping)
+    db.commit()
+    return {"ok": True}
+
+@router.post("/papers/{paper_id}/export")
+def export_question_paper_pdf(
+    paper_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    # Fetch paper and mappings
+    paper = db.query(models.QuestionPaper).filter(
+        models.QuestionPaper.id == paper_id,
+        models.QuestionPaper.created_by_id == current_user.id
+    ).first()
+    
+    if not paper:
+        raise HTTPException(status_code=404, detail="Question paper not found")
+        
+    mappings = db.query(models.PaperQuestionMapping).filter(
+        models.PaperQuestionMapping.paper_id == paper_id
+    ).order_by(models.PaperQuestionMapping.section_name, models.PaperQuestionMapping.order_in_section).all()
+    
+    # Load question data
+    question_ids = [m.question_id for m in mappings]
+    questions = db.query(models.Question).filter(models.Question.id.in_(question_ids)).all()
+    q_dict = {q.id: q for q in questions}
+    
+    # Group by section — parse sections_config from JSON string
+    try:
+        parsed_sections_config = json.loads(paper.sections_config or "[]")
+    except (json.JSONDecodeError, TypeError):
+        parsed_sections_config = []
+        
+    sections_map = {}
+    for sm in parsed_sections_config:
+        sections_map[sm['name']] = []
+        
+    for m in mappings:
+        if m.section_name not in sections_map:
+            sections_map[m.section_name] = []
+        q_obj = q_dict.get(m.question_id)
+        if q_obj:
+            opts = [{"text": o.text, "is_correct": o.is_correct} for o in q_obj.options]
+            sections_map[m.section_name].append({
+                "text": q_obj.text,
+                "points": q_obj.points,
+                "type": q_obj.question_type.value if q_obj.question_type else "SHORT_ANSWER",
+                "options": opts,
+                "media_url": q_obj.media_url
+            })
+            
+    sections_data = [{"name": k, "questions": v} for k, v in sections_map.items()]
+    
+    # Parse general_instructions from JSON string if needed
+    try:
+        raw_instructions = paper.general_instructions or "[]"
+        if isinstance(raw_instructions, str):
+            general_instructions = json.loads(raw_instructions)
+        else:
+            general_instructions = raw_instructions
+    except (json.JSONDecodeError, TypeError):
+        general_instructions = []
+    
+    # Build Paper dict for the generator
+    
+    paper_data = {
+        "school_name": "LEARNMIST SCHOOL",
+        "exam_type": paper.exam_type,
+        "academic_year": paper.academic_year,
+        "grade": paper.grade,
+        "subject": paper.subject,
+        "duration": paper.duration,
+        "set_number": paper.set_number,
+        "total_marks": paper.total_marks,
+        "general_instructions": general_instructions,
+        "sections": sections_data
+    }
+    
+    try:
+        pdf_generator = CBSEPaperGenerator(paper_data)
+        pdf_bytes = pdf_generator.generate_pdf()
+        
+        # Mark paper as complete after successful PDF generation
+        paper.status = 'complete'
+        db.commit()
+        
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=Question_Paper_{paper.id}.pdf"
+            }
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
+
+
+# ────────────────────────────────────────────────────────────────
+#  PAPER TEMPLATE ENDPOINTS
+# ────────────────────────────────────────────────────────────────
+
+import json as _json
+
+def _can_edit_template(template: models.PaperTemplate, current_user: models.User) -> bool:
+    """Owner or school-admin / super-admin can edit / delete."""
+    if current_user.role in [models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN]:
+        return True
+    return template.created_by_id == current_user.id
+
+
+@router.get("/templates", response_model=List[schemas.PaperTemplate])
+def list_templates(
+    visibility: Optional[str] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher),
+):
+    """
+    Return templates visible to the caller:
+      - All 'system' templates
+      - 'shared' templates created within the same school
+      - Caller's own 'private' templates
+    Optionally filter by visibility tab: 'system' | 'shared' | 'private' (my).
+    """
+
+    # Collect school-mate user IDs for 'shared' filter
+    school_user_ids = db.query(models.User.id).filter(
+        models.User.school_id == current_user.school_id
+    ).subquery()
+
+    base_filter = or_(
+        models.PaperTemplate.visibility == "system",
+        (models.PaperTemplate.visibility == "shared") & (models.PaperTemplate.created_by_id.in_(school_user_ids)),
+        (models.PaperTemplate.visibility == "private") & (models.PaperTemplate.created_by_id == current_user.id),
+    )
+
+    query = db.query(models.PaperTemplate).filter(base_filter)
+
+    # Optional tab-level filter
+    if visibility == "system":
+        query = db.query(models.PaperTemplate).filter(models.PaperTemplate.visibility == "system")
+    elif visibility == "shared":
+        query = db.query(models.PaperTemplate).filter(
+            models.PaperTemplate.visibility == "shared",
+            models.PaperTemplate.created_by_id.in_(school_user_ids),
+        )
+    elif visibility in ("private", "mine"):
+        query = db.query(models.PaperTemplate).filter(
+            models.PaperTemplate.visibility == "private",
+            models.PaperTemplate.created_by_id == current_user.id,
+        )
+
+    return query.order_by(models.PaperTemplate.created_at.desc()).all()
+
+
+@router.post("/templates", response_model=schemas.PaperTemplate)
+def create_template(
+    data: schemas.PaperTemplateCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher),
+):
+    """Create a new paper template."""
+    # Only school admins / super admins can create 'system' templates
+    if data.visibility == "system" and current_user.role not in [
+        models.UserRole.SCHOOL_ADMIN, models.UserRole.SUPER_ADMIN
+    ]:
+        raise HTTPException(status_code=403, detail="Only admins can create system templates")
+
+    tmpl = models.PaperTemplate(
+        name=data.name,
+        description=data.description,
+        total_marks=data.total_marks,
+        duration=data.duration,
+        visibility=data.visibility or "private",
+        sections_config=data.sections_config,
+        general_instructions=data.general_instructions,
+        created_by_id=current_user.id,
+        created_by_role=current_user.role.value,
+    )
+    db.add(tmpl)
+    db.commit()
+    db.refresh(tmpl)
+    return tmpl
+
+
+@router.get("/templates/{template_id}", response_model=schemas.PaperTemplate)
+def get_template(
+    template_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher),
+):
+    """Fetch a single template (must be visible to caller)."""
+    school_user_ids = db.query(models.User.id).filter(
+        models.User.school_id == current_user.school_id
+    ).subquery()
+
+    tmpl = db.query(models.PaperTemplate).filter(
+        models.PaperTemplate.id == template_id,
+        or_(
+            models.PaperTemplate.visibility == "system",
+            (models.PaperTemplate.visibility == "shared") & (models.PaperTemplate.created_by_id.in_(school_user_ids)),
+            (models.PaperTemplate.visibility == "private") & (models.PaperTemplate.created_by_id == current_user.id),
+        ),
+    ).first()
+
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return tmpl
+
+
+@router.put("/templates/{template_id}", response_model=schemas.PaperTemplate)
+def update_template(
+    template_id: int,
+    data: schemas.PaperTemplateUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher),
+):
+    """Update a template. Only owner or admin."""
+    tmpl = db.query(models.PaperTemplate).filter(models.PaperTemplate.id == template_id).first()
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    if not _can_edit_template(tmpl, current_user):
+        raise HTTPException(status_code=403, detail="Not authorised to edit this template")
+
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(tmpl, field, value)
+
+    db.commit()
+    db.refresh(tmpl)
+    return tmpl
+
+
+@router.delete("/templates/{template_id}")
+def delete_template(
+    template_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher),
+):
+    """Delete a template. Only owner or admin."""
+    tmpl = db.query(models.PaperTemplate).filter(models.PaperTemplate.id == template_id).first()
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    if tmpl.created_by_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the person who created this template can delete it")
+
+    db.delete(tmpl)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/templates/{template_id}/clone", response_model=schemas.PaperTemplate)
+def clone_template(
+    template_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher),
+):
+    """
+    Clone any visible template into a new private copy owned by the caller.
+    The clone records cloned_from_id so the lineage is traceable.
+    """
+    school_user_ids = db.query(models.User.id).filter(
+        models.User.school_id == current_user.school_id
+    ).subquery()
+
+    source = db.query(models.PaperTemplate).filter(
+        models.PaperTemplate.id == template_id,
+        or_(
+            models.PaperTemplate.visibility == "system",
+            (models.PaperTemplate.visibility == "shared") & (models.PaperTemplate.created_by_id.in_(school_user_ids)),
+            (models.PaperTemplate.visibility == "private") & (models.PaperTemplate.created_by_id == current_user.id),
+        ),
+    ).first()
+
+    if not source:
+        raise HTTPException(status_code=404, detail="Template not found or not accessible")
+
+    clone = models.PaperTemplate(
+        name=f"{source.name} (Copy)",
+        description=source.description,
+        total_marks=source.total_marks,
+        duration=source.duration,
+        visibility="private",
+        sections_config=source.sections_config,
+        general_instructions=source.general_instructions,
+        created_by_id=current_user.id,
+        created_by_role=current_user.role.value,
+        cloned_from_id=source.id,
+    )
+    db.add(clone)
+    db.commit()
+    db.refresh(clone)
+    return clone
 

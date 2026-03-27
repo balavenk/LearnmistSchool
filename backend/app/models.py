@@ -5,6 +5,7 @@ from .database import Base
 import enum
 from datetime import datetime
 from sqlalchemy.sql import func
+from sqlalchemy import event
 
 grade_subjects = Table(
     "grade_subjects",
@@ -222,6 +223,7 @@ class Assignment(Base):
     question_count = Column(Integer, nullable=True)
     difficulty_level = Column(String(20), nullable=True)
     question_type = Column(String(50), nullable=True)
+    generation_type = Column(String(50), default="Manual")
 
     teacher = relationship("User", back_populates="created_assignments")
     grade = relationship("Grade")
@@ -285,10 +287,86 @@ class FileArtifact(Base):
     grade = relationship("Grade")
     subject = relationship("Subject")
 
+class ExamType(Base):
+    __tablename__ = "exam_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    school = relationship("School")
+
+class PaperTemplate(Base):
+    """A reusable paper structure (blueprint). Contains no actual questions."""
+    __tablename__ = "paper_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)               # e.g. "CBSE Standard 80 Marks"
+    description = Column(String(500), nullable=True)
+    total_marks = Column(Integer, nullable=True)             # e.g. 80
+    duration = Column(String(50), nullable=True)             # e.g. "3 Hours"
+    visibility = Column(String(20), nullable=False, default="private")  # 'system' | 'shared' | 'private'
+    sections_config = Column(Text, nullable=True)            # JSON list: [{name, target_questions, marks_per_question}]
+    general_instructions = Column(Text, nullable=True)       # JSON list of instruction strings
+
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_role = Column(String(50), nullable=True)      # 'admin' | 'teacher'
+    cloned_from_id = Column(Integer, ForeignKey("paper_templates.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    cloned_from = relationship("PaperTemplate", remote_side="PaperTemplate.id", foreign_keys=[cloned_from_id])
+    papers = relationship("QuestionPaper", back_populates="template")
+
+
+class QuestionPaper(Base):
+    __tablename__ = "question_papers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    board = Column(String(100), nullable=True)
+    grade = Column(String(100), nullable=True)
+    subject = Column(String(100), nullable=True)
+    exam_type = Column(String(100), nullable=True)
+    academic_year = Column(String(50), nullable=True)
+    total_marks = Column(Integer, nullable=True)
+    duration = Column(String(50), nullable=True)
+    set_number = Column(String(50), nullable=True)
+    
+    sections_config = Column(Text, nullable=True) # JSON stored as string
+    general_instructions = Column(Text, nullable=True) # JSON stored as string
+    
+    template_id = Column(Integer, ForeignKey("paper_templates.id"), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"))
+    created_by_role = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String(50), nullable=True, default='draft')  # 'draft' | 'complete'
+
+    template = relationship("PaperTemplate", back_populates="papers")
+    created_by = relationship("User")
+    mappings = relationship("PaperQuestionMapping", back_populates="paper", cascade="all, delete-orphan")
+
+class PaperQuestionMapping(Base):
+    __tablename__ = "paper_question_mappings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    paper_id = Column(Integer, ForeignKey("question_papers.id"))
+    question_id = Column(Integer, ForeignKey("questions.id"))
+    section_name = Column(String(100), nullable=False)
+    order_in_section = Column(Integer, default=0)
+
+    paper = relationship("QuestionPaper", back_populates="mappings")
+    question = relationship("Question")
+
 class QuestionType(str, enum.Enum):
     MULTIPLE_CHOICE = "MULTIPLE_CHOICE"
     TRUE_FALSE = "TRUE_FALSE"
     SHORT_ANSWER = "SHORT_ANSWER"
+    LONG_ANSWER = "LONG_ANSWER"
+    CASE_BASED = "CASE_BASED"
+    ESSAY = "ESSAY"
 
 class Question(Base):
     __tablename__ = "questions"
@@ -298,9 +376,19 @@ class Question(Base):
     points = Column(Integer, default=1)
     question_type = Column(Enum(QuestionType), default=QuestionType.MULTIPLE_CHOICE)
     difficulty_level = Column(String(50), nullable=True)
-    assignment_id = Column(Integer, ForeignKey("assignments.id"))
+    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=True) # Make nullable for freestanding questions
     parent_question_id = Column(Integer, ForeignKey("questions.id"), nullable=True)
     year = Column(Integer, nullable=True)
+    
+    # Paper Builder specific fields
+    source_year = Column(String(20), nullable=True)
+    source_type = Column(String(50), nullable=True)
+    bloom_level = Column(String(50), nullable=True)
+    chapter_name = Column(String(255), nullable=True)
+    passage = Column(Text, nullable=True)
+    sub_questions = Column(Text, nullable=True) # Stored as JSON string
+    answer_key = Column(Text, nullable=True)
+    correct_answer = Column(Text, nullable=True)
 
     # Optional media attachment
     media_url = Column(String(500), nullable=True)   # local static path or S3 URL later
