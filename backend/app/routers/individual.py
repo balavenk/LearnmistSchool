@@ -4,6 +4,7 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 from .. import database, models, schemas, auth
+from app.services import rag_service
 from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
@@ -22,50 +23,116 @@ def get_current_individual_user(current_user: models.User = Depends(auth.get_cur
 # --- Public Registration Endpoint ---
 # Placed here or in auth_routes? Placing here for cohesion with "Individual" feature, 
 # but frontend will call this openly.
+INDIVIDUAL_SCHOOL_NAME = "Generic School for Individual users"
+
+def get_or_create_individual_school(db: Session) -> models.School:
+    """
+    Ensures the Generic Individual school exists with all required master data.
+    Idempotent: safe to call on every registration.
+    Uses flush() for intermediate inserts so parent session controls the commit.
+    """
+    school = db.query(models.School).filter(models.School.name == INDIVIDUAL_SCHOOL_NAME).first()
+    if school:
+        return school
+
+    # --- Ensure Country: USA ---
+    country = db.query(models.Country).filter(models.Country.name == "USA").first()
+    if not country:
+        country = models.Country(name="USA")
+        db.add(country)
+        db.flush()  # Get the ID without committing
+
+    # --- Ensure Curriculum: Generic ---
+    curriculum = db.query(models.Curriculum).filter(
+        models.Curriculum.name == "Generic",
+        models.Curriculum.country_id == country.id
+    ).first()
+    if not curriculum:
+        curriculum = models.Curriculum(name="Generic", country_id=country.id)
+        db.add(curriculum)
+        db.flush()
+
+    # --- Ensure SchoolType: Individual ---
+    school_type = db.query(models.SchoolType).filter(
+        models.SchoolType.name == "Individual",
+        models.SchoolType.country_id == country.id
+    ).first()
+    if not school_type:
+        school_type = models.SchoolType(name="Individual", country_id=country.id)
+        db.add(school_type)
+        db.flush()
+
+    # --- Create the School ---
+    school = models.School(
+        name=INDIVIDUAL_SCHOOL_NAME,
+        address=INDIVIDUAL_SCHOOL_NAME,
+        active=True,
+        max_teachers=100,
+        max_students=10000,
+        max_classes=100,
+        country_id=country.id,
+        curriculum_id=curriculum.id,
+        school_type_id=school_type.id,
+    )
+    db.add(school)
+    db.flush()  # Get school ID; caller will commit everything together
+    return school
+
+
+
 @router.post("/register", response_model=schemas.User)
 def register_individual(user_data: schemas.UserCreate, name: str, db: Session = Depends(database.get_db)):
-    # 1. Check existing
-    if db.query(models.User).filter(models.User.username == user_data.username).first():
-        raise HTTPException(status_code=400, detail="Username already registered")
-        
-    # 1.5 Find 'Individual' School
-    individual_school_name = "Individual"
-    individual_school = db.query(models.School).filter(models.School.name == individual_school_name).first()
-    
-    # If not found, log warning or create? Seed script should have run.
-    # We'll just proceed with None if not found, or raise 500?
-    # Better to be robust:
-    individual_school_id = individual_school.id if individual_school else None
+    try:
+        username = user_data.username.strip().lower()
+        from sqlalchemy import func
+        # 1. Check existing username
+        if db.query(models.User).filter(func.lower(models.User.username) == username).first():
+            raise HTTPException(status_code=400, detail="Username already registered")
+            
+        if user_data.email:
+            if db.query(models.User).filter(func.lower(models.User.email) == user_data.email.strip().lower()).first():
+                raise HTTPException(status_code=400, detail="Email ID already exists")
 
-        
-    # 2. Create User
-    hashed_password = auth.get_password_hash(user_data.password)
-    new_user = models.User(
-        username=user_data.username,
-        email=user_data.email,
-        hashed_password=hashed_password,
-        role=models.UserRole.INDIVIDUAL,
-        active=True,
-        school_id=individual_school_id # Link User to specific school
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    # 3. Create Linked Student Profile (Essential for taking quizzes)
-    # School/Grade/Class are None initially
-    new_student = models.Student(
-        name=name,
-        user_id=new_user.id,
-        active=True,
-        school_id=individual_school_id, # Link Student to specific school
-        grade_id=None,
-        class_id=None
-    )
-    db.add(new_student)
-    db.commit()
-    
-    return new_user
+        # 2. Find or auto-create the Generic Individual school (idempotent)
+        individual_school = get_or_create_individual_school(db)
+        individual_school_id = individual_school.id
+
+        # 3. Create User
+        hashed_password = auth.get_password_hash(user_data.password)
+        new_user = models.User(
+            username=username,
+            full_name=user_data.full_name or name,
+            email=user_data.email,
+            hashed_password=hashed_password,
+            role=models.UserRole.INDIVIDUAL,
+            active=True,
+            school_id=individual_school_id,
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+
+        # 4. Create Linked Student Profile
+        new_student = models.Student(
+            name=name,
+            user_id=new_user.id,
+            active=True,
+            school_id=individual_school_id,
+            grade_id=None,
+            class_id=None,
+        )
+        db.add(new_student)
+        db.commit()
+
+        return new_user
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logger.error("register_individual FAILED: %s\n%s", str(e), traceback.format_exc())
+        db.rollback()
+        raise HTTPException(status_code=500, detail="OOPS!! system did not work as expected please try again later.")
+
 
 # --- Quiz Management for Individual ---
 
@@ -96,20 +163,13 @@ class IndividualQuizCreate(BaseModel):
     use_pdf_context: Optional[bool] = False
 
 @router.post("/quizzes", response_model=schemas.Assignment)
-def create_personal_quiz(quiz_data: IndividualQuizCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_individual_user)):
-    logger.info("[create_personal_quiz] user=%s (id=%s) payload: title=%r subject=%r exam_type=%r q_count=%s difficulty=%r",
-                current_user.username, current_user.id,
-                quiz_data.title, quiz_data.subject_name, quiz_data.exam_type,
-                quiz_data.question_count, quiz_data.difficulty_level)
+async def create_personal_quiz(quiz_data: IndividualQuizCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_individual_user)):
+    logger.info("[create_personal_quiz] user=%s -> %r", current_user.username, quiz_data.title)
 
-    # 1. Handle Subject
     school_id = current_user.school_id
     if not school_id:
-        # Fallback if somehow null, search for "Individual" school
         ind_school = db.query(models.School).filter(models.School.name == "Individual").first()
-        if ind_school:
-            school_id = ind_school.id
-        logger.warning("[create_personal_quiz] user=%s had no school_id — fallback school_id=%s", current_user.username, school_id)
+        if ind_school: school_id = ind_school.id
 
     subject = None
     if school_id:
@@ -117,44 +177,83 @@ def create_personal_quiz(quiz_data: IndividualQuizCreate, db: Session = Depends(
             models.Subject.name == quiz_data.subject_name,
             models.Subject.school_id == school_id
         ).first()
-
         if not subject:
-            logger.info("[create_personal_quiz] Subject %r not found — creating new one for school_id=%s", quiz_data.subject_name, school_id)
             subject = models.Subject(name=quiz_data.subject_name, school_id=school_id)
             db.add(subject)
             db.commit()
             db.refresh(subject)
-            logger.info("[create_personal_quiz] Created subject id=%s name=%r", subject.id, subject.name)
-        else:
-            logger.info("[create_personal_quiz] Found existing subject id=%s name=%r", subject.id, subject.name)
-    else:
-        logger.error("[create_personal_quiz] user=%s — could not resolve school_id, subject will be None", current_user.username)
+
+    # 1. Call RAG Service (OpenAI)
+    try:
+        generated_questions = await rag_service.generate_individual_quiz_questions(
+            topic=quiz_data.title,
+            subject_name=quiz_data.subject_name,
+            grade_level="General",
+            difficulty=quiz_data.difficulty_level,
+            count=quiz_data.question_count,
+            question_type=quiz_data.question_type,
+            use_pdf_context=quiz_data.use_pdf_context,
+            subject_id=subject.id if subject else None,
+            grade_id=None,
+            school_id=school_id,
+        )
+    except Exception as e:
+        logger.error(f"❌ [AI GEN] RAG Service failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
+
+    if not generated_questions:
+        raise HTTPException(status_code=500, detail="AI generation failed or returned no questions.")
 
     # 2. Create Assignment
-    try:
-        new_assignment = models.Assignment(
-            title=quiz_data.title,
-            description=quiz_data.description,
-            due_date=quiz_data.due_date,
-            status=models.AssignmentStatus.DRAFT,
-            teacher_id=current_user.id,
-            class_id=None,
+    new_assignment = models.Assignment(
+        title=quiz_data.title,
+        description=quiz_data.description,
+        due_date=quiz_data.due_date,
+        status=models.AssignmentStatus.PUBLISHED, # Ready to take locally immediately
+        teacher_id=current_user.id,
+        class_id=None,
+        subject_id=subject.id if subject else None,
+        exam_type=quiz_data.exam_type or "Quiz",
+        question_count=quiz_data.question_count or 0,
+        difficulty_level=quiz_data.difficulty_level or "Medium",
+        question_type=quiz_data.question_type or "Mixed"
+    )
+    db.add(new_assignment)
+    db.commit()
+    db.refresh(new_assignment)
+
+    # 3. Create Questions
+    for q_data in generated_questions:
+        q_type_str = q_data.get("question_type", "MULTIPLE_CHOICE")
+        try:
+            q_type = models.QuestionType(q_type_str)
+        except ValueError:
+            q_type = models.QuestionType.MULTIPLE_CHOICE
+            
+        new_q = models.Question(
+            text=q_data.get("text", "Question Text"),
+            points=q_data.get("points", 5),
+            question_type=q_type,
+            assignment_id=new_assignment.id,
+            school_id=school_id,
             subject_id=subject.id if subject else None,
-            exam_type=quiz_data.exam_type or "Quiz",
-            question_count=quiz_data.question_count or 0,
-            difficulty_level=quiz_data.difficulty_level or "Medium",
-            question_type=quiz_data.question_type or "Mixed"
+            difficulty_level=quiz_data.difficulty_level
         )
-        db.add(new_assignment)
+        db.add(new_q)
         db.commit()
-        db.refresh(new_assignment)
-        logger.info("[create_personal_quiz] SUCCESS — created assignment id=%s title=%r for user=%s",
-                    new_assignment.id, new_assignment.title, current_user.username)
-        return new_assignment
-    except Exception as exc:
-        db.rollback()
-        logger.error("[create_personal_quiz] DB ERROR creating assignment for user=%s: %s", current_user.username, exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to create quiz: {exc}")
+        db.refresh(new_q)
+        
+        for opt in q_data.get("options", []):
+            new_opt = models.QuestionOption(
+                text=opt.get("text", ""),
+                is_correct=opt.get("is_correct", False),
+                question_id=new_q.id
+            )
+            db.add(new_opt)
+    
+    db.commit()
+    logger.info("[create_personal_quiz] SUCCESS — generated quiz ID %s", new_assignment.id)
+    return new_assignment
 
 @router.get("/subjects", response_model=List[schemas.Subject])
 def read_individual_subjects(db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_individual_user)):

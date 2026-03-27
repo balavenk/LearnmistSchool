@@ -59,8 +59,10 @@ const Schools: React.FC = () => {
     const [newSchoolName, setNewSchoolName] = useState('');
     const [newSchoolAddress, setNewSchoolAddress] = useState('');
     const [newSchoolAdmins, setNewSchoolAdmins] = useState<SchoolAdmin[]>([]);
+    const [tempAdminFullName, setTempAdminFullName] = useState('');
     const [tempAdminUsername, setTempAdminUsername] = useState('');
     const [tempAdminPassword, setTempAdminPassword] = useState('');
+    const [tempAdminConfirmPassword, setTempAdminConfirmPassword] = useState('');
 
     // ── Master Data ───────────────────────────────────────────────────────────
     const [countries, setCountries] = useState<MasterItem[]>([]);
@@ -197,6 +199,7 @@ const Schools: React.FC = () => {
         setNewSchoolName('');
         setNewSchoolAddress('');
         setNewSchoolAdmins([]);
+        setTempAdminFullName('');
         setTempAdminUsername('');
         setTempAdminPassword('');
         setEditMode(false);
@@ -219,17 +222,24 @@ const Schools: React.FC = () => {
 
     // ── Admin Grid Handlers (functional updaters — no stale closure) ──────────
     const handleAddAdminToGrid = useCallback(() => {
-        if (!tempAdminUsername || !tempAdminPassword) return;
+        if (!tempAdminFullName || !tempAdminUsername || !tempAdminPassword || !tempAdminConfirmPassword) return;
+        if (tempAdminPassword !== tempAdminConfirmPassword) {
+            toast.error("Passwords do not match");
+            return;
+        }
         const newAdmin: SchoolAdmin = {
             id: Date.now(),
+            name: tempAdminFullName,
             username: tempAdminUsername,
             password: tempAdminPassword,
             status: 'Active',
         };
         setNewSchoolAdmins((prev) => [...prev, newAdmin]);
+        setTempAdminFullName('');
         setTempAdminUsername('');
         setTempAdminPassword('');
-    }, [tempAdminUsername, tempAdminPassword]);
+        setTempAdminConfirmPassword('');
+    }, [tempAdminFullName, tempAdminUsername, tempAdminPassword, tempAdminConfirmPassword]);
 
     const toggleNewAdminStatus = useCallback((adminId: number) => {
         setNewSchoolAdmins((prev) =>
@@ -270,6 +280,7 @@ const Schools: React.FC = () => {
                         const adminResults = await Promise.allSettled(
                             newSchoolAdmins.map((admin) =>
                                 api.post(`/super-admin/schools/${createdSchool.id}/admin`, {
+                                    full_name: admin.name,
                                     username: admin.username,
                                     password: admin.password,
                                     role: 'SCHOOL_ADMIN',
@@ -713,6 +724,13 @@ const Schools: React.FC = () => {
                                     <div className="flex flex-col sm:flex-row gap-3 bg-slate-50 p-4 rounded-lg">
                                         <input
                                             type="text"
+                                            value={tempAdminFullName}
+                                            onChange={(e) => setTempAdminFullName(e.target.value)}
+                                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
+                                            placeholder="Full Name"
+                                        />
+                                        <input
+                                            type="text"
                                             value={tempAdminUsername}
                                             onChange={(e) => setTempAdminUsername(e.target.value)}
                                             className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
@@ -725,10 +743,17 @@ const Schools: React.FC = () => {
                                             className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
                                             placeholder="Password"
                                         />
+                                        <input
+                                            type="password"
+                                            value={tempAdminConfirmPassword}
+                                            onChange={(e) => setTempAdminConfirmPassword(e.target.value)}
+                                            className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-500"
+                                            placeholder="Confirm Password"
+                                        />
                                         <button
                                             type="button"
                                             onClick={handleAddAdminToGrid}
-                                            disabled={!tempAdminUsername || !tempAdminPassword}
+                                            disabled={!tempAdminFullName || !tempAdminUsername || !tempAdminPassword || !tempAdminConfirmPassword}
                                             className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50"
                                         >
                                             Add

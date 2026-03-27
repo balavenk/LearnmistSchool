@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Printer, FilePlus, Image, X, Loader2 } from 'lucide-react';
 import api from '../../api/axios';
@@ -23,6 +23,11 @@ interface Question {
 const QuizDetails: React.FC = () => {
     const { assignmentId } = useParams<{ assignmentId: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Determine back link based on user role path
+    const isIndividual = location.pathname.startsWith('/individual');
+    const backUrl = isIndividual ? '/individual/quizzes' : '/teacher/assignments';
     const [questions, setQuestions] = useState<Question[]>([]);
     const [loading, setLoading] = useState(true);
     const [includeAnswers, setIncludeAnswers] = useState(false);
@@ -281,7 +286,7 @@ const QuizDetails: React.FC = () => {
 
             <div className="flex justify-between items-center no-print">
                 <div className="print-header">
-                    <button onClick={() => navigate('/teacher/assignments')} className="text-slate-500 hover:text-slate-800 mb-2 no-print">← Back to Assignments</button>
+                    <button onClick={() => navigate(backUrl)} className="text-slate-500 hover:text-slate-800 mb-2 no-print">← Back to Assignments</button>
                     <h1 className="text-3xl font-bold text-slate-900">Quiz Content</h1>
                     <p className="text-slate-500">Manage questions for this assignment.</p>
                 </div>

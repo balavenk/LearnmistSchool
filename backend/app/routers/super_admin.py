@@ -124,14 +124,21 @@ def create_school_admin(school_id: int, user: schemas.UserCreate, db: Session = 
     if not school:
         raise HTTPException(status_code=404, detail="School not found")
     
+    username = user.username.strip().lower()
+    from sqlalchemy import func
     # Verify user unique
-    existing_user = db.query(models.User).filter(models.User.username == user.username).first()
+    existing_user = db.query(models.User).filter(func.lower(models.User.username) == username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already registered")
+        
+    if user.email:
+        if db.query(models.User).filter(func.lower(models.User.email) == user.email.strip().lower()).first():
+            raise HTTPException(status_code=400, detail="Email ID already exists")
     
     hashed_password = auth.get_password_hash(user.password)
     new_user = models.User(
-        username=user.username,
+        username=username,
+        full_name=user.full_name,
         email=user.email,
         hashed_password=hashed_password,
         role=models.UserRole.SCHOOL_ADMIN,

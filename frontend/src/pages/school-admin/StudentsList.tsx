@@ -274,6 +274,7 @@ const StudentsList: React.FC = () => {
     const [newStudentName, setNewStudentName] = useState('');
     const [newStudentUsername, setNewStudentUsername] = useState('');
     const [newStudentPassword, setNewStudentPassword] = useState('');
+    const [newStudentConfirmPassword, setNewStudentConfirmPassword] = useState('');
     const [newStudentEmail, setNewStudentEmail] = useState('');
     const [newStudentGradeId, setNewStudentGradeId] = useState<number | ''>('');
     const [newStudentClassId, setNewStudentClassId] = useState<number | ''>('');
@@ -319,6 +320,7 @@ const StudentsList: React.FC = () => {
         setNewStudentName('');
         setNewStudentUsername('');
         setNewStudentPassword('');
+        setNewStudentConfirmPassword('');
         setNewStudentEmail('');
         setNewStudentGradeId('');
         setNewStudentClassId('');
@@ -327,6 +329,10 @@ const StudentsList: React.FC = () => {
 
     const handleAddStudent = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (newStudentPassword !== newStudentConfirmPassword) {
+            toast.error("Passwords do not match.");
+            return;
+        }
         if (usernameIsTaken) {
             toast.error("Username is already taken. Please choose a different one.");
             return;
@@ -458,6 +464,21 @@ const StudentsList: React.FC = () => {
                                     onChange={(e) => setNewStudentPassword(e.target.value)}
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
                                     placeholder="Leave blank to use default"
+                                    autoComplete="new-password"
+                                />
+                            </div>
+
+                            {/* Confirm Password */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Confirm Password
+                                </label>
+                                <input
+                                    type="password"
+                                    value={newStudentConfirmPassword}
+                                    onChange={(e) => setNewStudentConfirmPassword(e.target.value)}
+                                    className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
+                                    placeholder="Re-enter password"
                                     autoComplete="new-password"
                                 />
                             </div>
