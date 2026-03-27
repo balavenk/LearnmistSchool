@@ -576,7 +576,8 @@ def read_questions(
     Get all questions for the current school with optional filters and pagination.
     Available to School Admins.
     """
-    query = db.query(models.Question).join(models.Assignment, models.Question.assignment_id == models.Assignment.id)
+    # Use outerjoin so we don't drop bank questions that have no assignment
+    query = db.query(models.Question).outerjoin(models.Assignment, models.Question.assignment_id == models.Assignment.id)
     
     # Filter by School
     query = query.filter(models.Question.school_id == current_user.school_id)

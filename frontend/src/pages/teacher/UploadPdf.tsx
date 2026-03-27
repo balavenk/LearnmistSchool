@@ -237,10 +237,10 @@ const TeacherUploadPdf: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Upload PDF</h1>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Upload Textbook</h1>
                     <p className="text-slate-500 font-medium flex items-center gap-1.5">
                         <GraduationCap className="w-4 h-4 text-indigo-500" />
-                        Upload PDFs and train LLM from teacher workspace.
+                        Upload textbook PDFs and manage them from teacher workspace.
                     </p>
                 </div>
 

@@ -44,6 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
                 { to: '/super-admin', label: 'Dashboard', end: true, icon: <DashboardIcon /> },
                 { to: '/schools', label: 'Schools', icon: <SchoolIcon /> },
                 { to: '/user-management', label: 'User Management', icon: <UsersIcon /> },
+                { to: '/manage-question-bank', label: 'Manage Question Bank', icon: <QuestionBankIcon /> },
                 { to: '/settings', label: 'Settings', icon: <SettingsIcon /> },
                 { to: '/train-llm', label: 'Train Via LLM', icon: <BrainIcon /> },
             ],
@@ -55,15 +56,17 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
                 { to: '/school-admin/grades', label: 'Grades', icon: <GradeIcon /> },
                 { to: '/school-admin/subjects', label: 'Subjects', icon: <SubjectIcon /> },
                 { to: '/school-admin/question-bank', label: 'Question Bank', icon: <QuestionIcon /> },
-                { to: '/school-admin/upload-pdf', label: 'Upload PDF', icon: <UploadIcon /> },
+                { to: '/school-admin/upload-pdf', label: 'Upload Textbook', icon: <UploadIcon /> },
+                { to: '/school-admin/upload-question-bank', label: 'Upload Question Bank', icon: <FileTextIcon /> },
             ],
             TEACHER: [
                 { to: '/teacher', label: 'Dashboard', end: true, icon: <DashboardIcon /> },
                 { to: '/teacher/assignments', label: 'Assignments', icon: <AssignmentIcon /> },
                 { to: '/teacher/students', label: 'Students', icon: <StudentsIcon /> },
                 { to: '/teacher/grading', label: 'Grading', icon: <GradingIcon /> },
-                { to: '/teacher/question-bank', label: 'Question Bank', icon: <QuestionIcon /> },
-                { to: '/teacher/upload', label: 'Upload PDF', icon: <UploadIcon /> },
+                { to: '/teacher/question-bank', label: 'Question Pool', icon: <QuestionIcon /> },
+                { to: '/teacher/upload', label: 'Upload Textbook', icon: <UploadIcon /> },
+                { to: '/teacher/upload-question-bank', label: 'Upload Question Bank', icon: <FileTextIcon /> },
             ],
             STUDENT: [
                 { to: '/my-grades', label: 'My Grades', icon: <GradeIcon /> },
@@ -131,7 +134,6 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
                     </ul>
                 </nav>
 
-                {/* Footer / Logout */}
                 <div className="p-4 border-t border-slate-800">
                     <button
                         onClick={handleLogout}
@@ -147,6 +149,14 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
         </>
     );
 };
+
+// ... existing icons ...
+
+const FileTextIcon = () => (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+);
 
 // Icon Components
 const DashboardIcon = () => (
@@ -239,5 +249,13 @@ const QuizIcon = () => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
     </svg>
 );
+
+const QuestionBankIcon = () => (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+    </svg>
+);
+
+
 
 export default Sidebar;

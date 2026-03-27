@@ -160,7 +160,9 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
                 formData.append('school_id', schoolIdToUse.toString());
             }
 
-            await api.post('/upload/training-material', formData, {
+            const endpoint = '/upload/training-material';
+
+            await api.post(endpoint, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
@@ -254,6 +256,7 @@ const UploadMaterialModal: React.FC<UploadMaterialModalProps> = ({ isOpen, onClo
                             placeholder="Enter a brief description of the content..."
                         />
                     </div>
+
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">

@@ -6,7 +6,9 @@ from typing import List, Dict, Callable, Awaitable
 import uuid
 import json
 import asyncio
+from app import models as db_models
 from app.services.llm_router import router
+from sqlalchemy.orm import Session
 
 # Initialize clients (ensure env vars are set)
 # OPENAI_API_KEY
@@ -174,6 +176,9 @@ async def generate_quiz_questions(
     subject_id: int = None,
     grade_id: int = None,
     school_id: int = None,
+    use_question_bank: bool = False,
+    source_type: str = "textbook",
+    db: Session = None,
 ) -> List[Dict]:
     """
     Generates quiz questions using RAG.
@@ -200,10 +205,10 @@ async def generate_quiz_questions(
     collection_name = "learnmist-school-small"
 
     try:
-        # 1. Embed the query (topic) - only if using PDF context
+        # 1. Embed the query (topic) - only if using PDF context and NOT exclusively from the DB pool
         context_text = ""
         
-        if use_pdf_context:
+        if use_pdf_context and source_type != "question_bank":
             if progress_callback:
                 await progress_callback("Creating embeddings for topic...", {"step": "embedding", "topic": topic})
                 
@@ -229,35 +234,28 @@ async def generate_quiz_questions(
 
                 # Build exact filter using reliable integer IDs (school/grade/subject isolation)
                 # Falls back to subject_name string match if IDs are not provided (legacy support)
+                base_must_conditions = []
+                if school_id: base_must_conditions.append(models.FieldCondition(key="school_id", match=models.MatchValue(value=school_id)))
+                if grade_id: base_must_conditions.append(models.FieldCondition(key="grade_id", match=models.MatchValue(value=grade_id)))
+                if subject_id: base_must_conditions.append(models.FieldCondition(key="subject_id", match=models.MatchValue(value=subject_id)))
+
+                if use_question_bank:
+                    base_must_conditions.append(models.FieldCondition(key="is_question_bank", match=models.MatchValue(value=True)))
+                else:
+                    # If not explicitly using question bank, only use normal textbooks
+                    base_must_conditions.append(models.FieldCondition(key="is_question_bank", match=models.MatchValue(value=False)))
+
                 if subject_id and grade_id and school_id:
-                    qdrant_filter = models.Filter(
-                        must=[
-                            models.FieldCondition(
-                                key="school_id",
-                                match=models.MatchValue(value=school_id)
-                            ),
-                            models.FieldCondition(
-                                key="grade_id",
-                                match=models.MatchValue(value=grade_id)
-                            ),
-                            models.FieldCondition(
-                                key="subject_id",
-                                match=models.MatchValue(value=subject_id)
-                            ),
-                        ]
-                    )
-                    print(f"[RAG] Using exact ID filter: school_id={school_id}, grade_id={grade_id}, subject_id={subject_id}")
+                    qdrant_filter = models.Filter(must=base_must_conditions)
+                    print(f"[RAG] Using exact ID filter: school_id={school_id}, grade_id={grade_id}, subject_id={subject_id}, use_question_bank={use_question_bank}")
                 else:
                     # Legacy fallback: filter by subject name string (less reliable)
+                    legacy_should = [models.FieldCondition(key="subject", match=models.MatchValue(value=subject_name))]
                     qdrant_filter = models.Filter(
-                        should=[
-                            models.FieldCondition(
-                                key="subject",
-                                match=models.MatchValue(value=subject_name)
-                            ),
-                        ]
+                        must=base_must_conditions,
+                        should=legacy_should
                     )
-                    print(f"[RAG] Falling back to subject name filter: subject_name={subject_name}")
+                    print(f"[RAG] Falling back to subject name filter: subject_name={subject_name}, use_question_bank={use_question_bank}")
 
                 search_response = client_qdrant.query_points(
                     collection_name=collection_name,
@@ -275,16 +273,44 @@ async def generate_quiz_questions(
                     print(msg)
                     if progress_callback:
                          await progress_callback(msg, {"step": "search_result", "info": msg})
-                    raise ValueError(msg)
+                    # Only raise for normal textbooks. For question banks, we can still fall back to the DB Pool.
+                    if not use_question_bank and source_type != "question_bank":
+                        raise ValueError(msg)
                 else:
                      if progress_callback:
                          await progress_callback(f"Found {len(search_results)} relevant chunks.", {"step": "search_result", "chunks_found": len(search_results)})
-        else:
-            # Skip RAG, use general knowledge
-            context_text = "Using general knowledge base (no PDF/textbook context)."
             if progress_callback:
                 await progress_callback("Generating from general knowledge (PDF context disabled).", {"step": "search_result", "info": context_text})
 
+        # --- Question Bank Pool Logic ---
+        if source_type == "question_bank" and db:
+            if progress_callback:
+                await progress_callback("Fetching questions from the Question Bank pool...", {"step": "bank_fetch"})
+            
+            # Fetch structured questions from DB
+            bank_questions = db.query(db_models.Question).filter(
+                db_models.Question.is_bank_question == True,
+                db_models.Question.subject_id == subject_id,
+                db_models.Question.grade_id == grade_id,
+                db_models.Question.school_id == school_id
+            ).all()
+
+            if not bank_questions:
+                msg = f"No extracted questions found in the Question Bank for {subject_name} / {grade_level}."
+                if progress_callback:
+                    await progress_callback(msg, {"step": "error", "info": msg})
+                raise ValueError(msg)
+
+            # Format the pool for the LLM
+            pool_context = "LIST OF AVAILABLE QUESTIONS IN THE BANK:\n"
+            for q in bank_questions:
+                opts = ", ".join([o.text for o in q.options])
+                pool_context += f"- [ID:{q.id}] {q.text} (Options: {opts})\n"
+            
+            context_text = pool_context
+            if progress_callback:
+                await progress_callback(f"Found {len(bank_questions)} questions in pool. AI will now select and adapt.", {"step": "bank_ready", "count": len(bank_questions)})
+        
         normalized_question_type = (question_type or "Mixed").strip()
         question_type_map = {
             "Multiple Choice": "MULTIPLE_CHOICE",
@@ -342,8 +368,15 @@ async def generate_quiz_questions(
         if progress_callback:
             await progress_callback("Generating questions with LLM router...", {"step": "llm_request", "prompt_preview": prompt[:200] + "..."})
 
-        # Choose system prompt based on whether PDF context is being used
-        if use_pdf_context:
+        # Choose system prompt based on source
+        if source_type == "question_bank":
+            system_prompt = (
+                "You are an assistant picking questions from a provided Question Bank.\n"
+                "Use the provided 'LIST OF AVAILABLE QUESTIONS' to fulfill the request.\n"
+                "You can slightly adapt the wording or combine them, but stay true to the bank content.\n"
+                "Output valid JSON only."
+            )
+        elif use_pdf_context:
             system_prompt = (
                 "You must generate questions ONLY from the provided book content.\n"
                 "Use exclusively the information contained in the supplied context.\n\n"
