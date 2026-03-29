@@ -138,16 +138,14 @@ const ManageQuestionBank: React.FC = () => {
             accessorKey: 'file_status',
             header: 'Status',
             cell: ({ row }) => (
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${
-                    row.original.file_status === 'Extracted' ? 'bg-green-50 text-green-700 border-green-200' :
-                    row.original.file_status === 'Processing' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                    'bg-blue-50 text-blue-700 border-blue-200'
-                }`}>
-                    <span className={`w-2 h-2 rounded-full ${
-                        row.original.file_status === 'Extracted' ? 'bg-green-500' :
-                        row.original.file_status === 'Processing' ? 'bg-amber-500 animate-pulse' :
-                        'bg-blue-500'
-                    }`}></span>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${row.original.file_status === 'Extracted' ? 'bg-green-50 text-green-700 border-green-200' :
+                        row.original.file_status === 'Processing' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}>
+                    <span className={`w-2 h-2 rounded-full ${row.original.file_status === 'Extracted' ? 'bg-green-500' :
+                            row.original.file_status === 'Processing' ? 'bg-amber-500 animate-pulse' :
+                                'bg-blue-500'
+                        }`}></span>
                     {row.original.file_status || 'Uploaded'}
                 </span>
             ),
@@ -211,7 +209,7 @@ const ManageQuestionBank: React.FC = () => {
                         onClick={() => setActiveTab('NOT_TRAINED')}
                         className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'NOT_TRAINED' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 bg-slate-50'}`}
                     >
-                        Files to Train ({files.filter(f => f.file_status !== 'Trained').length})
+                        Files to Extract ({files.filter(f => f.file_status !== 'Trained').length})
                     </button>
                     <button
                         onClick={() => setActiveTab('TRAINED')}
@@ -241,7 +239,7 @@ const ManageQuestionBank: React.FC = () => {
                     data={paginatedFiles}
                     isLoading={loading || isFilterLoading}
                 />
-                
+
                 {filteredFiles.length > PAGINATION_CONFIG.TRAINING_FILES_PER_PAGE && (
                     <div className="p-4 border-t-2 border-slate-200">
                         <PaginationControls
