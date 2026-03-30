@@ -156,13 +156,15 @@ const QuestionPaperHistory: React.FC = () => {
                     const isComplete = row.original.status === 'complete';
                     return (
                         <div className="flex justify-end gap-3 items-center">
-                            {/* Always show Edit/Continue */}
-                            <button
-                                onClick={() => navigate(`/teacher/papers/${row.original.id}/edit`)}
-                                className="text-indigo-600 hover:text-indigo-800 font-medium text-sm transition-colors"
-                            >
-                                {isComplete ? 'Edit' : 'Continue →'}
-                            </button>
+                            {/* Show Continue only for drafts; hide for complete papers */}
+                            {!isComplete && (
+                                <button
+                                    onClick={() => navigate(`/teacher/papers/${row.original.id}/edit`)}
+                                    className="text-indigo-600 hover:text-indigo-800 font-medium text-sm transition-colors"
+                                >
+                                    Continue →
+                                </button>
+                            )}
                             {/* Download PDF only when complete */}
                             {isComplete && (
                                 <button
