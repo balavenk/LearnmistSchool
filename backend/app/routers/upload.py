@@ -142,11 +142,104 @@ async def upload_training_material(
     
     return new_artifact
 
+@router.post("/question-bank", response_model=schemas.FileArtifactOut)
+async def upload_question_bank(
+    file: UploadFile = File(...),
+    school_id: int = Form(...),
+    grade_id: int = Form(...),
+    subject_id: int = Form(...),
+    description: str = Form(None),
+    year: int = Form(None),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_upload_user)
+):
+    # Same validation as training material
+    if current_user.role != models.UserRole.SUPER_ADMIN and current_user.school_id != school_id:
+        raise HTTPException(status_code=403, detail="Cannot upload for another school")
+
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+
+    # Directory Structure: storage/{school_id}/question-bank/{grade_id}/{subject_id}/
+    relative_dir = os.path.join(str(school_id), "question-bank", str(grade_id), str(subject_id))
+    abs_dir = os.path.join(STORAGE_ROOT_ABS, relative_dir)
+    os.makedirs(abs_dir, exist_ok=True)
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    original_filename = file.filename
+    clean_filename = "".join(x for x in original_filename if x.isalnum() or x in "._- ")
+    stored_filename = f"{timestamp}_{clean_filename}"
+    
+    file_path = os.path.join(abs_dir, stored_filename)
+    relative_path = os.path.join(relative_dir, stored_filename)
+
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        file_size = os.path.getsize(file_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
+
+    new_artifact = models.FileArtifact(
+        school_id=school_id,
+        grade_id=grade_id,
+        subject_id=subject_id,
+        original_filename=original_filename,
+        stored_filename=stored_filename,
+        relative_path=relative_path,
+        mime_type=file.content_type or mimetypes.guess_type(file.filename)[0],
+        file_extension=os.path.splitext(original_filename)[1].lower().replace(".", ""),
+        file_size=file_size,
+        uploaded_by_id=current_user.id,
+        uploaded_at=datetime.utcnow(),
+        description=description,
+        is_question_bank=True,
+        year=year
+    )
+    
+    db.add(new_artifact)
+    db.commit()
+    db.refresh(new_artifact)
+    
+    return new_artifact
+
+@router.get("/all-question-bank-materials", response_model=List[schemas.FileArtifactOut])
+def get_all_question_bank_materials(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if current_user.role != models.UserRole.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    results = db.query(
+        models.FileArtifact, 
+        models.School.name.label("school_name"),
+        models.Grade.name.label("grade_name"),
+        models.Subject.name.label("subject_name")
+    ).join(
+        models.School, models.FileArtifact.school_id == models.School.id, isouter=True
+    ).join(
+        models.Grade, models.FileArtifact.grade_id == models.Grade.id, isouter=True
+    ).join(
+        models.Subject, models.FileArtifact.subject_id == models.Subject.id, isouter=True
+    ).filter(models.FileArtifact.is_question_bank == True).order_by(models.FileArtifact.uploaded_at.desc()).all()
+    
+    output = []
+    for artifact, school_name, grade_name, subject_name in results:
+        artifact_dict = {c.name: getattr(artifact, c.name) for c in artifact.__table__.columns}
+        artifact_dict['school_name'] = school_name
+        artifact_dict['grade_name'] = grade_name
+        artifact_dict['subject_name'] = subject_name
+        output.append(schemas.FileArtifactOut(**artifact_dict))
+        
+    return output
+
 @router.get("/training-material/{grade_id}", response_model=schemas.PaginatedResponse[schemas.FileArtifactOut])
 def list_training_materials(
     grade_id: int,
     page: int = 1,
     page_size: int = 10,
+    is_bank: bool = False,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(get_upload_user)
 ):
@@ -170,7 +263,8 @@ def list_training_materials(
     # Get total count (optimized - only count, no data fetch)
     total_count = db.query(models.FileArtifact).filter(
         models.FileArtifact.grade_id == grade_id,
-        models.FileArtifact.school_id == current_user.school_id
+        models.FileArtifact.school_id == current_user.school_id,
+        models.FileArtifact.is_question_bank == is_bank
     ).count()
     
     # Calculate total pages
@@ -181,7 +275,8 @@ def list_training_materials(
         models.Subject, models.FileArtifact.subject_id == models.Subject.id
     ).filter(
         models.FileArtifact.grade_id == grade_id,
-        models.FileArtifact.school_id == current_user.school_id
+        models.FileArtifact.school_id == current_user.school_id,
+        models.FileArtifact.is_question_bank == is_bank
     ).order_by(models.FileArtifact.uploaded_at.desc()).offset(offset).limit(page_size).all()
     
     # Map results to schema
@@ -362,6 +457,7 @@ async def websocket_train_file(websocket: WebSocket, file_id: int, db: Session =
             "grade_id": artifact.grade_id,
             "subject_id": artifact.subject_id,
             "filename": artifact.original_filename,
+            "is_question_bank": artifact.is_question_bank,
             **user_metadata 
         }
 
@@ -397,6 +493,37 @@ async def websocket_train_file(websocket: WebSocket, file_id: int, db: Session =
     except Exception as e:
         await websocket.send_text(f"Error: {str(e)}")
         print(f"Error in WS training: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass
+
+from app.services import extraction_service
+
+@router.websocket("/ws/extract/{file_id}")
+async def websocket_extract_file(websocket: WebSocket, file_id: int, db: Session = Depends(database.get_db)):
+    """
+    WebSocket for extraction: SuperAdmin triggers AI extraction of questions from PDF.
+    """
+    await websocket.accept()
+    
+    try:
+        # Check permissions - WebSockets usually need manual auth check if not using Depends in a simpler way
+        # For now, let's assume valid trigger from frontend SuperAdmin page
+        
+        async def ws_callback(msg: str):
+            await websocket.send_text(msg)
+            
+        await extraction_service.process_extraction(file_id, db, progress_callback=ws_callback)
+        
+        await websocket.send_text("DONE")
+        
+    except WebSocketDisconnect:
+        print(f"Client disconnected for extraction: {file_id}")
+    except Exception as e:
+        await websocket.send_text(f"Error: {str(e)}")
+        print(f"Error in WS extraction: {e}")
     finally:
         try:
             await websocket.close()

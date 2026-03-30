@@ -187,6 +187,7 @@ const TeacherAssignments: React.FC = () => {
     const [aiSubjectId, setAiSubjectId] = useState<number | ''>('');
     const [aiGradeId, setAiGradeId] = useState<number | ''>('');
     const [aiUsePdfContext, setAiUsePdfContext] = useState(false);
+    const [aiSourceType, setAiSourceType] = useState<'textbook' | 'question_bank'>('textbook');
     // PDF status check for the AI modal: null | 'checking' | 'no_pdf' | 'not_trained' | 'trained'
     const [pdfCheckStatus, setPdfCheckStatus] = useState<'checking' | 'no_pdf' | 'not_trained' | 'trained' | null>(null);
 
@@ -195,6 +196,83 @@ const TeacherAssignments: React.FC = () => {
     const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
     const [editDueDate, setEditDueDate] = useState('');
 
+    // Question Bank Modal State
+    const [isBankModalOpen, setIsBankModalOpen] = useState(false);
+    const [bankQuestions, setBankQuestions] = useState<any[]>([]);
+    const [selectedBankQuestions, setSelectedBankQuestions] = useState<number[]>([]);
+    const [bankSubjectId, setBankSubjectId] = useState<number | ''>('');
+    const [bankGradeId, setBankGradeId] = useState<number | ''>('');
+    const [bankYear, setBankYear] = useState<number | ''>('');
+    const [fetchingBank, setFetchingBank] = useState(false);
+    const [bankAssignTitle, setBankAssignTitle] = useState('');
+    const [bankAssignDesc, setBankAssignDesc] = useState('');
+    const [bankAssignDueDate, setBankAssignDueDate] = useState('');
+
+    // Fetch Bank Questions
+    const fetchBankQuestions = async () => {
+        try {
+            setFetchingBank(true);
+            const params: any = {};
+            if (bankSubjectId) params.subject_id = bankSubjectId;
+            if (bankGradeId) params.grade_id = bankGradeId;
+            if (bankYear) params.year = bankYear;
+            
+            const res = await api.get('/teacher/question-bank/questions', { params });
+            setBankQuestions(res.data);
+        } catch (error) {
+            toast.error("Failed to load question bank");
+        } finally {
+            setFetchingBank(false);
+        }
+    };
+
+    // Auto-fetch when filters change (while modal is open)
+    useEffect(() => {
+        if (isBankModalOpen) {
+            fetchBankQuestions();
+        }
+    }, [bankSubjectId, bankGradeId, bankYear, isBankModalOpen]);
+
+    const closeBankModal = () => {
+        setIsBankModalOpen(false);
+        setSelectedBankQuestions([]);
+        setBankAssignTitle('');
+        setBankAssignDesc('');
+        setBankAssignDueDate('');
+        setBankSubjectId('');
+        setBankGradeId('');
+        setBankYear('');
+    };
+
+    const handleCreateFromBank = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (selectedBankQuestions.length === 0) {
+            toast.error("Please select at least one question.");
+            return;
+        }
+        if (!bankSubjectId || !bankGradeId) {
+            toast.error("Please ensure Subject and Grade are selected/inferred.");
+            return;
+        }
+        try {
+            setIsGenerating(true);
+            await api.post('/teacher/assignments/from-bank', {
+                title: bankAssignTitle,
+                description: bankAssignDesc,
+                due_date: bankAssignDueDate ? new Date(bankAssignDueDate).toISOString() : null,
+                subject_id: Number(bankSubjectId),
+                grade_id: Number(bankGradeId),
+                question_ids: selectedBankQuestions
+            });
+            toast.success("Assignment drafted from question bank!");
+            fetchData();
+            closeBankModal();
+        } catch (error: any) {
+            toast.error(error.response?.data?.detail || "Failed to create assignment");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     // Fetch Data
     const fetchData = React.useCallback(async () => {
@@ -264,7 +342,9 @@ const TeacherAssignments: React.FC = () => {
             due_date: aiDueDate ? new Date(aiDueDate).toISOString() : null,
             subject_id: Number(aiSubjectId),
             grade_id: Number(aiGradeId),
-            use_pdf_context: aiUsePdfContext
+            use_pdf_context: aiUsePdfContext,
+            source_type: aiSourceType,
+            use_question_bank: aiSourceType === 'question_bank'
         };
 
         try {
@@ -368,6 +448,7 @@ const TeacherAssignments: React.FC = () => {
         setAiSubjectId('');
         setAiGradeId('');
         setAiUsePdfContext(false);
+        setAiSourceType('textbook');
         setIsGenerating(false);
         setPdfCheckStatus(null);
     };
@@ -466,6 +547,15 @@ const TeacherAssignments: React.FC = () => {
                             AI Generate Quiz
                         </button>
                         <button
+                            onClick={() => setIsBankModalOpen(true)}
+                            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl font-medium transition-all duration-200 flex items-center gap-2 transform hover:scale-105"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            </svg>
+                            Select from Bank
+                        </button>
+                        <button
                             onClick={() => setIsModalOpen(true)}
                             className="bg-white border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 px-6 py-3 rounded-xl shadow-md hover:shadow-lg font-medium transition-all duration-200 flex items-center gap-2"
                         >
@@ -545,6 +635,15 @@ const TeacherAssignments: React.FC = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                                 Create with AI
+                            </button>
+                            <button
+                                onClick={() => setIsBankModalOpen(true)}
+                                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl font-medium transition-all duration-200 inline-flex items-center gap-2"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                </svg>
+                                Select from Bank
                             </button>
                         </div>
                     </div>
@@ -860,6 +959,7 @@ const TeacherAssignments: React.FC = () => {
                                     />
                                     <p className="text-xs text-slate-400 mt-1">Describe what the quiz should be about.</p>
                                 </div>
+
                                 {/* PDF Context Checkbox */}
                                 <div className="flex items-start gap-3 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl">
                                     <input
@@ -874,13 +974,38 @@ const TeacherAssignments: React.FC = () => {
                                             <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                             </svg>
-                                            Generate from Trained PDF/Book
+                                            Generate from Trained PDF
                                         </div>
                                         <p className="text-sm text-slate-600 mt-1">
-                                            Use questions from uploaded textbooks and PDFs. If unchecked, generates from general.
+                                            Use your uploaded materials to ground the AI generation.
                                         </p>
                                     </label>
                                 </div>
+                                {aiUsePdfContext && (
+                                    <div className="space-y-4">
+                                        <div className="relative">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">AI Data Source</label>
+                                            <select
+                                                value={aiSourceType}
+                                                onChange={(e) => setAiSourceType(e.target.value as 'textbook' | 'question_bank')}
+                                                className="w-full px-4 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-medium text-slate-700"
+                                            >
+                                                <option value="textbook">Textbook (RAG)</option>
+                                                <option value="question_bank">Question Bank Pool</option>
+                                            </select>
+                                        </div>
+
+                                        {aiSourceType === 'textbook' ? (
+                                            <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg text-xs text-indigo-700 leading-relaxed">
+                                                <strong>Textbook RAG:</strong> AI will search through your uploaded textbooks and extract relevant context to generate new questions.
+                                            </div>
+                                        ) : (
+                                            <div className="p-3 bg-orange-50 border border-orange-100 rounded-lg text-xs text-orange-700 leading-relaxed">
+                                                <strong>Question Bank Pool:</strong> AI will pull previously extracted questions from your verified Question Banks for this subject and grade.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* PDF Status Warning Banner */}
                                 {aiUsePdfContext && pdfCheckStatus && pdfCheckStatus !== 'checking' && (
@@ -993,6 +1118,155 @@ const TeacherAssignments: React.FC = () => {
                                 </button>
                                 <button type="submit" className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-md hover:bg-indigo-700 transition-all">
                                     Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Select from Question Bank Modal */}
+            {isBankModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto animate-fadeIn">
+                    <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl p-6 lg:p-8 relative overflow-hidden transform animate-slideUp flex flex-col max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-6 relative z-10">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-emerald-500 to-teal-500 p-2 rounded-lg">
+                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Create from Question Bank</h2>
+                            </div>
+                            <button onClick={closeBankModal} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-lg transition-colors">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateFromBank} className="flex-1 overflow-hidden flex flex-col relative z-10">
+                            {/* Assignment Details */}
+                            <div className="grid md:grid-cols-2 gap-4 mb-6 shrink-0">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Assignment Title</label>
+                                    <input type="text" required value={bankAssignTitle} onChange={(e) => setBankAssignTitle(e.target.value)} placeholder="e.g. Midterm Physics Review" className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date (Optional)</label>
+                                    <input type="date" value={bankAssignDueDate} onChange={(e) => setBankAssignDueDate(e.target.value)} className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all" />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
+                                    <input type="text" required value={bankAssignDesc} onChange={(e) => setBankAssignDesc(e.target.value)} placeholder="Short description..." className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all" />
+                                </div>
+                            </div>
+                            
+                            <hr className="mb-6"/>
+
+                            {/* Filters */}
+                            <div className="flex flex-wrap items-center gap-4 mb-4 shrink-0">
+                                <h3 className="w-full font-bold text-slate-800">Filter Question Bank:</h3>
+                                <div className="flex-1 min-w-[200px]">
+                                    <select value={bankSubjectId} onChange={(e) => setBankSubjectId(e.target.value ? Number(e.target.value) : '')} className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
+                                        <option value="">All Subjects</option>
+                                        {subjects.map(subject => (
+                                            <option key={subject.id} value={subject.id}>{subject.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex-1 min-w-[200px]">
+                                    <select value={bankGradeId} onChange={(e) => setBankGradeId(e.target.value ? Number(e.target.value) : '')} className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
+                                        <option value="">All Grades</option>
+                                        {grades.map(grade => (
+                                            <option key={grade.id} value={grade.id}>{grade.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex-1 min-w-[150px]">
+                                    <input 
+                                        type="number" 
+                                        placeholder="Year (e.g. 2023)" 
+                                        value={bankYear} 
+                                        onChange={(e) => setBankYear(e.target.value ? Number(e.target.value) : '')}
+                                        className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Question List */}
+                            <div className="flex-1 overflow-y-auto mb-6 bg-slate-50 rounded-xl border-2 border-slate-200 p-4 relative">
+                                {fetchingBank ? (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <svg className="w-8 h-8 animate-spin text-teal-500 mb-2" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                        </svg>
+                                        <p className="text-slate-500 font-medium">Fetching bank questions...</p>
+                                    </div>
+                                ) : bankQuestions.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                                        <svg className="w-12 h-12 mb-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                        </svg>
+                                        <p>No questions found in the bank for the selected filters.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {bankQuestions.map(q => (
+                                            <label 
+                                                key={q.id} 
+                                                className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedBankQuestions.includes(q.id) ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-white hover:border-teal-300'}`}
+                                            >
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="w-5 h-5 mt-1 accent-teal-600 rounded cursor-pointer" 
+                                                    checked={selectedBankQuestions.includes(q.id)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) setSelectedBankQuestions(prev => [...prev, q.id]);
+                                                        else setSelectedBankQuestions(prev => prev.filter(id => id !== q.id));
+                                                    }}
+                                                />
+                                                <div className="flex-1">
+                                                    <div className="flex gap-2 items-center mb-1">
+                                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{q.question_type.replace('_', ' ')}</span>
+                                                        <span className="text-slate-300">•</span>
+                                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${q.difficulty_level === 'Easy' ? 'bg-green-100 text-green-700' : q.difficulty_level === 'Hard' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                            {q.difficulty_level}
+                                                        </span>
+                                                        <span className="text-slate-300">•</span>
+                                                        <span className="text-xs font-semibold text-slate-600">Points: {q.points}</span>
+                                                        
+                                                        {q.is_answered ? (
+                                                            <span className="ml-auto flex items-center gap-1 text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                                Answer Included
+                                                            </span>
+                                                        ) : (
+                                                            <span className="ml-auto text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                                                                No Answer
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="font-medium text-slate-800">{q.text}</p>
+                                                    {q.year && <p className="text-xs text-slate-400 mt-1">From Year: {q.year}</p>}
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3 pt-4 border-t-2 border-slate-100 shrink-0">
+                                <button type="button" onClick={closeBankModal} className="flex-1 px-6 py-3 border-2 border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-all">
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={selectedBankQuestions.length === 0 || isGenerating}
+                                    className="flex-1 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex justify-center items-center gap-2 transform disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isGenerating ? 'Creating...' : `Create Assignment (${selectedBankQuestions.length})`}
                                 </button>
                             </div>
                         </form>

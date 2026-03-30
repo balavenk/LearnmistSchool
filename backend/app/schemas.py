@@ -102,6 +102,8 @@ class FileArtifactBase(BaseModel):
     school_name: Optional[str] = None
     grade_name: Optional[str] = None
     description: Optional[str] = None
+    is_question_bank: Optional[bool] = False
+    year: Optional[int] = None
 
 class FileArtifactUpdate(BaseModel):
     file_status: str
@@ -274,6 +276,8 @@ class AssignmentAICreate(BaseModel):
     question_type: Optional[str] = "Mixed"
     due_date: Optional[datetime] = None
     use_pdf_context: Optional[bool] = False
+    use_question_bank: Optional[bool] = False
+    source_type: Optional[str] = "textbook" # "textbook" or "question_bank"
 
 class Assignment(AssignmentBase):
     id: int
@@ -327,6 +331,12 @@ class QuestionBase(BaseModel):
     year: Optional[int] = None
     media_url: Optional[str] = None
     media_type: Optional[str] = None  # "image" | "video"
+    is_bank_question: Optional[bool] = False
+    is_answered: Optional[bool] = False
+    grade_id: Optional[int] = None
+    subject_id: Optional[int] = None
+    school_id: Optional[int] = None
+    file_artifact_id: Optional[int] = None
 
 class QuestionCreate(QuestionBase):
     options: List[QuestionOptionCreate] = []
@@ -345,7 +355,7 @@ class QuestionMediaOut(BaseModel):
 
 class QuestionOut(QuestionBase):
     id: int
-    assignment_id: int
+    assignment_id: Optional[int] = None
     difficulty_level: Optional[str] = None
     options: List[QuestionOptionOut] = []
     
@@ -354,12 +364,10 @@ class QuestionOut(QuestionBase):
 
 class Question(QuestionBase):
     id: int
-    assignment_id: int
+    assignment_id: Optional[int] = None
     options: List[QuestionOption] = []
     
     difficulty_level: Optional[str] = None
-    school_id: Optional[int] = None
-    subject_id: Optional[int] = None
     class_id: Optional[int] = None
     parent_question_id: Optional[int] = None
     

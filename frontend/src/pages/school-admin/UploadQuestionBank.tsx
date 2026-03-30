@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import UploadMaterialModal from '../../components/UploadMaterialModal';
+import UploadQuestionBankModal from '../../components/UploadQuestionBankModal';
 import { DataTable } from '../../components/DataTable';
 import { PaginationControls } from '../../components/PaginationControls';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -12,10 +12,10 @@ import {
     Calendar,
     HardDrive,
     Info,
-    GraduationCap,
     Clock,
     Trash2,
-    FileIcon
+    FileIcon,
+    BookOpen
 } from 'lucide-react';
 
 interface Grade {
@@ -31,6 +31,7 @@ interface PdfFile {
     file_status: string;
     subject_name: string;
     description?: string;
+    year?: number;
 }
 
 interface PaginatedResponse {
@@ -41,7 +42,7 @@ interface PaginatedResponse {
     total_pages: number;
 }
 
-const AdminUploadPdf: React.FC = () => {
+const SchoolAdminUploadQuestionBank: React.FC = () => {
     const [grades, setGrades] = useState<Grade[]>([]);
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [materials, setMaterials] = useState<PdfFile[]>([]);
@@ -69,7 +70,7 @@ const AdminUploadPdf: React.FC = () => {
         setLoading(true);
         try {
             const response = await api.get<PaginatedResponse>(
-                `/upload/training-material/${gradeId}?page=${page}&page_size=${size}`
+                `/upload/training-material/${gradeId}?page=${page}&page_size=${size}&is_bank=true`
             );
             setMaterials(response.data.items);
             setTotalPages(response.data.total_pages);
@@ -108,7 +109,7 @@ const AdminUploadPdf: React.FC = () => {
 
         try {
             await api.delete(`/upload/training-material/${id}`);
-            toast.success("File deleted successfully");
+            toast.success("Question Bank deleted successfully");
             if (selectedGradeId !== '') {
                 fetchMaterials(Number(selectedGradeId), currentPage, pageSize);
             }
@@ -125,8 +126,8 @@ const AdminUploadPdf: React.FC = () => {
             accessorKey: 'subject_name',
             cell: ({ row }) => (
                 <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
-                        <FileText className="w-4 h-4 text-indigo-600" />
+                    <div className="p-1.5 bg-orange-50 rounded-lg border border-orange-100">
+                        <BookOpen className="w-4 h-4 text-orange-600" />
                     </div>
                     <span className="font-semibold text-slate-900">{row.original.subject_name}</span>
                 </div>
@@ -162,9 +163,24 @@ const AdminUploadPdf: React.FC = () => {
             header: 'Size',
             accessorKey: 'file_size',
             cell: ({ row }) => (
-                <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                <div className="flex items-center gap-1.5 text-slate-500 font-medium whitespace-nowrap">
                     <HardDrive className="w-3.5 h-3.5" />
                     {(row.original.file_size / 1024).toFixed(1)} KB
+                </div>
+            )
+        },
+        {
+            header: 'Year',
+            accessorKey: 'year',
+            cell: ({ row }) => (
+                <div className="text-slate-700 font-medium">
+                    {row.original.year ? (
+                        <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+                            {row.original.year}
+                        </span>
+                    ) : (
+                        <span className="text-slate-400 italic text-xs">N/A</span>
+                    )}
                 </div>
             )
         },
@@ -173,13 +189,12 @@ const AdminUploadPdf: React.FC = () => {
             accessorKey: 'file_status',
             cell: ({ row }) => {
                 const status = row.original.file_status || 'Uploaded';
-                const isTrained = status === 'Trained';
+                const isExtracted = status === 'Extracted';
                 return (
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border shadow-sm ${isTrained
-                        ? 'bg-green-50 text-green-700 border-green-200'
-                        : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${isExtracted
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-amber-100 text-amber-800'
                         }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isTrained ? 'bg-green-600' : 'bg-indigo-600'} ${isTrained ? 'animate-pulse' : ''}`}></div>
                         {status}
                     </span>
                 );
@@ -206,7 +221,7 @@ const AdminUploadPdf: React.FC = () => {
                             handleDelete(row.original.id);
                         }}
                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                        title="Delete File"
+                        title="Delete Question Bank"
                     >
                         <Trash2 className="w-4.5 h-4.5" />
                     </button>
@@ -219,20 +234,27 @@ const AdminUploadPdf: React.FC = () => {
         <div className="space-y-4">
             <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
-                    <div className="p-3 bg-red-50 rounded-xl border border-red-100 shadow-sm text-red-600">
+                    <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
                         <FileIcon className="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-slate-900 leading-tight truncate max-w-[150px]" title={pdf.original_filename}>
+                        <h3 className="font-semibold text-slate-800 leading-tight truncate max-w-[150px]" title={pdf.original_filename}>
                             {pdf.original_filename}
                         </h3>
-                        <p className="text-xs text-indigo-600 font-black uppercase tracking-widest mt-0.5">{pdf.subject_name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-xs text-slate-500">{pdf.subject_name}</p>
+                            {pdf.year && (
+                                <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-[10px] text-slate-600 font-medium">
+                                    {pdf.year}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${pdf.file_status === 'Trained'
-                        ? 'bg-green-50 text-green-700 border-green-200'
-                        : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${pdf.file_status === 'Extracted'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-amber-100 text-amber-800'
                         }`}>
                         {pdf.file_status || 'Uploaded'}
                     </span>
@@ -272,19 +294,17 @@ const AdminUploadPdf: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Upload Textbook</h1>
-                    <p className="text-slate-500 font-medium flex items-center gap-1.5">
-                        <GraduationCap className="w-4 h-4 text-indigo-500" />
-                        Manage educational materials and train LLM across all grades.
+                    <h1 className="text-2xl font-bold text-slate-800">Question Bank Upload</h1>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Manage Question Bank PDFs containing only questions for extraction.
                     </p>
                 </div>
 
                 <button
                     onClick={() => setShowUploadModal(true)}
-                    disabled={selectedGradeId === ''}
-                    className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-6 py-3 rounded-xl shadow-lg shadow-indigo-100 font-bold transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
                 >
-                    <Plus className="w-5 h-5" /> Add PDF to train LLM
+                    <Plus className="w-5 h-5" /> Upload Question Bank
                 </button>
             </div>
 
@@ -292,36 +312,30 @@ const AdminUploadPdf: React.FC = () => {
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-5 relative overflow-hidden group">
 
                 <div className="relative w-full md:w-auto flex-1 max-w-md">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5 block ml-1">Grade Administration</label>
-                    <div className="relative">
-                        <GraduationCap className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-indigo-500 pointer-events-none" />
-                        <select
-                            value={selectedGradeId}
-                            onChange={(e) => {
-                                const value = e.target.value ? Number(e.target.value) : '';
-                                setSelectedGradeId(value);
-                                setCurrentPage(1);
-                            }}
-                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none font-bold text-slate-700 transition-all appearance-none cursor-pointer"
-                        >
-                            <option value="">Select a grade...</option>
-                            {grades.map((grade) => (
-                                <option key={grade.id} value={grade.id}>{grade.name}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                            <Plus className="w-4 h-4 rotate-45" />
-                        </div>
-                    </div>
+                    <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Grade Selection</label>
+                    <select
+                        value={selectedGradeId}
+                        onChange={(e) => {
+                            const value = e.target.value ? Number(e.target.value) : '';
+                            setSelectedGradeId(value);
+                            setCurrentPage(1);
+                        }}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-slate-700 transition-all cursor-pointer"
+                    >
+                        <option value="">Select a grade...</option>
+                        {grades.map((grade) => (
+                            <option key={grade.id} value={grade.id}>{grade.name}</option>
+                        ))}
+                    </select>
                 </div>
 
-                <div className="bg-indigo-50 px-6 py-4 rounded-2xl border border-indigo-100 flex items-center gap-4 shrink-0 shadow-sm">
-                    <div className="p-2.5 bg-white rounded-xl shadow-xs border border-indigo-50">
-                        <HardDrive className="w-5 h-5 text-indigo-600" />
+                <div className="bg-slate-50 px-5 py-3 rounded-xl border border-slate-200 flex items-center gap-4 shrink-0">
+                    <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                        <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Materials</p>
-                        <span className="text-2xl font-black text-indigo-950 leading-none">
+                        <p className="text-xs text-slate-500 font-medium mb-0.5">Total Banks</p>
+                        <span className="text-xl font-bold text-slate-800">
                             {totalCount}
                         </span>
                     </div>
@@ -335,7 +349,7 @@ const AdminUploadPdf: React.FC = () => {
                     columns={columns}
                     isLoading={loading}
                     mobileCardRender={mobileCardRender}
-                    emptyMessage={selectedGradeId === '' ? "Select a grade to view materials." : "No PDF materials found for this grade."}
+                    emptyMessage={selectedGradeId === '' ? "Select a grade to view Question Banks." : "No Question Bank PDFs found for this grade."}
                 />
 
                 {!loading && materials.length > 0 && (
@@ -353,7 +367,7 @@ const AdminUploadPdf: React.FC = () => {
                 )}
             </div>
 
-            <UploadMaterialModal
+            <UploadQuestionBankModal
                 isOpen={showUploadModal}
                 onClose={() => setShowUploadModal(false)}
                 onSuccess={handleUploadSuccess}
@@ -363,4 +377,4 @@ const AdminUploadPdf: React.FC = () => {
     );
 };
 
-export default AdminUploadPdf;
+export default SchoolAdminUploadQuestionBank;

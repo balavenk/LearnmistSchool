@@ -377,6 +377,9 @@ async def generate_ai_assignment(
             subject_id=req.subject_id,
             grade_id=req.grade_id,
             school_id=current_user.school_id,
+            source_type=req.source_type,
+            use_question_bank=req.use_question_bank,
+            db=db,
         )
     except ValueError as ve:
         logger.warning(f"⚠️ [AI GEN] RAG Service validation error: {str(ve)}")
@@ -431,8 +434,9 @@ async def generate_ai_assignment(
             assignment_id=new_assignment.id,
             school_id=current_user.school_id,
             subject_id=req.subject_id,
-            # grade_id=req.grade_id, # If model has grade_id
-            difficulty_level=req.difficulty
+            grade_id=req.grade_id,
+            difficulty_level=req.difficulty,
+            is_bank_question=False
         )
         db.add(new_q)
         db.commit()
@@ -450,6 +454,28 @@ async def generate_ai_assignment(
     db.commit()
     logger.info(f"🏁 [AI GEN] Finished! Assignment {new_assignment.id} is ready.")
     return new_assignment
+
+@router.get("/question-bank/questions", response_model=List[schemas.QuestionOut])
+def get_question_bank_questions(
+    subject_id: Optional[int] = None,
+    grade_id: Optional[int] = None,
+    year: Optional[int] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    query = db.query(models.Question).filter(
+        models.Question.is_bank_question == True,
+        models.Question.school_id == current_user.school_id
+    )
+    
+    if subject_id:
+        query = query.filter(models.Question.subject_id == subject_id)
+    if grade_id:
+        query = query.filter(models.Question.grade_id == grade_id)
+    if year:
+        query = query.filter(models.Question.year == year)
+        
+    return query.all()
 
 @router.post("/assignments/from-bank", response_model=schemas.AssignmentOut)
 def create_assignment_from_bank(
@@ -496,7 +522,10 @@ def create_assignment_from_bank(
             school_id=current_user.school_id,
             subject_id=data.subject_id, # Inherit from new assignment/selection
             class_id=data.class_id,     # Inherit from new assignment/selection
-            parent_question_id=q.id     # Link to parent
+            grade_id=data.grade_id,
+            parent_question_id=q.id,    # Link to parent
+            is_answered=q.is_answered,
+            year=q.year
         )
         db.add(new_q)
         db.commit() # Commit to get ID
@@ -583,10 +612,18 @@ def read_questions(
     Get all questions for the current teacher with optional filters and pagination.
     Used for question bank browsing and filtering.
     """
-    query = db.query(models.Question).join(models.Assignment, models.Question.assignment_id == models.Assignment.id)
+    from sqlalchemy import or_
     
-    # Filter by Teacher (security)
-    query = query.filter(models.Assignment.teacher_id == current_user.id)
+    # Use outerjoin so we don't drop bank questions that have no assignment
+    query = db.query(models.Question).outerjoin(models.Assignment, models.Question.assignment_id == models.Assignment.id)
+    
+    # Filter by Teacher (security) OR is_bank_question for the school
+    query = query.filter(
+        or_(
+            models.Assignment.teacher_id == current_user.id,
+            (models.Question.is_bank_question == True) & (models.Question.school_id == current_user.school_id)
+        )
+    )
     
     # Exclude derived questions (only show originals)
     query = query.filter(models.Question.parent_question_id == None)
