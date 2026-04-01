@@ -30,6 +30,7 @@ import QuestionBankDetails from './pages/school-admin/QuestionBankDetails';
 import Classes from './pages/school-admin/Classes';
 import TeacherClasses from './pages/school-admin/TeacherClasses';
 import GradeSubjects from './pages/school-admin/GradeSubjects';
+import ExamTypesList from './pages/school-admin/ExamTypes';
 
 // Teacher Pages
 import TeacherAssignments from './pages/teacher/Assignments';
@@ -39,6 +40,9 @@ import TeacherGrading from './pages/teacher/Grading';
 import StudentGrading from './pages/teacher/StudentGrading';
 import TeacherQuestionBank from './pages/teacher/QuestionBank';
 import TeacherUploadPdf from './pages/teacher/UploadPdf'
+import QuestionPaperHistory from './pages/teacher/QuestionPaperHistory';
+import QuestionPaperBuilder from './pages/teacher/QuestionPaperBuilder';
+import Templates from './pages/teacher/Templates'
 import TeacherUploadQuestionBank from './pages/teacher/UploadQuestionBank';
 
 // Student Pages
@@ -56,7 +60,7 @@ import Register from './pages/Register';
 const App: React.FC = () => {
   return (
     <Router>
-      <Toaster 
+      <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
@@ -81,7 +85,7 @@ const App: React.FC = () => {
 
         {/* Protected Routes */}
         {/* Wrapped in Layout */}
-          <Route path="/" element={<DashboardLayout><Outlet /></DashboardLayout>}>
+        <Route path="/" element={<DashboardLayout><Outlet /></DashboardLayout>}>
           {/* SUPER ADMIN */}
           <Route path="super-admin" element={<SuperAdminDashboard />} />
           <Route path="schools" element={<Schools />} />
@@ -110,6 +114,7 @@ const App: React.FC = () => {
           <Route path="school-admin/upload-pdf/:gradeId" element={<QuestionBankDetails />} />
           <Route path="school-admin/question-bank" element={<QuestionBank />} />
           <Route path="school-admin/classes" element={<Classes />} />
+          <Route path="school-admin/exam-types" element={<ExamTypesList />} />
 
           {/* TEACHER */}
           <Route path="teacher" element={<TeacherDashboard />} />
@@ -117,6 +122,10 @@ const App: React.FC = () => {
           <Route path="teacher/assignments" element={<TeacherAssignments />} />
           <Route path="teacher/assignments/:assignmentId/questions" element={<QuizDetails />} />
           <Route path="teacher/question-bank" element={<TeacherQuestionBank />} />
+          <Route path="teacher/papers" element={<QuestionPaperHistory />} />
+          <Route path="teacher/papers/new" element={<QuestionPaperBuilder />} />
+          <Route path="teacher/papers/:paperId/edit" element={<QuestionPaperBuilder />} />
+          <Route path="teacher/templates" element={<Templates />} />
           <Route path="teacher/students" element={<TeacherStudents />} />
           <Route path="teacher/upload" element={<TeacherUploadPdf />} />
           <Route path="teacher/upload-question-bank" element={<TeacherUploadQuestionBank />} />

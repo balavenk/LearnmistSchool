@@ -255,6 +255,7 @@ const MyQuizzes: React.FC = () => {
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
                                     <input
                                         type="datetime-local"
+                                        min={new Date().toISOString().slice(0, 16)}
                                         value={dueDate}
                                         onChange={e => setDueDate(e.target.value)}
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"

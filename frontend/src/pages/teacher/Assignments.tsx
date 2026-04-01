@@ -187,9 +187,12 @@ const TeacherAssignments: React.FC = () => {
     const [aiSubjectId, setAiSubjectId] = useState<number | ''>('');
     const [aiGradeId, setAiGradeId] = useState<number | ''>('');
     const [aiUsePdfContext, setAiUsePdfContext] = useState(false);
+    const [aiPoints, setAiPoints] = useState<number>(5);
     const [aiSourceType, setAiSourceType] = useState<'textbook' | 'question_bank'>('textbook');
     // PDF status check for the AI modal: null | 'checking' | 'no_pdf' | 'not_trained' | 'trained'
     const [pdfCheckStatus, setPdfCheckStatus] = useState<'checking' | 'no_pdf' | 'not_trained' | 'trained' | null>(null);
+
+    const today = new Date().toISOString().split('T')[0];
 
     // Edit State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -216,7 +219,7 @@ const TeacherAssignments: React.FC = () => {
             if (bankSubjectId) params.subject_id = bankSubjectId;
             if (bankGradeId) params.grade_id = bankGradeId;
             if (bankYear) params.year = bankYear;
-            
+
             const res = await api.get('/teacher/question-bank/questions', { params });
             setBankQuestions(res.data);
         } catch (error) {
@@ -309,7 +312,7 @@ const TeacherAssignments: React.FC = () => {
                 title: newTitle,
                 description: newDesc,
                 due_date: newDueDate ? new Date(newDueDate).toISOString() : null,
-                status: 'PUBLISHED',
+                status: 'DRAFT',
                 grade_id: selectedGradeId !== '' ? Number(selectedGradeId) : null,
                 subject_id: selectedSubjectId !== '' ? Number(selectedSubjectId) : null
             });
@@ -343,6 +346,7 @@ const TeacherAssignments: React.FC = () => {
             subject_id: Number(aiSubjectId),
             grade_id: Number(aiGradeId),
             use_pdf_context: aiUsePdfContext,
+            points: aiPoints,
             source_type: aiSourceType,
             use_question_bank: aiSourceType === 'question_bank'
         };
@@ -448,6 +452,7 @@ const TeacherAssignments: React.FC = () => {
         setAiSubjectId('');
         setAiGradeId('');
         setAiUsePdfContext(false);
+        setAiPoints(5);
         setAiSourceType('textbook');
         setIsGenerating(false);
         setPdfCheckStatus(null);
@@ -744,7 +749,7 @@ const TeacherAssignments: React.FC = () => {
                                         </svg>
                                         Due Date
                                     </label>
-                                    <input type="date" required value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
+                                    <input type="date" required min={today} value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" />
                                 </div>
                             </div>
                             <div>
@@ -940,12 +945,24 @@ const TeacherAssignments: React.FC = () => {
                                         <input
                                             type="date"
                                             required
+                                            min={today}
                                             value={aiDueDate}
                                             onChange={(e) => setAiDueDate(e.target.value)}
                                             className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
                                         />
                                     </div>
-
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Marks per Question</label>
+                                        <select
+                                            value={aiPoints}
+                                            onChange={(e) => setAiPoints(Number(e.target.value))}
+                                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                                        >
+                                            {[1, 2, 3, 4, 5, 10].map(m => (
+                                                <option key={m} value={m}>{m} {m === 1 ? 'Mark' : 'Marks'}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Topic / Content</label>
@@ -1009,13 +1026,12 @@ const TeacherAssignments: React.FC = () => {
 
                                 {/* PDF Status Warning Banner */}
                                 {aiUsePdfContext && pdfCheckStatus && pdfCheckStatus !== 'checking' && (
-                                    <div className={`flex items-start gap-3 p-3.5 rounded-xl border-2 text-sm ${
-                                        pdfCheckStatus === 'trained'
-                                            ? 'bg-green-50 border-green-200 text-green-800'
-                                            : pdfCheckStatus === 'not_trained'
+                                    <div className={`flex items-start gap-3 p-3.5 rounded-xl border-2 text-sm ${pdfCheckStatus === 'trained'
+                                        ? 'bg-green-50 border-green-200 text-green-800'
+                                        : pdfCheckStatus === 'not_trained'
                                             ? 'bg-amber-50 border-amber-300 text-amber-800'
                                             : 'bg-red-50 border-red-200 text-red-800'
-                                    }`}>
+                                        }`}>
                                         <div className="mt-0.5 shrink-0">
                                             {pdfCheckStatus === 'trained' ? (
                                                 <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1106,6 +1122,7 @@ const TeacherAssignments: React.FC = () => {
                                 <input
                                     type="date"
                                     required
+                                    min={today}
                                     value={editDueDate}
                                     onChange={(e) => setEditDueDate(e.target.value)}
                                     className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
@@ -1161,8 +1178,8 @@ const TeacherAssignments: React.FC = () => {
                                     <input type="text" required value={bankAssignDesc} onChange={(e) => setBankAssignDesc(e.target.value)} placeholder="Short description..." className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all" />
                                 </div>
                             </div>
-                            
-                            <hr className="mb-6"/>
+
+                            <hr className="mb-6" />
 
                             {/* Filters */}
                             <div className="flex flex-wrap items-center gap-4 mb-4 shrink-0">
@@ -1184,10 +1201,10 @@ const TeacherAssignments: React.FC = () => {
                                     </select>
                                 </div>
                                 <div className="flex-1 min-w-[150px]">
-                                    <input 
-                                        type="number" 
-                                        placeholder="Year (e.g. 2023)" 
-                                        value={bankYear} 
+                                    <input
+                                        type="number"
+                                        placeholder="Year (e.g. 2023)"
+                                        value={bankYear}
                                         onChange={(e) => setBankYear(e.target.value ? Number(e.target.value) : '')}
                                         className="w-full px-4 py-2 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all"
                                     />
@@ -1214,13 +1231,13 @@ const TeacherAssignments: React.FC = () => {
                                 ) : (
                                     <div className="space-y-3">
                                         {bankQuestions.map(q => (
-                                            <label 
-                                                key={q.id} 
+                                            <label
+                                                key={q.id}
                                                 className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedBankQuestions.includes(q.id) ? 'border-teal-500 bg-teal-50' : 'border-slate-200 bg-white hover:border-teal-300'}`}
                                             >
-                                                <input 
-                                                    type="checkbox" 
-                                                    className="w-5 h-5 mt-1 accent-teal-600 rounded cursor-pointer" 
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-5 h-5 mt-1 accent-teal-600 rounded cursor-pointer"
                                                     checked={selectedBankQuestions.includes(q.id)}
                                                     onChange={(e) => {
                                                         if (e.target.checked) setSelectedBankQuestions(prev => [...prev, q.id]);
@@ -1236,7 +1253,7 @@ const TeacherAssignments: React.FC = () => {
                                                         </span>
                                                         <span className="text-slate-300">•</span>
                                                         <span className="text-xs font-semibold text-slate-600">Points: {q.points}</span>
-                                                        
+
                                                         {q.is_answered ? (
                                                             <span className="ml-auto flex items-center gap-1 text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                                                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>

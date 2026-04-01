@@ -16,8 +16,9 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('questions', sa.Column('media_url', sa.String(500), nullable=True))
-    op.add_column('questions', sa.Column('media_type', sa.String(20), nullable=True))
+    # op.add_column('questions', sa.Column('media_url', sa.String(500), nullable=True))
+    # op.add_column('questions', sa.Column('media_type', sa.String(20), nullable=True))
+    pass
 
 
 def downgrade():

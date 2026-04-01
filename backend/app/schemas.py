@@ -126,7 +126,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 class UserBase(BaseModel):
     username: str = Field(..., pattern=r'^\S+$', description="Username cannot contain any spaces")
-    full_name: str
+    full_name: Optional[str] = None
     email: Optional[str] = None
 
 class UserCreate(UserBase):
@@ -260,6 +260,7 @@ class AssignmentBase(BaseModel):
     difficulty_level: Optional[str] = None
     question_type: Optional[str] = None
     grade_id: Optional[int] = None
+    generation_type: Optional[str] = "Manual"
 
 class AssignmentCreate(AssignmentBase):
     grade_id: Optional[int] = None  # Assign to a grade (frontend sends this)
@@ -276,6 +277,7 @@ class AssignmentAICreate(BaseModel):
     question_type: Optional[str] = "Mixed"
     due_date: Optional[datetime] = None
     use_pdf_context: Optional[bool] = False
+    points: Optional[int] = 5
     use_question_bank: Optional[bool] = False
     source_type: Optional[str] = "textbook" # "textbook" or "question_bank"
 
@@ -331,6 +333,13 @@ class QuestionBase(BaseModel):
     year: Optional[int] = None
     media_url: Optional[str] = None
     media_type: Optional[str] = None  # "image" | "video"
+    source_year: Optional[str] = None
+    bloom_level: Optional[str] = None
+    chapter_name: Optional[str] = None
+    passage: Optional[str] = None
+    sub_questions: Optional[str] = None
+    answer_key: Optional[str] = None
+    correct_answer: Optional[str] = None
     is_bank_question: Optional[bool] = False
     is_answered: Optional[bool] = False
     grade_id: Optional[int] = None
@@ -382,6 +391,39 @@ class AssignmentFromBankCreate(BaseModel):
     class_id: Optional[int] = None  # Legacy support
     subject_id: int
     question_ids: List[int]
+
+
+class BankQuestionCreate(BaseModel):
+    """Schema for manually uploading a standalone question to the bank."""
+    text: str
+    points: int = 1
+    question_type: str = "SHORT_ANSWER"
+    difficulty_level: Optional[str] = None
+    source_year: Optional[str] = None          # e.g. "2023"
+    source_type: Optional[str] = None          # e.g. "Board Exam"
+    bloom_level: Optional[str] = None
+    chapter_name: Optional[str] = None
+    answer_key: Optional[str] = None
+    correct_answer: Optional[str] = None
+    subject_id: Optional[int] = None
+    grade_id: Optional[int] = None
+    options: List[QuestionOptionCreate] = []
+
+
+class BankQuestionUpdate(BaseModel):
+    """Schema for editing a standalone bank question."""
+    text: Optional[str] = None
+    points: Optional[int] = None
+    question_type: Optional[str] = None
+    difficulty_level: Optional[str] = None
+    source_year: Optional[str] = None
+    source_type: Optional[str] = None
+    bloom_level: Optional[str] = None
+    chapter_name: Optional[str] = None
+    answer_key: Optional[str] = None
+    correct_answer: Optional[str] = None
+    subject_id: Optional[int] = None
+    options: Optional[List[QuestionOptionCreate]] = None
 
 
 
@@ -504,7 +546,101 @@ class TeacherAssignment(TeacherAssignmentBase):
     subject: Optional[Subject] = None
     grade: Optional[Grade] = None
     class_: Optional[Class] = None # Maps to property in model
-
     class Config:
         from_attributes = True
 
+
+# --- Exam Type Schemas ---
+class ExamTypeBase(BaseModel):
+    name: str
+
+class ExamTypeCreate(ExamTypeBase):
+    pass
+
+class ExamType(ExamTypeBase):
+    id: int
+    school_id: Optional[int] = None
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+# --- Question Paper Schemas ---
+class PaperQuestionMappingBase(BaseModel):
+    question_id: int
+    section_name: str
+    order_in_section: Optional[int] = 0
+
+class PaperQuestionMappingCreate(PaperQuestionMappingBase):
+    pass
+
+class PaperQuestionMapping(PaperQuestionMappingBase):
+    id: int
+    paper_id: int
+    class Config:
+        from_attributes = True
+
+class QuestionPaperBase(BaseModel):
+    title: str
+    board: Optional[str] = None
+    grade: Optional[str] = None
+    subject: Optional[str] = None
+    exam_type: Optional[str] = None
+    academic_year: Optional[str] = None
+    total_marks: Optional[int] = None
+    duration: Optional[str] = None
+    set_number: Optional[str] = None
+    sections_config: Optional[str] = None
+    general_instructions: Optional[str] = None
+    template_id: Optional[int] = None
+
+class QuestionPaperCreate(QuestionPaperBase):
+    pass
+
+class QuestionPaper(QuestionPaperBase):
+    id: int
+    created_by_id: int
+    created_by_role: Optional[str] = None
+    created_at: datetime
+    status: Optional[str] = 'draft'
+    mapping_count: Optional[int] = 0
+    class Config:
+        from_attributes = True
+
+class PaperQuestionMappingDetail(PaperQuestionMapping):
+    question: QuestionOut
+
+class QuestionPaperDetail(QuestionPaper):
+    mappings: List[PaperQuestionMappingDetail] = []
+
+
+# --- Paper Template Schemas ---
+class PaperTemplateBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    total_marks: Optional[int] = None
+    duration: Optional[str] = None
+    visibility: Optional[str] = "private"  # 'system' | 'shared' | 'private'
+    sections_config: Optional[str] = None   # JSON string
+    general_instructions: Optional[str] = None  # JSON string
+
+class PaperTemplateCreate(PaperTemplateBase):
+    pass
+
+class PaperTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    total_marks: Optional[int] = None
+    duration: Optional[str] = None
+    visibility: Optional[str] = None
+    sections_config: Optional[str] = None
+    general_instructions: Optional[str] = None
+
+class PaperTemplate(PaperTemplateBase):
+    id: int
+    created_by_id: Optional[int] = None
+    created_by_role: Optional[str] = None
+    cloned_from_id: Optional[int] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    class Config:
+        from_attributes = True

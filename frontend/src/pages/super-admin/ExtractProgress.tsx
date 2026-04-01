@@ -108,7 +108,10 @@ const ExtractProgress: React.FC = () => {
             <div className="flex justify-between items-center">
                 <button
                     onClick={() => navigate('/manage-question-bank')}
-                    className="px-6 py-3 text-sm font-bold rounded-xl border-2 border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-all"
+                    disabled={!completed}
+                    className={`px-6 py-3 text-sm font-bold rounded-xl border-2 transition-all ${!completed 
+                        ? 'border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed' 
+                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
                 >
                     Back to Question Bank
                 </button>

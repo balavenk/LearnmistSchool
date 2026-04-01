@@ -436,6 +436,7 @@ const QuestionBank: React.FC = () => {
                                 <label className="text-xs font-bold text-slate-600 uppercase mb-1 block">Due Date</label>
                                 <input
                                     type="datetime-local"
+                                    min={new Date().toISOString().slice(0, 16)}
                                     className="w-full p-3 border-2 border-slate-300 rounded-xl outline-none focus:border-indigo-500 font-medium"
                                     value={dueDate}
                                     onChange={e => setDueDate(e.target.value)}

@@ -668,3 +668,49 @@ def create_assignment_from_bank(
             
     db.commit()
     return new_assignment
+
+
+# --- Exam Types Management ---
+
+@router.post("/exam-types/", response_model=schemas.ExamType)
+def create_exam_type(
+    exam_type: schemas.ExamTypeCreate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_school_admin)
+):
+    new_exam_type = models.ExamType(
+        name=exam_type.name,
+        school_id=current_user.school_id
+    )
+    db.add(new_exam_type)
+    db.commit()
+    db.refresh(new_exam_type)
+    return new_exam_type
+
+@router.get("/exam-types/", response_model=List[schemas.ExamType])
+def read_exam_types(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_school_admin)
+):
+    return db.query(models.ExamType).filter(
+        models.ExamType.school_id == current_user.school_id
+    ).all()
+
+@router.delete("/exam-types/{exam_type_id}")
+def delete_exam_type(
+    exam_type_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_school_admin)
+):
+    exam_type = db.query(models.ExamType).filter(
+        models.ExamType.id == exam_type_id,
+        models.ExamType.school_id == current_user.school_id
+    ).first()
+    
+    if not exam_type:
+        raise HTTPException(status_code=404, detail="Exam type not found")
+        
+    db.delete(exam_type)
+    db.commit()
+    return {"message": "Exam type deleted successfully"}
+

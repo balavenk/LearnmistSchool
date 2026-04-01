@@ -18,11 +18,16 @@ def parse_pdf(file_path: str, chunk_size: int = 1000) -> List[str]:
         for page in doc:
             full_text += page.get_text()
         
-        # Simple chunking by character count for now. 
-        # For production, use better tokenizer-aware splitters (e.g. TikToken or LangChain's splitters)
+        # Overlapping chunking to prevent splitting questions
+        overlap = chunk_size // 10
         chunks = []
-        for i in range(0, len(full_text), chunk_size):
-            chunks.append(full_text[i:i + chunk_size])
+        start = 0
+        while start < len(full_text):
+            end = start + chunk_size
+            chunks.append(full_text[start:end])
+            if end >= len(full_text):
+                break
+            start = end - overlap
             
         return chunks
     except Exception as e:
