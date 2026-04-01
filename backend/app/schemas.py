@@ -102,6 +102,8 @@ class FileArtifactBase(BaseModel):
     school_name: Optional[str] = None
     grade_name: Optional[str] = None
     description: Optional[str] = None
+    is_question_bank: Optional[bool] = False
+    year: Optional[int] = None
 
 class FileArtifactUpdate(BaseModel):
     file_status: str
@@ -124,7 +126,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 class UserBase(BaseModel):
     username: str = Field(..., pattern=r'^\S+$', description="Username cannot contain any spaces")
-    full_name: str
+    full_name: Optional[str] = None
     email: Optional[str] = None
 
 class UserCreate(UserBase):
@@ -276,6 +278,8 @@ class AssignmentAICreate(BaseModel):
     due_date: Optional[datetime] = None
     use_pdf_context: Optional[bool] = False
     points: Optional[int] = 5
+    use_question_bank: Optional[bool] = False
+    source_type: Optional[str] = "textbook" # "textbook" or "question_bank"
 
 class Assignment(AssignmentBase):
     id: int
@@ -330,13 +334,18 @@ class QuestionBase(BaseModel):
     media_url: Optional[str] = None
     media_type: Optional[str] = None  # "image" | "video"
     source_year: Optional[str] = None
-    source_type: Optional[str] = None
     bloom_level: Optional[str] = None
     chapter_name: Optional[str] = None
     passage: Optional[str] = None
     sub_questions: Optional[str] = None
     answer_key: Optional[str] = None
     correct_answer: Optional[str] = None
+    is_bank_question: Optional[bool] = False
+    is_answered: Optional[bool] = False
+    grade_id: Optional[int] = None
+    subject_id: Optional[int] = None
+    school_id: Optional[int] = None
+    file_artifact_id: Optional[int] = None
 
 class QuestionCreate(QuestionBase):
     options: List[QuestionOptionCreate] = []
@@ -368,8 +377,6 @@ class Question(QuestionBase):
     options: List[QuestionOption] = []
     
     difficulty_level: Optional[str] = None
-    school_id: Optional[int] = None
-    subject_id: Optional[int] = None
     class_id: Optional[int] = None
     parent_question_id: Optional[int] = None
     
@@ -399,6 +406,7 @@ class BankQuestionCreate(BaseModel):
     answer_key: Optional[str] = None
     correct_answer: Optional[str] = None
     subject_id: Optional[int] = None
+    grade_id: Optional[int] = None
     options: List[QuestionOptionCreate] = []
 
 

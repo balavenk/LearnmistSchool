@@ -56,6 +56,7 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                     continue
 
                 use_pdf_context = params.get("use_pdf_context", False)
+                use_question_bank = params.get("use_question_bank", False)
                 
                 # 1. Get Subject Name and Teacher Info (for School ID)
                 subject = db.query(models.Subject).filter(models.Subject.id == subject_id).first()
@@ -89,6 +90,7 @@ async def websocket_quiz_endpoint(websocket: WebSocket, client_id: str, db: Sess
                         subject_id=subject_id,
                         grade_id=grade_id,
                         school_id=school_id,
+                        use_question_bank=use_question_bank,
                     )
                 except Exception as e:
                     logger.exception(f"[WS] RAG generation crashed: {e}")

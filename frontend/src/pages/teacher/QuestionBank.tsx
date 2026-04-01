@@ -18,6 +18,12 @@ interface Subject {
     name: string;
 }
 
+interface QuestionOption {
+    id: number;
+    text: string;
+    is_correct: boolean;
+}
+
 interface Question {
     id: number;
     text: string;
@@ -26,6 +32,7 @@ interface Question {
     difficulty_level: string;
     source_year?: string;
     source_type?: string;
+    options?: QuestionOption[];
 }
 
 interface YearCount {
@@ -44,6 +51,8 @@ const QuestionBank: React.FC = () => {
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [difficulty, setDifficulty] = useState<string>('');
     const [sourceYear, setSourceYear] = useState<string>('');
+    const [sourceType, setSourceType] = useState<string>('');
+    const [points, setPoints] = useState<number | ''>('');
     const [searchText, setSearchText] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [availableYears, setAvailableYears] = useState<YearCount[]>([]);
@@ -73,7 +82,9 @@ const QuestionBank: React.FC = () => {
         question_type: 'SHORT_ANSWER',
         difficulty_level: 'Medium',
         source_year: '',
-        subject_id: ''
+        source_type: 'Manual',
+        subject_id: '',
+        grade_id: ''
     });
     const [bulkText, setBulkText] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -85,7 +96,8 @@ const QuestionBank: React.FC = () => {
                 const payload = {
                     ...newQuestion,
                     source_year: newQuestion.source_year ? newQuestion.source_year.toString() : null,
-                    subject_id: newQuestion.subject_id ? parseInt(newQuestion.subject_id) : null,
+                    subject_id: newQuestion.subject_id ? parseInt(newQuestion.subject_id as string) : null,
+                    grade_id: newQuestion.grade_id ? parseInt(newQuestion.grade_id as string) : null,
                     options: []
                 };
                 await api.post('/teacher/bank-questions', payload);
@@ -110,7 +122,8 @@ const QuestionBank: React.FC = () => {
             setShowUploadModal(false);
             setNewQuestion({
                 text: '', points: 1, question_type: 'SHORT_ANSWER',
-                difficulty_level: 'Medium', source_year: '', subject_id: ''
+                difficulty_level: 'Medium', source_year: '', source_type: 'Manual',
+                subject_id: '', grade_id: ''
             });
             setBulkText('');
             fetchQuestions();
@@ -164,6 +177,8 @@ const QuestionBank: React.FC = () => {
             };
             if (difficulty) params.difficulty = difficulty;
             if (sourceYear) params.source_year = sourceYear;
+            if (sourceType) params.source_type = sourceType;
+            if (points !== '') params.points = points;
             if (searchText) params.search = searchText;
 
             console.log('[QuestionBank] Fetching questions with params:', params);
@@ -186,7 +201,7 @@ const QuestionBank: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [selectedGradeId, selectedSubjectId, currentPage, questionsPerPage, difficulty, sourceYear, searchText]);
+    }, [selectedGradeId, selectedSubjectId, currentPage, questionsPerPage, difficulty, sourceYear, sourceType, points, searchText]);
 
     useEffect(() => {
         fetchGrades();
@@ -295,13 +310,44 @@ const QuestionBank: React.FC = () => {
             ),
         },
         {
-            header: 'Question Text',
+            header: 'Question Details',
             accessorKey: 'text',
-            cell: ({ row }) => (
-                <div className="font-medium text-slate-800 text-sm leading-relaxed max-w-md">
-                    {row.original.text}
-                </div>
-            ),
+            cell: ({ row }) => {
+                const q = row.original;
+                return (
+                    <div className="py-2 min-w-[300px]">
+                        <div className="font-bold text-slate-900 text-sm leading-relaxed mb-3">
+                            {q.text}
+                        </div>
+                        {q.options && q.options.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                {q.options.map((opt, idx) => (
+                                    <div 
+                                        key={opt.id || idx} 
+                                        className={`text-xs p-3 rounded-xl border flex items-start gap-3 transition-all ${
+                                            opt.is_correct 
+                                                ? 'bg-green-50 border-green-200 text-green-700 shadow-sm' 
+                                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                        }`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-[10px] ${
+                                            opt.is_correct ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-500'
+                                        }`}>
+                                            {String.fromCharCode(65 + idx)}
+                                        </div>
+                                        <span className="flex-1 pt-0.5">{opt.text}</span>
+                                        {opt.is_correct && (
+                                            <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             header: 'Difficulty',
@@ -365,6 +411,18 @@ const QuestionBank: React.FC = () => {
             <div className="flex justify-between items-start gap-4">
                 <div className="flex-1">
                     <h3 className="font-bold text-slate-900 leading-snug mb-2">{q.text}</h3>
+                    {q.options && q.options.length > 0 && (
+                        <div className="mt-2 space-y-1.5 mb-3">
+                            {q.options.map((opt, idx) => (
+                                <div key={opt.id || idx} className="flex items-start gap-2 text-xs">
+                                    <span className={`w-4 h-4 rounded flex-shrink-0 flex items-center justify-center font-bold ${opt.is_correct ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                        {String.fromCharCode(65 + idx)}
+                                    </span>
+                                    <span className={opt.is_correct ? 'font-bold text-green-700' : 'text-slate-600'}>{opt.text}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex flex-wrap gap-2">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider
                             ${q.difficulty_level === 'Easy' ? 'bg-green-100 text-green-700' :
@@ -501,7 +559,7 @@ const QuestionBank: React.FC = () => {
                     </svg>
                     <h3 className="text-lg font-bold text-slate-800">Filters</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
                     <div>
                         <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -581,6 +639,43 @@ const QuestionBank: React.FC = () => {
                     <div>
                         <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" />
+                            </svg>
+                            Points
+                        </label>
+                        <select
+                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium transition-all"
+                            value={points}
+                            onChange={(e) => { setPoints(e.target.value ? parseInt(e.target.value) : ''); setCurrentPage(1); }}
+                        >
+                            <option value="">All Points</option>
+                            {[1, 2, 3, 4, 5, 10].map(p => (
+                                <option key={p} value={p}>{p} {p === 1 ? 'Point' : 'Points'}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            Source
+                        </label>
+                        <select
+                            className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium transition-all"
+                            value={sourceType}
+                            onChange={(e) => { setSourceType(e.target.value); setCurrentPage(1); }}
+                        >
+                            <option value="">All Sources</option>
+                            <option value="AI">AI Generated</option>
+                            <option value="Manual">Manual Entry</option>
+                        </select>
+                    </div>
+
+                    <div className="md:col-span-1 lg:col-span-1">
+                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                             Search
@@ -590,7 +685,7 @@ const QuestionBank: React.FC = () => {
                             className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium transition-all"
                             placeholder="Search questions..."
                             value={searchText}
-                            onChange={(e) => setSearchText(e.target.value)}
+                            onChange={(e) => { setSearchText(e.target.value); setCurrentPage(1); }}
                         />
                     </div>
                 </div>
@@ -808,6 +903,17 @@ const QuestionBank: React.FC = () => {
                                             </select>
                                         </div>
                                         <div>
+                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Grade</label>
+                                            <select
+                                                className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium"
+                                                value={newQuestion.grade_id}
+                                                onChange={e => setNewQuestion({ ...newQuestion, grade_id: e.target.value })}
+                                            >
+                                                <option value="">Select Grade</option>
+                                                {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
                                             <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Difficulty</label>
                                             <select
                                                 className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium"
@@ -838,6 +944,18 @@ const QuestionBank: React.FC = () => {
                                                 onChange={e => setNewQuestion({ ...newQuestion, points: parseInt(e.target.value) || 1 })}
                                             />
                                         </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Source Type</label>
+                                            <select
+                                                className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-medium"
+                                                value={newQuestion.source_type}
+                                                onChange={e => setNewQuestion({ ...newQuestion, source_type: e.target.value })}
+                                            >
+                                                <option value="Manual">Manual Entry</option>
+                                                <option value="Board Exam">Board Exam</option>
+                                                <option value="AI">AI Generated</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 block">Question Text</label>
@@ -861,7 +979,7 @@ const QuestionBank: React.FC = () => {
                                     <textarea
                                         rows={10}
                                         className="w-full p-3 font-mono text-xs border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
-                                        placeholder={`[\n  {\n    "text": "What is 2+2?",\n    "points": 1,\n    "question_type": "MULTIPLE_CHOICE",\n    "difficulty_level": "Easy",\n    "source_year": "2023",\n    "subject_id": 1\n  }\n]`}
+                                        placeholder={`[\n  {\n    "text": "What is 2+2?",\n    "points": 1,\n    "question_type": "MULTIPLE_CHOICE",\n    "difficulty_level": "Easy",\n    "source_year": "2023",\n    "subject_id": 1,\n    "grade_id": 1\n  }\n]`}
                                         value={bulkText}
                                         onChange={e => setBulkText(e.target.value)}
                                     />

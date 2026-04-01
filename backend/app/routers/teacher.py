@@ -17,6 +17,7 @@ from sqlalchemy import func, or_, and_
 from app.services.pdf_generator import CBSEPaperGenerator
 from fastapi.responses import Response
 
+
 router = APIRouter(
     prefix="/teacher",
     tags=["teacher"],
@@ -382,6 +383,9 @@ async def generate_ai_assignment(
             subject_id=req.subject_id,
             grade_id=req.grade_id,
             school_id=current_user.school_id,
+            source_type=req.source_type,
+            use_question_bank=req.use_question_bank,
+            db=db,
         )
     except ValueError as ve:
         logger.warning(f"⚠️ [AI GEN] RAG Service validation error: {str(ve)}")
@@ -437,8 +441,9 @@ async def generate_ai_assignment(
             assignment_id=new_assignment.id,
             school_id=current_user.school_id,
             subject_id=req.subject_id,
-            # grade_id=req.grade_id, # If model has grade_id
-            difficulty_level=req.difficulty
+            grade_id=req.grade_id,
+            difficulty_level=req.difficulty,
+            is_bank_question=False
         )
         db.add(new_q)
         db.commit()
@@ -456,6 +461,28 @@ async def generate_ai_assignment(
     db.commit()
     logger.info(f"🏁 [AI GEN] Finished! Assignment {new_assignment.id} is ready.")
     return new_assignment
+
+@router.get("/question-bank/questions", response_model=List[schemas.QuestionOut])
+def get_question_bank_questions(
+    subject_id: Optional[int] = None,
+    grade_id: Optional[int] = None,
+    year: Optional[int] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_teacher)
+):
+    query = db.query(models.Question).filter(
+        models.Question.is_bank_question == True,
+        models.Question.school_id == current_user.school_id
+    )
+    
+    if subject_id:
+        query = query.filter(models.Question.subject_id == subject_id)
+    if grade_id:
+        query = query.filter(models.Question.grade_id == grade_id)
+    if year:
+        query = query.filter(models.Question.year == year)
+        
+    return query.all()
 
 @router.post("/assignments/from-bank", response_model=schemas.AssignmentOut)
 def create_assignment_from_bank(
@@ -503,7 +530,10 @@ def create_assignment_from_bank(
             school_id=current_user.school_id,
             subject_id=data.subject_id, # Inherit from new assignment/selection
             class_id=data.class_id,     # Inherit from new assignment/selection
-            parent_question_id=q.id     # Link to parent
+            grade_id=data.grade_id,
+            parent_question_id=q.id,    # Link to parent
+            is_answered=q.is_answered,
+            year=q.year
         )
         db.add(new_q)
         db.commit() # Commit to get ID
@@ -581,6 +611,7 @@ def read_questions(
     difficulty: Optional[str] = None,
     search: Optional[str] = None,
     source_year: Optional[str] = None,
+    source_type: Optional[str] = None,
     points: Optional[int] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=500),
@@ -596,14 +627,11 @@ def read_questions(
         models.Class, models.Question.class_id == models.Class.id
     )
     
-    # Filter: Either it's a teacher's assignment question OR it's a bank question for their school
+    # Filter by Teacher (security) OR is_bank_question for the school
     query = query.filter(
         or_(
             models.Assignment.teacher_id == current_user.id,
-            and_(
-                models.Question.assignment_id == None,
-                models.Question.school_id == current_user.school_id
-            )
+            (models.Question.is_bank_question == True) & (models.Question.school_id == current_user.school_id)
         )
     )
     
@@ -618,7 +646,11 @@ def read_questions(
             or_(
                 models.Assignment.grade_id == grade_id, 
                 models.Class.grade_id == grade_id,
-                and_(models.Question.assignment_id == None, models.Question.class_id == None)
+                and_(
+                    models.Question.assignment_id == None, 
+                    models.Question.class_id == None,
+                    models.Question.grade_id == grade_id
+                )
             )
         )
     if subject_id:
@@ -634,6 +666,9 @@ def read_questions(
         
     if source_year:
         query = query.filter(models.Question.source_year == source_year)
+        
+    if source_type:
+        query = query.filter(models.Question.source_type == source_type)
         
     if points is not None:
         query = query.filter(models.Question.points == points)
@@ -677,13 +712,15 @@ def create_bank_question(
         question_type=question_in.question_type,
         difficulty_level=question_in.difficulty_level,
         source_year=question_in.source_year,
-        source_type=question_in.source_type or "BANK",
+        source_type=question_in.source_type or "Manual",
         bloom_level=question_in.bloom_level,
         chapter_name=question_in.chapter_name,
         answer_key=question_in.answer_key,
         correct_answer=question_in.correct_answer,
         subject_id=question_in.subject_id,
+        grade_id=question_in.grade_id,
         school_id=current_user.school_id,
+        is_bank_question=True,
         assignment_id=None
     )
     db.add(new_q)
@@ -715,13 +752,15 @@ def create_bank_questions_bulk(
             question_type=q_in.question_type,
             difficulty_level=q_in.difficulty_level,
             source_year=q_in.source_year,
-            source_type=q_in.source_type or "BANK",
+            source_type=q_in.source_type or "Manual",
             bloom_level=q_in.bloom_level,
             chapter_name=q_in.chapter_name,
             answer_key=q_in.answer_key,
             correct_answer=q_in.correct_answer,
             subject_id=q_in.subject_id,
+            grade_id=q_in.grade_id,
             school_id=current_user.school_id,
+            is_bank_question=True,
             assignment_id=None
         )
         db.add(new_q)

@@ -15,6 +15,8 @@ import UserManagement from './pages/super-admin/UserManagement';
 import TrainViaLLM from './pages/super-admin/TrainViaLLM';
 import TrainFileDetails from './pages/super-admin/TrainFileDetails';
 import TrainProgress from './pages/super-admin/TrainProgress';
+import ManageQuestionBank from './pages/super-admin/ManageQuestionBank';
+import ExtractProgress from './pages/super-admin/ExtractProgress';
 
 // School Admin Pages
 import TeachersList from './pages/school-admin/TeachersList';
@@ -22,6 +24,7 @@ import StudentsList from './pages/school-admin/StudentsList';
 import SubjectsList from './pages/school-admin/SubjectsList';
 import GradesList from './pages/school-admin/GradesList';
 import UploadPdf from './pages/school-admin/UploadPdf';
+import SchoolAdminUploadQuestionBank from './pages/school-admin/UploadQuestionBank';
 import QuestionBank from './pages/school-admin/QuestionBank';
 import QuestionBankDetails from './pages/school-admin/QuestionBankDetails';
 import Classes from './pages/school-admin/Classes';
@@ -40,6 +43,7 @@ import TeacherUploadPdf from './pages/teacher/UploadPdf'
 import QuestionPaperHistory from './pages/teacher/QuestionPaperHistory';
 import QuestionPaperBuilder from './pages/teacher/QuestionPaperBuilder';
 import Templates from './pages/teacher/Templates'
+import TeacherUploadQuestionBank from './pages/teacher/UploadQuestionBank';
 
 // Student Pages
 import StudentAssignments from './pages/student/Assignments';
@@ -90,6 +94,9 @@ const App: React.FC = () => {
           <Route path="train-llm" element={<TrainViaLLM />} />
           <Route path="train-llm/:fileId" element={<TrainFileDetails />} />
           <Route path="train-llm/:fileId/progress" element={<TrainProgress />} />
+          <Route path="manage-question-bank" element={<ManageQuestionBank />} />
+          <Route path="manage-question-bank/:fileId" element={<TrainFileDetails />} />
+          <Route path="manage-question-bank/:fileId/progress" element={<ExtractProgress />} />
           {/* Settings Sub-routes */}
           <Route path="settings/countries" element={<Countries />} />
           <Route path="settings/curriculums" element={<Curriculums />} />
@@ -103,6 +110,7 @@ const App: React.FC = () => {
           <Route path="school-admin/grades" element={<GradesList />} />
           <Route path="school-admin/grades/:gradeId/subjects" element={<GradeSubjects />} />
           <Route path="school-admin/upload-pdf" element={<UploadPdf />} />
+          <Route path="school-admin/upload-question-bank" element={<SchoolAdminUploadQuestionBank />} />
           <Route path="school-admin/upload-pdf/:gradeId" element={<QuestionBankDetails />} />
           <Route path="school-admin/question-bank" element={<QuestionBank />} />
           <Route path="school-admin/classes" element={<Classes />} />
@@ -120,6 +128,7 @@ const App: React.FC = () => {
           <Route path="teacher/templates" element={<Templates />} />
           <Route path="teacher/students" element={<TeacherStudents />} />
           <Route path="teacher/upload" element={<TeacherUploadPdf />} />
+          <Route path="teacher/upload-question-bank" element={<TeacherUploadQuestionBank />} />
           <Route path="teacher/upload/:fileId/progress" element={<TrainProgress />} />
           <Route path="teacher/grading" element={<TeacherGrading />} />
           <Route path="teacher/grading/:studentId" element={<StudentGrading />} />

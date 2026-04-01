@@ -265,7 +265,9 @@ class FileArtifact(Base):
     file_size = Column(Integer, nullable=True)
     file_status = Column(String(50), default="Uploaded")
     description = Column(String(500), nullable=True)
-    
+    is_question_bank = Column(Boolean, default=False)
+    year = Column(Integer, nullable=True)
+
     uploaded_at = Column(DateTime, default=datetime.utcnow)
     
     # Metadata / Context
@@ -378,6 +380,9 @@ class Question(Base):
     question_type = Column(Enum(QuestionType), default=QuestionType.MULTIPLE_CHOICE)
     difficulty_level = Column(String(50), nullable=True)
     assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=True) # Make nullable for freestanding questions
+    file_artifact_id = Column(Integer, ForeignKey("file_artifacts.id"), nullable=True)
+    is_bank_question = Column(Boolean, default=False)
+    is_answered = Column(Boolean, default=False)
     parent_question_id = Column(Integer, ForeignKey("questions.id"), nullable=True)
     year = Column(Integer, nullable=True)
     
@@ -399,13 +404,16 @@ class Question(Base):
     # Context columns
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=True) # Making nullable for easier migration, but logic will populate
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=True)
+    grade_id = Column(Integer, ForeignKey("grades.id"), nullable=True)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
 
     assignment = relationship("Assignment", back_populates="questions")
+    file_artifact = relationship("FileArtifact")
     options = relationship("QuestionOption", back_populates="question", cascade="all, delete-orphan")
     
     school = relationship("School")
     subject = relationship("Subject")
+    grade = relationship("Grade")
     class_ = relationship("Class")
 
 class QuestionOption(Base):

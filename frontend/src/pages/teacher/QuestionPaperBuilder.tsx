@@ -131,6 +131,7 @@ const QuestionPaperBuilder: React.FC = () => {
     const [filterGradeId, setFilterGradeId] = useState<number | ''>('');
     const [filterDifficulty, setFilterDifficulty] = useState<string>('');
     const [filterPoints, setFilterPoints] = useState<number | ''>('');
+    const [filterSourceType, setFilterSourceType] = useState<string>('');
 
     // Step 4 State — Questions
     const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
@@ -304,6 +305,7 @@ const QuestionPaperBuilder: React.FC = () => {
             if (filterGradeId) params.grade_id = filterGradeId;
             if (filterDifficulty) params.difficulty = filterDifficulty;
             if (filterYear && filterYear !== '__custom__') params.source_year = filterYear;
+            if (filterSourceType) params.source_type = filterSourceType;
             if (filterPoints !== '') params.points = filterPoints;
 
             const { data } = await api.get('/teacher/questions/', { params });
@@ -316,7 +318,7 @@ const QuestionPaperBuilder: React.FC = () => {
         } finally {
             setQuestionsLoading(false);
         }
-    }, [searchQuery, filterSubjectId, filterGradeId, filterDifficulty, filterYear, filterPoints]);
+    }, [searchQuery, filterSubjectId, filterGradeId, filterDifficulty, filterYear, filterPoints, filterSourceType]);
 
     const handleProceedToPreview = async () => {
         if (!createdPaperId) return;
@@ -593,12 +595,17 @@ const QuestionPaperBuilder: React.FC = () => {
                                                 {secs.length > 0 && (
                                                     <div className="flex flex-wrap gap-1">
                                                         {secs.map((s, i) => (
-                                                            <span key={i} className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">
-                                                                {s.name}·{s.target_questions}×{s.marks_per_question}
+                                                            <span key={i} className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full shadow-sm">
+                                                                <span className="font-bold text-indigo-500">{s.name}</span>: {s.target_questions} Qs ({s.marks_per_question}M)
                                                             </span>
                                                         ))}
                                                     </div>
                                                 )}
+                                                <div className="mt-4 flex justify-end">
+                                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-indigo-600' : 'text-slate-400 opacity-0 group-hover:opacity-100 transition'}`}>
+                                                        {isSelected ? 'Selected blueprint' : 'Click to select blueprint'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -834,54 +841,80 @@ const QuestionPaperBuilder: React.FC = () => {
                                             onKeyDown={e => e.key === 'Enter' && fetchQuestionsForSelection(1)}
                                         />
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                        <select
-                                            className="border border-slate-300 p-1.5 rounded-lg focus:outline-none focus:border-indigo-400 text-slate-700 bg-white"
-                                            value={filterSubjectId}
-                                            onChange={e => setFilterSubjectId(e.target.value ? parseInt(e.target.value) : '')}
-                                        >
-                                            <option value="">All Subjects</option>
-                                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
-                                        <select
-                                            className="border border-slate-300 p-1.5 rounded-lg focus:outline-none focus:border-indigo-400 text-slate-700 bg-white"
-                                            value={filterGradeId}
-                                            onChange={e => setFilterGradeId(e.target.value ? parseInt(e.target.value) : '')}
-                                        >
-                                            <option value="">All Grades</option>
-                                            {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                                        </select>
-                                        <select
-                                            className="border border-slate-300 p-1.5 rounded-lg focus:outline-none focus:border-indigo-400 text-slate-700 bg-white"
-                                            value={filterDifficulty}
-                                            onChange={e => setFilterDifficulty(e.target.value)}
-                                        >
-                                            <option value="">All Difficulties</option>
-                                            <option value="Easy">Easy</option>
-                                            <option value="Medium">Medium</option>
-                                            <option value="Hard">Hard</option>
-                                        </select>
-                                        <select
-                                            className="border border-slate-300 p-1.5 rounded-lg focus:outline-none focus:border-indigo-400 text-slate-700 bg-white"
-                                            value={filterYear === '__custom__' ? '' : filterYear}
-                                            onChange={e => setFilterYear(e.target.value)}
-                                        >
-                                            <option value="">All Years</option>
-                                            {Array.from({ length: 10 }, (_, i) => {
-                                                const yr = (new Date().getFullYear() - i).toString();
-                                                return <option key={yr} value={yr}>{yr}</option>;
-                                            })}
-                                        </select>
-                                        <select
-                                            className="border border-slate-300 p-1.5 rounded-lg focus:outline-none focus:border-indigo-400 text-slate-700 bg-white"
-                                            value={filterPoints}
-                                            onChange={e => setFilterPoints(e.target.value ? parseInt(e.target.value) : '')}
-                                        >
-                                            <option value="">All Marks</option>
-                                            {[1, 2, 3, 4, 5, 10].map(m => (
-                                                <option key={m} value={m}>{m} {m === 1 ? 'Mark' : 'Marks'}</option>
-                                            ))}
-                                        </select>
+                                    <div className="grid grid-cols-3 gap-3 text-xs">
+                                        <div className="space-y-1">
+                                            <label className="font-bold text-slate-500 uppercase text-[9px]">Subject</label>
+                                            <select
+                                                className="w-full border border-slate-200 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 bg-white shadow-sm"
+                                                value={filterSubjectId}
+                                                onChange={e => setFilterSubjectId(e.target.value ? parseInt(e.target.value) : '')}
+                                            >
+                                                <option value="">All Subjects</option>
+                                                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="font-bold text-slate-500 uppercase text-[9px]">Grade</label>
+                                            <select
+                                                className="w-full border border-slate-200 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 bg-white shadow-sm"
+                                                value={filterGradeId}
+                                                onChange={e => setFilterGradeId(e.target.value ? parseInt(e.target.value) : '')}
+                                            >
+                                                <option value="">All Grades</option>
+                                                {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="font-bold text-slate-500 uppercase text-[9px]">Difficulty</label>
+                                            <select
+                                                className="w-full border border-slate-200 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 bg-white shadow-sm"
+                                                value={filterDifficulty}
+                                                onChange={e => setFilterDifficulty(e.target.value)}
+                                            >
+                                                <option value="">All Diff.</option>
+                                                <option value="Easy">Easy</option>
+                                                <option value="Medium">Medium</option>
+                                                <option value="Hard">Hard</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="font-bold text-slate-500 uppercase text-[9px]">Year</label>
+                                            <select
+                                                className="w-full border border-slate-200 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 bg-white shadow-sm"
+                                                value={filterYear === '__custom__' ? '' : filterYear}
+                                                onChange={e => setFilterYear(e.target.value)}
+                                            >
+                                                <option value="">All Years</option>
+                                                {availableYears.map(y => (
+                                                    <option key={y.year} value={y.year}>{y.year}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="font-bold text-slate-500 uppercase text-[9px]">Marks</label>
+                                            <select
+                                                className="w-full border border-slate-200 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 bg-white shadow-sm"
+                                                value={filterPoints}
+                                                onChange={e => setFilterPoints(e.target.value ? parseInt(e.target.value) : '')}
+                                            >
+                                                <option value="">All Marks</option>
+                                                {[1, 2, 3, 4, 5, 10].map(m => (
+                                                    <option key={m} value={m}>{m} M</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="font-bold text-slate-500 uppercase text-[9px]">Source</label>
+                                            <select
+                                                className="w-full border border-slate-200 p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 bg-white shadow-sm"
+                                                value={filterSourceType}
+                                                onChange={e => setFilterSourceType(e.target.value)}
+                                            >
+                                                <option value="">All Src.</option>
+                                                <option value="AI">AI Gen.</option>
+                                                <option value="Manual">Man.</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     <button 
                                         onClick={() => fetchQuestionsForSelection(1)}
@@ -917,7 +950,18 @@ const QuestionPaperBuilder: React.FC = () => {
                                                                         {q.source_year && <span className="text-slate-400 font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{q.source_year}</span>}
                                                                     </div>
                                                                 </div>
-                                                                <p className="text-sm text-slate-800 line-clamp-3">{q.text}</p>
+                                                                <p className="text-sm text-slate-800 line-clamp-3 mb-2">{q.text}</p>
+                                                                
+                                                                {q.options && q.options.length > 0 && (
+                                                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 border-t pt-2 border-slate-100">
+                                                                        {q.options.map((opt, idx) => (
+                                                                            <div key={idx} className="flex gap-1.5 items-start text-[11px] text-slate-500">
+                                                                                <span className="font-bold text-indigo-400">{String.fromCharCode(97 + idx)})</span>
+                                                                                <span className="truncate">{opt.text}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </Draggable>
@@ -1020,44 +1064,76 @@ const QuestionPaperBuilder: React.FC = () => {
                 {/* ── STEP 4: Preview Paper ── */}
                 {currentStep === 4 && (
                     <div className="p-8 bg-slate-100 border-t min-h-screen">
-                        <div className="max-w-[21cm] mx-auto bg-white p-[2cm] shadow-xl border border-slate-200 min-h-[29.7cm]">
-                            <div className="text-center mb-8 border-b-2 pb-6 border-slate-800">
-                                <h1 className="text-xl font-bold uppercase tracking-widest mb-1">LEARNMIST SCHOOL</h1>
-                                <h2 className="text-lg mb-2">{config.exam_type} - {config.academic_year}</h2>
-                                <h3 className="font-medium text-slate-700">Class: {config.grade} | Subject: {config.subject}</h3>
-                                <div className="flex justify-between mt-6 font-bold text-sm">
-                                    <span>Time: {config.duration}</span>
-                                    <span>Set: {config.set_number}</span>
-                                    <span>Max Marks: {config.sections_config.reduce((a, s) => a + s.target_questions * s.marks_per_question, 0)}</span>
+                        <div className="max-w-[21cm] mx-auto bg-white p-[2cm] shadow-2xl border border-slate-300 min-h-[29.7cm] relative">
+                            {/* Watermark or subtle board indicator could go here */}
+                            <div className="text-center mb-10 border-b-2 pb-6 border-slate-900">
+                                <h1 className="text-2xl font-black uppercase tracking-[0.2em] mb-1 text-slate-900">LEARNMIST SCHOOL</h1>
+                                <div className="w-24 h-1 bg-slate-900 mx-auto mb-4"></div>
+                                <h2 className="text-xl font-bold mb-1 text-slate-800">{config.exam_type} - {config.academic_year}</h2>
+                                <h3 className="font-semibold text-slate-600">Class: {config.grade} | Subject: {config.subject}</h3>
+                                
+                                <div className="grid grid-cols-3 mt-8 pt-4 border-t border-slate-200 font-bold text-sm text-slate-700">
+                                    <div className="text-left">Time: {config.duration} Mins</div>
+                                    <div className="text-center italic">Set: {config.set_number}</div>
+                                    <div className="text-right">Max Marks: {config.sections_config.reduce((a, s) => a + s.target_questions * s.marks_per_question, 0)}</div>
                                 </div>
                             </div>
 
-                            <div className="mb-6">
-                                <h4 className="font-bold underline mb-2">General Instructions:</h4>
-                                <ul className="list-disc pl-5 space-y-1 text-sm text-slate-800">
+                            <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                                <h4 className="font-bold underline mb-3 text-slate-900 uppercase text-xs tracking-wider">General Instructions:</h4>
+                                <ul className="list-decimal pl-5 space-y-1.5 text-xs text-slate-700 leading-relaxed">
                                     {config.general_instructions.map((inst, i) => inst.trim() && <li key={i}>{inst}</li>)}
+                                    <li>All questions are compulsory.</li>
+                                    <li>Draw neat diagrams wherever necessary.</li>
                                 </ul>
                             </div>
 
                             {config.sections_config.map(sec => {
-                                const qCount = mappedQuestions.filter(m => m.section_name === sec.name).length;
+                                const sectionMappings = mappedQuestions
+                                    .filter(m => m.section_name === sec.name)
+                                    .sort((a, b) => a.order_in_section - b.order_in_section);
+                                
+                                if (sectionMappings.length === 0) return null;
+
                                 return (
-                                    <div key={sec.name} className="mb-8">
-                                        <h3 className="text-center font-bold text-lg underline mb-4">SECTION - {sec.name}</h3>
-                                        <div className="text-center text-sm text-slate-500 mb-4">
-                                            ({qCount} questions · {sec.marks_per_question} mark{sec.marks_per_question !== 1 ? 's' : ''} each)
+                                    <div key={sec.name} className="mb-10">
+                                        <div className="flex items-center gap-4 mb-6">
+                                            <div className="flex-1 h-px bg-slate-200"></div>
+                                            <h3 className="font-black text-slate-900 text-sm tracking-[0.3em] uppercase">SECTION - {sec.name}</h3>
+                                            <div className="flex-1 h-px bg-slate-200"></div>
                                         </div>
-                                        <div className="space-y-4">
-                                            {mappedQuestions
-                                                .filter(m => m.section_name === sec.name)
-                                                .sort((a, b) => a.order_in_section - b.order_in_section)
-                                                .map((m, i) => (
-                                                <div key={i} className="flex gap-2">
-                                                    <span className="font-bold">{i + 1}.</span>
-                                                    <div className="flex-1">
-                                                        <p className="text-sm text-slate-800">{m.question?.text || "[Missing Question Text]"}</p>
+                                        
+                                        <div className="space-y-8">
+                                            {sectionMappings.map((m, i) => (
+                                                <div key={i} className="relative pl-8">
+                                                    {/* Question Numbering */}
+                                                    <span className="absolute left-0 top-0 font-bold text-slate-900">Q{i + 1}.</span>
+                                                    
+                                                    {/* Question Content */}
+                                                    <div className="flex justify-between gap-4">
+                                                        <div className="flex-1">
+                                                            <div className="text-[13px] text-slate-900 leading-relaxed font-medium mb-3">
+                                                                {m.question?.text || "[Missing Question Text]"}
+                                                            </div>
+
+                                                            {/* Options Rendering */}
+                                                            {m.question?.options && m.question.options.length > 0 && (
+                                                                <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-4 ml-2">
+                                                                    {m.question.options.map((opt, optIdx) => (
+                                                                        <div key={optIdx} className="flex gap-2 items-start text-xs text-slate-700">
+                                                                            <span className="font-bold">({String.fromCharCode(97 + optIdx)})</span>
+                                                                            <span>{opt.text}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Marks */}
+                                                        <div className="text-right pt-0.5">
+                                                            <span className="font-bold text-slate-900 text-sm">[{sec.marks_per_question}]</span>
+                                                        </div>
                                                     </div>
-                                                    <span className="font-bold">[{sec.marks_per_question}]</span>
                                                 </div>
                                             ))}
                                         </div>
