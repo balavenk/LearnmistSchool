@@ -82,6 +82,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", `
     "Write-Host 'Backend API Starting...' -ForegroundColor Cyan; " + `
     "Set-Location '$PWD\backend'; " + `
     ".\venv\Scripts\Activate.ps1; " + `
+    "alembic upgrade head; " + `
     "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
 Write-Host "      Backend started in a new window." -ForegroundColor Green
