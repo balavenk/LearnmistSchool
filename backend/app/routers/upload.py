@@ -316,6 +316,8 @@ def get_all_training_materials(
         models.Grade, models.FileArtifact.grade_id == models.Grade.id, isouter=True
     ).join(
         models.Subject, models.FileArtifact.subject_id == models.Subject.id, isouter=True
+    ).filter(
+        models.FileArtifact.is_question_bank == False
     ).order_by(models.FileArtifact.uploaded_at.desc()).all()
     
     output = []

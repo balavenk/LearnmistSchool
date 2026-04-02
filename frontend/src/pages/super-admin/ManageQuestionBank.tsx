@@ -83,7 +83,7 @@ const ManageQuestionBank: React.FC = () => {
     const filteredFiles = useMemo(() => {
         return files.filter(f => {
             const matchesTab = activeTab === 'NOT_TRAINED'
-                ? (f.file_status === 'Uploaded' || f.file_status === 'Skipped' || f.file_status === 'Processing')
+                ? (f.file_status !== 'Extracted')
                 : f.file_status === 'Extracted';
 
             const matchesSearch = deferredSearchQuery === '' ||
@@ -139,11 +139,11 @@ const ManageQuestionBank: React.FC = () => {
             header: 'Status',
             cell: ({ row }) => (
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 ${row.original.file_status === 'Extracted' ? 'bg-green-50 text-green-700 border-green-200' :
-                        row.original.file_status === 'Processing' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        row.original.file_status === 'Processing' || row.original.file_status === 'Extracting' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                             'bg-blue-50 text-blue-700 border-blue-200'
                     }`}>
                     <span className={`w-2 h-2 rounded-full ${row.original.file_status === 'Extracted' ? 'bg-green-500' :
-                            row.original.file_status === 'Processing' ? 'bg-amber-500 animate-pulse' :
+                            row.original.file_status === 'Processing' || row.original.file_status === 'Extracting' ? 'bg-amber-500 animate-pulse' :
                                 'bg-blue-500'
                         }`}></span>
                     {row.original.file_status || 'Uploaded'}
@@ -159,9 +159,13 @@ const ManageQuestionBank: React.FC = () => {
                         <>
                             <button
                                 onClick={() => navigate(`/manage-question-bank/${row.original.id}/progress`)}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md"
+                                disabled={row.original.file_status === 'Processing' || row.original.file_status === 'Extracting'}
+                                className={`inline-flex items-center gap-1.5 px-4 py-2 text-white text-xs font-bold rounded-lg transition-all shadow-md ${row.original.file_status === 'Processing' || row.original.file_status === 'Extracting'
+                                    ? 'bg-slate-300 cursor-not-allowed opacity-70'
+                                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700'
+                                }`}
                             >
-                                Extract Questions
+                                {row.original.file_status === 'Processing' || row.original.file_status === 'Extracting' ? 'Extracting...' : 'Extract Questions'}
                             </button>
                             <button
                                 onClick={() => handleDownload(row.original)}
@@ -209,7 +213,7 @@ const ManageQuestionBank: React.FC = () => {
                         onClick={() => setActiveTab('NOT_TRAINED')}
                         className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'NOT_TRAINED' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 bg-slate-50'}`}
                     >
-                        Files to Extract ({files.filter(f => f.file_status !== 'Trained').length})
+                        Files to Extract ({files.filter(f => f.file_status !== 'Extracted').length})
                     </button>
                     <button
                         onClick={() => setActiveTab('TRAINED')}

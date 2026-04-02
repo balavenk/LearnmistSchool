@@ -28,7 +28,7 @@ def upgrade() -> None:
                type_=sa.Text(),
                existing_nullable=False)
     op.add_column('file_artifacts', sa.Column('is_question_bank', sa.Boolean(), nullable=True))
-    op.add_column('questions', sa.Column('year', sa.Integer(), nullable=True))
+    pass # op.add_column('questions', sa.Column('year', sa.Integer(), nullable=True))
     
     op.execute("UPDATE subjects SET active = true WHERE active IS NULL")
     op.alter_column('subjects', 'active',

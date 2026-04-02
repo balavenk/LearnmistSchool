@@ -142,9 +142,9 @@ const TeachersList: React.FC = () => {
         }
         try {
             await api.post('/school-admin/teachers/', {
-                username: newUsername,
-                full_name: newFullName,
-                email: newEmail,
+                username: newUsername.trim().replace(/\s+/g, ''),
+                full_name: newFullName.trim(),
+                email: newEmail.trim(),
                 password: newPassword, // Custom password
                 role: 'TEACHER'
             });
@@ -152,9 +152,11 @@ const TeachersList: React.FC = () => {
             setIsCreateModalOpen(false);
             setNewUsername(''); setNewFullName(''); setNewEmail(''); setNewPassword(''); setNewConfirmPassword(''); // setNewSubject('');
             toast.success("Teacher created successfully");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to create teacher", error);
-            toast.error("Failed to create teacher. Username/Email might be duplicate.");
+            const detail = error.response?.data?.detail;
+            const message = typeof detail === 'string' ? detail : "Failed to create teacher. Username/Email might be duplicate.";
+            toast.error(message);
         }
     };
 
