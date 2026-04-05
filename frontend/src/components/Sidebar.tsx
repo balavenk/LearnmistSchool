@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
                 { to: '/super-admin', label: 'Dashboard', end: true, icon: <DashboardIcon /> },
                 { to: '/schools', label: 'Schools', icon: <SchoolIcon /> },
                 { to: '/user-management', label: 'User Management', icon: <UsersIcon /> },
-                { to: '/manage-question-bank', label: 'Manage Question Bank', icon: <QuestionBankIcon /> },
+                { to: '/manage-question-bank', label: 'Extract Question Bank', icon: <QuestionBankIcon /> },
                 { to: '/settings', label: 'Settings', icon: <SettingsIcon /> },
                 { to: '/train-llm', label: 'Train Via LLM', icon: <BrainIcon /> },
             ],

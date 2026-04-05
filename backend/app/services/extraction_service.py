@@ -209,8 +209,8 @@ async def process_extraction(
         
         # Optional: You can add other post-processing here if needed
 
-        # 6. Update Artifact Status
-        artifact.file_status = "Extracted"
+        # 6. Update Artifact Status via query update to bypass ORM detachment 
+        db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).update({"file_status": "Extracted"})
         db.commit()
 
         if progress_callback: await progress_callback(f"DONE: Extracted {total_extracted} questions.")
@@ -220,5 +220,12 @@ async def process_extraction(
         err_msg = f"Extraction failed: {str(e)}"
         print(err_msg)
         if progress_callback: await progress_callback(err_msg)
-        artifact.file_status = "Extraction Failed"
-        db.commit()
+        
+        # Must refetch the artifact because db.rollback() detaches the original object
+        failed_artifact = db.query(models.FileArtifact).filter(models.FileArtifact.id == file_id).first()
+        if failed_artifact:
+            failed_artifact.file_status = "Extraction Failed"
+            db.commit()
+            
+        # Re-raise so the caller route knows it actually failed
+        raise e

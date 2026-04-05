@@ -26,6 +26,15 @@ router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
+def safe_json_parse(raw: str):
+    if not raw: return []
+    try:
+        import json
+        parsed = json.loads(raw)
+        if isinstance(parsed, str): parsed = json.loads(parsed)
+        return parsed if isinstance(parsed, list) else []
+    except Exception: return []
+
 def get_current_teacher(current_user: models.User = Depends(auth.get_current_active_user)):
     if current_user.role != models.UserRole.TEACHER:
         raise HTTPException(status_code=403, detail="Not enough permissions")
@@ -1294,12 +1303,13 @@ def map_question_to_paper(
         models.QuestionPaper.id == paper_id,
         models.QuestionPaper.created_by_id == current_user.id
     ).first()
+
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
     # Enforce section limits (from paper.sections_config)
     try:
-        sections = json.loads(paper.sections_config or "[]")
+        sections = safe_json_parse(paper.sections_config)
         target_section = next((s for s in sections if s.get('name') == mapping.section_name), None)
         if target_section:
             limit = target_section.get('target_questions', 0)
@@ -1396,8 +1406,8 @@ def export_question_paper_pdf(
     
     # Group by section — parse sections_config from JSON string
     try:
-        parsed_sections_config = json.loads(paper.sections_config or "[]")
-    except (json.JSONDecodeError, TypeError):
+        parsed_sections_config = safe_json_parse(paper.sections_config)
+    except (Exception):
         parsed_sections_config = []
         
     sections_map = {}

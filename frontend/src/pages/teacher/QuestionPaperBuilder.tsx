@@ -1119,7 +1119,7 @@ const QuestionPaperBuilder: React.FC = () => {
                                                             {/* Options Rendering */}
                                                             {m.question?.options && m.question.options.length > 0 && (
                                                                 <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-4 ml-2">
-                                                                    {m.question.options.map((opt, optIdx) => (
+                                                                    {m.question.options.map((opt: any, optIdx: number) => (
                                                                         <div key={optIdx} className="flex gap-2 items-start text-xs text-slate-700">
                                                                             <span className="font-bold">({String.fromCharCode(97 + optIdx)})</span>
                                                                             <span>{opt.text}</span>

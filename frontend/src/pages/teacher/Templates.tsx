@@ -65,12 +65,20 @@ const DEFAULT_INSTRUCTIONS = [
 
 function parseSections(raw?: string): SectionConfig[] {
     if (!raw) return [];
-    try { return JSON.parse(raw); } catch { return []; }
+    try { 
+        let parsed = JSON.parse(raw); 
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
 }
 
 function parseInstructions(raw?: string): string[] {
     if (!raw) return [];
-    try { return JSON.parse(raw); } catch { return []; }
+    try { 
+        let parsed = JSON.parse(raw); 
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
