@@ -12,7 +12,7 @@ def seed():
         if not super_admin:
             super_admin = models.User(
                 username="superadmin",
-                email="superadmin@learnmist.com", 
+                email="superadmin@brinymist.com", 
                 hashed_password=hashed_pwd, 
                 role=models.UserRole.SUPER_ADMIN, 
                 school_id=None
@@ -48,10 +48,10 @@ def seed():
             print("Created SchoolType: HigherSecondary")
 
         # 3. Create School
-        school = db.query(models.School).filter(models.School.name == "Learnmist Demo School").first()
+        school = db.query(models.School).filter(models.School.name == "Brinymist Demo School").first()
         if not school:
             school = models.School(
-                name="Learnmist Demo School",
+                name="Brinymist Demo School",
                 address="123 Education Lane, Tech City",
                 max_teachers=10,
                 max_students=100,

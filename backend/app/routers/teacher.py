@@ -1443,7 +1443,7 @@ def export_question_paper_pdf(
     # Build Paper dict for the generator
     
     paper_data = {
-        "school_name": "LEARNMIST SCHOOL",
+        "school_name": "BRINYMIST SCHOOL",
         "exam_type": paper.exam_type,
         "academic_year": paper.academic_year,
         "grade": paper.grade,

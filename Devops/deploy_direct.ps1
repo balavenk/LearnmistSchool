@@ -1,5 +1,5 @@
 param (
-    [string]$InstanceName = "learnmist-server",
+    [string]$InstanceName = "brinymist-server",
     [string]$Zone = "us-central1-a"
 )
 

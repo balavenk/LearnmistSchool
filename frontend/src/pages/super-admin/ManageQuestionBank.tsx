@@ -125,8 +125,8 @@ const ManageQuestionBank: React.FC = () => {
             header: 'File Name',
             cell: ({ row }) => (
                 <div className="flex items-center gap-2">
-                    <div className="bg-orange-100 rounded-lg p-2">
-                        <svg className="h-5 w-5 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="bg-indigo-100 rounded-lg p-2">
+                        <svg className="h-5 w-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" />
                         </svg>
                     </div>
@@ -182,7 +182,7 @@ const ManageQuestionBank: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-2xl shadow-lg p-8 text-white">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-8 text-white">
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-4">
                         <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
@@ -192,12 +192,12 @@ const ManageQuestionBank: React.FC = () => {
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold">Manage Question Bank</h1>
-                            <p className="text-orange-100 text-md mt-1">Extract structured questions from PDF banks into the pool</p>
+                            <p className="text-indigo-100 text-md mt-1">Extract structured questions from PDF banks into the pool</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setIsUploadModalOpen(true)}
-                        className="bg-white text-orange-600 px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-orange-50 transition-all flex items-center gap-2"
+                        className="bg-white text-indigo-600 px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-50 transition-all flex items-center gap-2 hover:scale-105"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -211,13 +211,13 @@ const ManageQuestionBank: React.FC = () => {
                 <div className="flex border-b-2 border-slate-200">
                     <button
                         onClick={() => setActiveTab('NOT_TRAINED')}
-                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'NOT_TRAINED' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 bg-slate-50'}`}
+                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'NOT_TRAINED' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 bg-slate-50'}`}
                     >
                         Files to Extract ({files.filter(f => f.file_status !== 'Extracted').length})
                     </button>
                     <button
                         onClick={() => setActiveTab('TRAINED')}
-                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'TRAINED' ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 bg-slate-50'}`}
+                        className={`flex-1 py-5 text-sm font-bold border-b-4 transition-all ${activeTab === 'TRAINED' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 bg-slate-50'}`}
                     >
                         Extracted Banks ({files.filter(f => f.file_status === 'Extracted').length})
                     </button>
@@ -230,7 +230,7 @@ const ManageQuestionBank: React.FC = () => {
                             placeholder="Search question banks..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                         />
                         <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

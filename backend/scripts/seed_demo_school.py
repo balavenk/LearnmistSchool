@@ -6,7 +6,7 @@ import random
 db: Session = SessionLocal()
 
 def seed_demo_school():
-    print("Seeding Learnmist Demo School...")
+    print("Seeding Brinymist Demo School...")
 
     # 1. Fetch Dependencies
     india = db.query(models.Country).filter(models.Country.name == "India").first()
@@ -25,7 +25,7 @@ def seed_demo_school():
         print("Error: School Type 'High School' for India not found.")
         return
 
-    school_name = "Learnmist Demo School"
+    school_name = "Brinymist Demo School"
     
     # Random India Address
     streets = ["Gandhi MG Road", "Anna Salai", "Brigade Road", "Park Street", "Connaught Place"]

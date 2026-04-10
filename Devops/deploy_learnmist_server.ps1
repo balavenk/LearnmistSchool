@@ -1,13 +1,13 @@
-# deploy_learnmist_server.ps1
-# Deploys LearnmistSchool to learnmist-server VM (no Docker).
-# VM: learnmist-server | Zone: us-central1-a | Project: project-7b2578b2-0b43-448e-80c
+# deploy_brinymist_server.ps1
+# Deploys BrinymistSchool to brinymist-server VM (no Docker).
+# VM: brinymist-server | Zone: us-central1-a | Project: project-7b2578b2-0b43-448e-80c
 
 $PROJECT_ID  = "project-7b2578b2-0b43-448e-80c"
-$VM_NAME     = "learnmist-server"
+$VM_NAME     = "brinymist-server"
 $ZONE        = "us-central1-a"
 $PACK        = "deploy_pack.tar.gz"
 
-Write-Host "=== LearnmistSchool GCP Deploy ($VM_NAME) ===" -ForegroundColor Green
+Write-Host "=== BrinymistSchool GCP Deploy ($VM_NAME) ===" -ForegroundColor Green
 
 # ── 1. Set GCP project ──────────────────────────────────────────────────────
 Write-Host "[1/5] Setting GCP project..." -ForegroundColor Cyan

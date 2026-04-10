@@ -32,7 +32,7 @@ def seed():
                 address="123 Demo Street, Chennai, Tamil Nadu, India",
                 max_teachers=50, max_students=500, max_classes=20, active=True,
             ),
-            name="Learnmist Demo School"
+            name="Brinymist Demo School"
         )
         db.commit()
         db.refresh(school)
@@ -40,7 +40,7 @@ def seed():
         # ── Superadmin ────────────────────────────────────────
         su, created = get_or_create(db, models.User, username="superadmin",
             defaults=dict(
-                email="superadmin@learnmist.com",
+                email="superadmin@brinymist.com",
                 hashed_password=get_password_hash("password123"),
                 role=models.UserRole.SUPER_ADMIN, active=True,
             ))
@@ -51,7 +51,7 @@ def seed():
         # ── School Admin ──────────────────────────────────────
         sa, created = get_or_create(db, models.User, username="schooladmin",
             defaults=dict(
-                email="schooladmin@learnmist.com",
+                email="schooladmin@brinymist.com",
                 hashed_password=get_password_hash("password123"),
                 role=models.UserRole.SCHOOL_ADMIN,
                 school_id=school.id, active=True,
@@ -61,14 +61,14 @@ def seed():
         # ── Teachers ──────────────────────────────────────────
         teacher1, c1 = get_or_create(db, models.User, username="teacher1",
             defaults=dict(
-                email="teacher1@learnmist.com",
+                email="teacher1@brinymist.com",
                 hashed_password=get_password_hash("password123"),
                 role=models.UserRole.TEACHER,
                 school_id=school.id, active=True,
             ))
         teacher2, c2 = get_or_create(db, models.User, username="teacher2",
             defaults=dict(
-                email="teacher2@learnmist.com",
+                email="teacher2@brinymist.com",
                 hashed_password=get_password_hash("password123"),
                 role=models.UserRole.TEACHER,
                 school_id=school.id, active=True,
@@ -158,7 +158,7 @@ def seed():
         for sname in ["student1", "student2"]:
             s_user, s_created = get_or_create(db, models.User, username=sname,
                 defaults=dict(
-                    email=f"{sname}@learnmist.com",
+                    email=f"{sname}@brinymist.com",
                     hashed_password=get_password_hash("password123"),
                     role=models.UserRole.STUDENT,
                     school_id=school.id, active=True,
@@ -167,7 +167,7 @@ def seed():
             s_profile = db.query(models.Student).filter_by(user_id=s_user.id).first()
             if not s_profile:
                 db.add(models.Student(
-                    name=sname, email=f"{sname}@learnmist.com",
+                    name=sname, email=f"{sname}@brinymist.com",
                     school_id=school.id, grade_id=grade10.id,
                     class_id=class10a.id, user_id=s_user.id, active=True,
                 ))
@@ -180,7 +180,7 @@ def seed():
         for sname in ["student3", "student4"]:
             s_user, s_created = get_or_create(db, models.User, username=sname,
                 defaults=dict(
-                    email=f"{sname}@learnmist.com",
+                    email=f"{sname}@brinymist.com",
                     hashed_password=get_password_hash("password123"),
                     role=models.UserRole.STUDENT,
                     school_id=school.id, active=True,
@@ -189,7 +189,7 @@ def seed():
             s_profile = db.query(models.Student).filter_by(user_id=s_user.id).first()
             if not s_profile:
                 db.add(models.Student(
-                    name=sname, email=f"{sname}@learnmist.com",
+                    name=sname, email=f"{sname}@brinymist.com",
                     school_id=school.id, grade_id=grade10.id,
                     class_id=class10b.id, user_id=s_user.id, active=True,
                 ))

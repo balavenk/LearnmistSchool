@@ -10,7 +10,7 @@ def hash_pw(password: str):
 
 # 1. Schools
 SCHOOLS = [
-    models.School(id=1, name="Learnmist Academy", address="123 Tech Lane", active=True, max_teachers=50, max_students=500, max_classes=20),
+    models.School(id=1, name="Brinymist Academy", address="123 Tech Lane", active=True, max_teachers=50, max_students=500, max_classes=20),
     models.School(id=2, name="Global Future School", address="456 Innovation Blvd", active=True, max_teachers=100, max_students=1000, max_classes=50),
 ]
 
@@ -20,19 +20,19 @@ USERS = [
     models.User(id=1, username="superadmin", email="super@admin.com", hashed_password=hash_pw("password123"), role=models.UserRole.SUPER_ADMIN, active=True),
     
     # School Admins
-    models.User(id=2, username="schooladmin1", email="admin@learnmist.com", hashed_password=hash_pw("password123"), role=models.UserRole.SCHOOL_ADMIN, school_id=1, active=True),
+    models.User(id=2, username="schooladmin1", email="admin@brinymist.com", hashed_password=hash_pw("password123"), role=models.UserRole.SCHOOL_ADMIN, school_id=1, active=True),
     models.User(id=3, username="schooladmin2", email="admin@global.com", hashed_password=hash_pw("password123"), role=models.UserRole.SCHOOL_ADMIN, school_id=2, active=True),
     
     # Teachers (School 1)
-    models.User(id=4, username="mr_smith", email="smith@learnmist.com", hashed_password=hash_pw("password123"), role=models.UserRole.TEACHER, school_id=1, active=True),
-    models.User(id=5, username="ms_jones", email="jones@learnmist.com", hashed_password=hash_pw("password123"), role=models.UserRole.TEACHER, school_id=1, active=True),
+    models.User(id=4, username="mr_smith", email="smith@brinymist.com", hashed_password=hash_pw("password123"), role=models.UserRole.TEACHER, school_id=1, active=True),
+    models.User(id=5, username="ms_jones", email="jones@brinymist.com", hashed_password=hash_pw("password123"), role=models.UserRole.TEACHER, school_id=1, active=True),
     
     # Teachers (School 2)
     models.User(id=6, username="dr_brown", email="brown@global.com", hashed_password=hash_pw("password123"), role=models.UserRole.TEACHER, school_id=2, active=True),
     
     # Students (School 1) - These are User accounts for login
-    models.User(id=7, username="student1", email="student1@learnmist.com", hashed_password=hash_pw("password123"), role=models.UserRole.STUDENT, school_id=1, active=True),
-    models.User(id=8, username="student2", email="student2@learnmist.com", hashed_password=hash_pw("password123"), role=models.UserRole.STUDENT, school_id=1, active=True),
+    models.User(id=7, username="student1", email="student1@brinymist.com", hashed_password=hash_pw("password123"), role=models.UserRole.STUDENT, school_id=1, active=True),
+    models.User(id=8, username="student2", email="student2@brinymist.com", hashed_password=hash_pw("password123"), role=models.UserRole.STUDENT, school_id=1, active=True),
 ]
 
 # 3. Grades

@@ -1067,7 +1067,7 @@ const QuestionPaperBuilder: React.FC = () => {
                         <div className="max-w-[21cm] mx-auto bg-white p-[2cm] shadow-2xl border border-slate-300 min-h-[29.7cm] relative">
                             {/* Watermark or subtle board indicator could go here */}
                             <div className="text-center mb-10 border-b-2 pb-6 border-slate-900">
-                                <h1 className="text-2xl font-black uppercase tracking-[0.2em] mb-1 text-slate-900">LEARNMIST SCHOOL</h1>
+                                <h1 className="text-2xl font-black uppercase tracking-[0.2em] mb-1 text-slate-900">BRINYMIST SCHOOL</h1>
                                 <div className="w-24 h-1 bg-slate-900 mx-auto mb-4"></div>
                                 <h2 className="text-xl font-bold mb-1 text-slate-800">{config.exam_type} - {config.academic_year}</h2>
                                 <h3 className="font-semibold text-slate-600">Class: {config.grade} | Subject: {config.subject}</h3>

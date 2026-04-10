@@ -5,11 +5,11 @@ from app import models
 db: Session = SessionLocal()
 
 def link_schooladmin():
-    print("Linking 'schooladmin' to Learnmist Demo School...")
+    print("Linking 'schooladmin' to Brinymist Demo School...")
     
-    school = db.query(models.School).filter(models.School.name == "Learnmist Demo School").first()
+    school = db.query(models.School).filter(models.School.name == "Brinymist Demo School").first()
     if not school:
-        print("Error: 'Learnmist Demo School' not found.")
+        print("Error: 'Brinymist Demo School' not found.")
         return
 
     user = db.query(models.User).filter(models.User.username == "schooladmin").first()

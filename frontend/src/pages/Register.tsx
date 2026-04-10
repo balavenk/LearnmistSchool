@@ -57,7 +57,7 @@ const Register: React.FC = () => {
             <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-slate-900">Create Account</h1>
-                    <p className="text-slate-500 mt-2">Join Learnmist as an independent learner</p>
+                    <p className="text-slate-500 mt-2">Join Brinymist as an independent learner</p>
                 </div>
 
                 {error && (

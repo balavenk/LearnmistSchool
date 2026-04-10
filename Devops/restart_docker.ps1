@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-$vmName = "learnmist-server"
+$vmName = "brinymist-server"
 $zone = "us-central1-a"
 $gcloudCmd = "gcloud"
 if (Test-Path "C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd") {

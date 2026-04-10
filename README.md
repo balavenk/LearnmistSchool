@@ -1,4 +1,4 @@
-# Learnmist School Management System
+# Brinymist School Management System
 
 This is a full-stack application for managing a school system, featuring portals for Super Admins, School Admins, Teachers, and Students.
 

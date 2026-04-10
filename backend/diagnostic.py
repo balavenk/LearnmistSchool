@@ -2,8 +2,8 @@ import sys
 import os
 
 # Set up paths to be able to import app
-sys.path.append('d:/CodeBase/Freelancing/LearnmistSchool/backend')
-os.environ["DATABASE_URL"] = "sqlite:///./learnmist.db" # using assumed default
+sys.path.append('d:/CodeBase/Freelancing/BrinymistSchool/backend')
+os.environ["DATABASE_URL"] = "sqlite:///./brinymist.db" # using assumed default
 
 from app import models, database, schemas
 from sqlalchemy.orm import Session, joinedload

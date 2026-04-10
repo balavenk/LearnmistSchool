@@ -6,9 +6,9 @@ from models import UserRole
 db: Session = SessionLocal()
 
 def link_users():
-    print("Linking users to Learnmist Demo School...")
+    print("Linking users to Brinymist Demo School...")
     
-    school = db.query(models.School).filter(models.School.name == "Learnmist Demo School").first()
+    school = db.query(models.School).filter(models.School.name == "Brinymist Demo School").first()
     if not school:
         print("Demo School not found.")
         return

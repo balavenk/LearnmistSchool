@@ -3,7 +3,7 @@
 $ErrorActionPreference = "Stop"
 
 $PROJECT_ID  = "project-7b2578b2-0b43-448e-80c"
-$VM_NAME     = "learnmist-server"
+$VM_NAME     = "brinymist-server"
 $ZONE        = "us-central1-a"
 $PACK        = "deploy_pack.tar.gz"
 $SERVER_IP   = "35.226.218.109"
@@ -25,7 +25,7 @@ function Fail([string]$msg) {
 
 Write-Host ""
 Write-Host "================================================" -ForegroundColor Yellow
-Write-Host "  LearnmistSchool  ->  http://${SERVER_IP}:${SERVER_PORT}" -ForegroundColor Yellow
+Write-Host "  BrinymistSchool  ->  http://${SERVER_IP}:${SERVER_PORT}" -ForegroundColor Yellow
 Write-Host "================================================" -ForegroundColor Yellow
 
 Step "1/6" "Setting GCP project..."

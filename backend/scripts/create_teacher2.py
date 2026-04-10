@@ -28,8 +28,8 @@ def create_teacher2():
         print(f"Creating user {username}...")
         # Need to find a school? The user didn't specify, but I should probably link to the demo school if possible, 
         # or leave null. The previous step linked all users to Demo School, so maybe I should link this one too.
-        # I'll try to find "Learnmist Demo School"
-        school = db.query(models.School).filter(models.School.name == "Learnmist Demo School").first()
+        # I'll try to find "Brinymist Demo School"
+        school = db.query(models.School).filter(models.School.name == "Brinymist Demo School").first()
         school_id = school.id if school else None
         
         new_user = models.User(
