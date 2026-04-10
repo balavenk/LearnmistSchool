@@ -61,7 +61,7 @@ const ExtractProgress: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-2xl shadow-lg p-8 text-white">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-8 text-white">
                 <div className="flex items-center gap-4 mb-4">
                     <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
                         {completed ? (
@@ -76,13 +76,13 @@ const ExtractProgress: React.FC = () => {
                     </div>
                     <div className="flex-1">
                         <h1 className="text-2xl font-bold">Extraction Progress</h1>
-                        <p className="text-orange-100 text-lg mt-1">
+                        <p className="text-indigo-100 text-lg mt-1">
                             {completed ? 'AI extraction finished!' : 'AI is extracting questions...'}
                         </p>
                     </div>
                     <div className="text-right">
                         <div className="text-5xl font-bold">{progress}%</div>
-                        <div className="text-orange-100 text-sm mt-1">{completed ? 'Complete' : 'Processing'}</div>
+                        <div className="text-indigo-100 text-sm mt-1">{completed ? 'Complete' : 'Processing'}</div>
                     </div>
                 </div>
                 <div className="mt-6 bg-white/20 rounded-full h-4 overflow-hidden backdrop-blur-sm">
@@ -119,7 +119,7 @@ const ExtractProgress: React.FC = () => {
                     onClick={() => navigate('/manage-question-bank')}
                     disabled={!completed}
                     className={`px-8 py-3 text-sm font-bold rounded-xl transition-all shadow-md ${completed
-                        ? 'bg-orange-600 text-white hover:bg-orange-700'
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                         : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                     }`}
                 >

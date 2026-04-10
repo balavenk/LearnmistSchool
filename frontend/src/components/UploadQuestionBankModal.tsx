@@ -133,12 +133,12 @@ const UploadQuestionBankModal: React.FC<UploadQuestionBankModalProps> = ({ isOpe
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 border-2 border-slate-200 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-orange-600 to-red-600"></div>
+                <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-indigo-600 to-purple-600"></div>
                 
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="bg-orange-100 p-2 rounded-lg">
-                            <Upload className="text-orange-600" size={24} />
+                        <div className="bg-indigo-100 p-2 rounded-lg">
+                            <Upload className="text-indigo-600" size={24} />
                         </div>
                         <h3 className="text-2xl font-bold text-slate-800">Upload Question Bank</h3>
                     </div>
@@ -156,7 +156,7 @@ const UploadQuestionBankModal: React.FC<UploadQuestionBankModalProps> = ({ isOpe
                             <select
                                 value={selectedGradeId}
                                 onChange={(e) => setSelectedGradeId(Number(e.target.value) || '')}
-                                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-medium"
+                                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                             >
                                 <option value="">Select Grade</option>
                                 {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -167,7 +167,7 @@ const UploadQuestionBankModal: React.FC<UploadQuestionBankModalProps> = ({ isOpe
                             <select
                                 value={selectedSubjectId}
                                 onChange={(e) => setSelectedSubjectId(Number(e.target.value) || '')}
-                                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-medium"
+                                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                                 disabled={!selectedGradeId}
                             >
                                 <option value="">Select Subject</option>
@@ -181,7 +181,7 @@ const UploadQuestionBankModal: React.FC<UploadQuestionBankModalProps> = ({ isOpe
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none resize-none h-24 font-medium"
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-24 font-medium"
                             placeholder="e.g., Previous year physics unit test papers..."
                         />
                     </div>
@@ -194,14 +194,14 @@ const UploadQuestionBankModal: React.FC<UploadQuestionBankModalProps> = ({ isOpe
                             onChange={(e) => setYear(e.target.value ? Number(e.target.value) : '')}
                             min="1900"
                             max="2100"
-                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-medium"
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                             placeholder="e.g., 2023"
                         />
                     </div>
 
                     <div>
                         <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-1.5 block">Upload PDF</label>
-                        <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-orange-500 hover:bg-orange-50 transition-all cursor-pointer relative">
+                        <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-indigo-500 hover:bg-indigo-50 transition-all cursor-pointer relative">
                             <input
                                 type="file"
                                 accept=".pdf"
@@ -210,7 +210,7 @@ const UploadQuestionBankModal: React.FC<UploadQuestionBankModalProps> = ({ isOpe
                             />
                             {file ? (
                                 <div className="flex flex-col items-center gap-2">
-                                    <div className="bg-orange-600 text-white p-3 rounded-xl">
+                                    <div className="bg-indigo-600 text-white p-3 rounded-xl">
                                         <FileText size={32} />
                                     </div>
                                     <span className="font-bold text-slate-800">{file.name}</span>
@@ -254,7 +254,7 @@ const UploadQuestionBankModal: React.FC<UploadQuestionBankModalProps> = ({ isOpe
                     <button
                         onClick={handleUpload}
                         disabled={loading || !file}
-                        className="px-8 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transform hover:scale-105"
+                        className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transform hover:scale-105"
                     >
                         {loading && <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>}
                         {loading ? 'Uploading...' : 'Start Upload'}

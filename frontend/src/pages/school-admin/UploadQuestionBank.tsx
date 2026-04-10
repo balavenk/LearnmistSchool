@@ -126,8 +126,8 @@ const SchoolAdminUploadQuestionBank: React.FC = () => {
             accessorKey: 'subject_name',
             cell: ({ row }) => (
                 <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-orange-50 rounded-lg border border-orange-100">
-                        <BookOpen className="w-4 h-4 text-orange-600" />
+                    <div className="p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
+                        <BookOpen className="w-4 h-4 text-indigo-600" />
                     </div>
                     <span className="font-semibold text-slate-900">{row.original.subject_name}</span>
                 </div>
