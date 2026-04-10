@@ -22,7 +22,7 @@ if (Test-Path "C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\gclo
     $gcloudCmd = "& 'C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\gcloud.cmd'"
 }
 
-Write-Host "LearnmistSchool GCP Deployment Script" -ForegroundColor Green
+Write-Host "BrinymistSchool GCP Deployment Script" -ForegroundColor Green
 
 if (-not $ProjectId) {
     $ProjectId = Read-Host "Enter your Google Cloud Project ID"
@@ -49,7 +49,7 @@ Write-Host "Skipping service enablement (User confirmed manual enablement)"
 
 # 2. Compute Engine VM
 Write-Host "Creating Compute Engine VM (e2-small)..."
-$vmName = "learnmist-server"
+$vmName = "brinymist-server"
 $zone = "us-central1-a"
 
 # Check if VM exists using list

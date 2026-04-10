@@ -62,7 +62,7 @@ def get_qdrant_client():
 async def process_chunks_async(
     chunks: List[str], 
     metadata: Dict, 
-    collection_name: str = "learnmist-school-small",
+    collection_name: str = "brinymist-school-small",
     progress_callback: Callable[[str], Awaitable[None]] = None
 ):
     """
@@ -202,7 +202,7 @@ async def generate_quiz_questions(
         client_openai = AsyncOpenAI(api_key=openai_api_key)
 
     client_qdrant = get_qdrant_client()
-    collection_name = "learnmist-school-small"
+    collection_name = "brinymist-school-small"
 
     try:
         # 1. Embed the query (topic) - only if using PDF context and NOT exclusively from the DB pool
@@ -453,7 +453,7 @@ async def generate_individual_quiz_questions(
         client_openai = AsyncOpenAI(api_key=openai_api_key)
 
     client_qdrant = get_qdrant_client()
-    collection_name = "learnmist-school-small"
+    collection_name = "brinymist-school-small"
 
     try:
         # 1. Embed the query (topic) - only if using PDF context

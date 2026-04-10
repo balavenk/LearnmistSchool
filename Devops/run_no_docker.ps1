@@ -1,5 +1,5 @@
 # Run Local Environment (No Docker)
-Write-Host "Starting LearnmistSchool Locally (No Docker)..."
+Write-Host "Starting BrinymistSchool Locally (No Docker)..."
 
 # 1. Start Backend
 Write-Host "Launching Backend in a new window..."

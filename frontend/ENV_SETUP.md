@@ -14,12 +14,12 @@ Used for local development when running `npm run dev`.
 ### `.env.staging`
 Used for staging deployments when running `npm run build:staging`.
 - **Update these URLs** with your actual staging server URLs
-- Example: `https://api-staging.learnmist.com`
+- Example: `https://api-staging.brinymist.com`
 
 ### `.env.production`
 Used for production builds when running `npm run build` or `npm run build:prod`.
 - **Update these URLs** with your actual production server URLs
-- Example: `https://api.learnmist.com`
+- Example: `https://api.brinymist.com`
 
 ### `.env.example`
 Template file showing all available environment variables.
@@ -146,7 +146,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Build with custom URLs
 docker build --build-arg VITE_API_URL=https://api.example.com \
              --build-arg VITE_WS_URL=wss://api.example.com \
-             -t learnmist-frontend .
+             -t brinymist-frontend .
 ```
 
 ## CI/CD Integration

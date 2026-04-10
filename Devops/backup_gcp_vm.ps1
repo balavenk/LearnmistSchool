@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $PROJECT_ID  = "project-7b2578b2-0b43-448e-80c"
-$VM_NAME     = "learnmist-server"
+$VM_NAME     = "brinymist-server"
 $ZONE        = "us-central1-a"
 
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -31,4 +31,4 @@ if ($LASTEXITCODE -eq 0) {
     exit 1
 }
 
--- learnmist-server-backup-20260314 name of the vm image created on 3/14/2026
+-- brinymist-server-backup-20260314 name of the vm image created on 3/14/2026

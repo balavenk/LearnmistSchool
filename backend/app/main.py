@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 #     print(f"Seeding failed: {e}")
 
 app = FastAPI(
-    title="LearnmistSchool API",
-    description="Backend API for LearnmistSchool application managing Super Admin, School Admin, Teachers, and Students.",
+    title="BrinymistSchool API",
+    description="Backend API for BrinymistSchool application managing Super Admin, School Admin, Teachers, and Students.",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"

@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 $ProjectId = "project-7b2578b2-0b43-448e-80c"
 $Zone = "us-central1-a"
-$InstanceName = "learnmist-prod"
-$IpName = "learnmist-prod-static-ip"
+$InstanceName = "brinymist-prod"
+$IpName = "brinymist-prod-static-ip"
 $MachineType = "e2-medium" # Better specs for prod/demo
 $ImageFamily = "cos-stable"
 $ImageProject = "cos-cloud"

@@ -1,7 +1,7 @@
 param(
     [string]$ProjectId,
     [string]$Region = "us-central1",
-    [string]$ServiceName = "learnmist-school"
+    [string]$ServiceName = "brinymist-school"
 )
 
 $ErrorActionPreference = "Stop"

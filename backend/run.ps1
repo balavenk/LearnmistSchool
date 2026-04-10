@@ -1,7 +1,7 @@
 # Run FastAPI Backend Server
 # This script activates the virtual environment and starts the Uvicorn server
 
-Write-Host "Starting LearnmistSchool Backend Server..." -ForegroundColor Green
+Write-Host "Starting BrinymistSchool Backend Server..." -ForegroundColor Green
 
 # Activate virtual environment
 & ".\venv\Scripts\Activate.ps1"

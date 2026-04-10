@@ -1,14 +1,14 @@
 # deploy_nodocker_gcp.ps1
-# Deploys LearnmistSchool to the existing GCP VM (no Docker).
-# VM: learnmist-server | Zone: us-central1-a | Project: project-7b2578b2-0b43-448e-80c
-# App runs via Systemd (learnmist.service) using uvicorn on port 8000.
+# Deploys BrinymistSchool to the existing GCP VM (no Docker).
+# VM: brinymist-server | Zone: us-central1-a | Project: project-7b2578b2-0b43-448e-80c
+# App runs via Systemd (brinymist.service) using uvicorn on port 8000.
 
 $PROJECT_ID  = "project-7b2578b2-0b43-448e-80c"
-$VM_NAME     = "learnmist-prod"
+$VM_NAME     = "brinymist-prod"
 $ZONE        = "us-central1-a"
 $PACK        = "deploy_pack.tar.gz"
 
-Write-Host "=== LearnmistSchool GCP Deploy (No Docker) ===" -ForegroundColor Green
+Write-Host "=== BrinymistSchool GCP Deploy (No Docker) ===" -ForegroundColor Green
 
 # ── 1. Set GCP project ──────────────────────────────────────────────────────
 Write-Host "[1/5] Setting GCP project..." -ForegroundColor Cyan

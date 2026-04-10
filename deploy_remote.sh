@@ -57,9 +57,9 @@ echo "=== [4] Writing Systemd service file ==="
 USER_HOME=$(eval echo ~$USER)
 USERNAME=$(whoami)
 
-sudo bash -c "cat > /etc/systemd/system/learnmist.service" << SVCEOF
+sudo bash -c "cat > /etc/systemd/system/brinymist.service" << SVCEOF
 [Unit]
-Description=LearnmistSchool FastAPI App
+Description=BrinymistSchool FastAPI App
 After=network.target
 
 [Service]
@@ -75,12 +75,12 @@ WantedBy=multi-user.target
 SVCEOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable learnmist.service
+sudo systemctl enable brinymist.service
 
-echo "=== [5] Restarting learnmist.service ==="
-sudo systemctl restart learnmist.service
+echo "=== [5] Restarting brinymist.service ==="
+sudo systemctl restart brinymist.service
 sleep 4
-sudo systemctl status learnmist.service --no-pager
+sudo systemctl status brinymist.service --no-pager
 
 # Quick health check — verify the live server is returning the new bundle
 echo ""

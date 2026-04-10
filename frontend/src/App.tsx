@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import Home from './pages/Home';
 import Login from './pages/Login';
 import DashboardLayout from './components/DashboardLayout';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
@@ -81,11 +82,13 @@ const App: React.FC = () => {
         }}
       />
       <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/home" element={<Home />} />
         <Route path="/login" element={<Login />} />
 
         {/* Protected Routes */}
         {/* Wrapped in Layout */}
-        <Route path="/" element={<DashboardLayout><Outlet /></DashboardLayout>}>
+        <Route element={<DashboardLayout><Outlet /></DashboardLayout>}>
           {/* SUPER ADMIN */}
           <Route path="super-admin" element={<SuperAdminDashboard />} />
           <Route path="schools" element={<Schools />} />

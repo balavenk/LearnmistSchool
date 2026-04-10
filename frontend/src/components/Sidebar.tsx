@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
                 { to: '/super-admin', label: 'Dashboard', end: true, icon: <DashboardIcon /> },
                 { to: '/schools', label: 'Schools', icon: <SchoolIcon /> },
                 { to: '/user-management', label: 'User Management', icon: <UsersIcon /> },
-                { to: '/manage-question-bank', label: 'Manage Question Bank', icon: <QuestionBankIcon /> },
+                { to: '/manage-question-bank', label: 'Extract Question Bank', icon: <QuestionBankIcon /> },
                 { to: '/settings', label: 'Settings', icon: <SettingsIcon /> },
                 { to: '/train-llm', label: 'Train Via LLM', icon: <BrainIcon /> },
             ],
@@ -105,7 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
             `}>
                 {/* Header */}
                 <div className="flex items-center justify-between h-20 border-b border-slate-800 px-6">
-                    <h1 className="text-xl font-bold tracking-wider text-indigo-400">LEARNMIST</h1>
+                    <h1 className="text-xl font-bold tracking-wider text-indigo-400">BRINYMIST</h1>
                     {/* Close button for mobile */}
                     <button
                         onClick={onClose}

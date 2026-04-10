@@ -3,7 +3,7 @@
 # - Backend API: Local machine (port 8000)
 # - Frontend:    Local machine (port 5173)
 
-Write-Host "Starting LearnmistSchool Local Dev Environment..." -ForegroundColor Cyan
+Write-Host "Starting BrinymistSchool Local Dev Environment..." -ForegroundColor Cyan
 
 # ----------------------------------------------------------------
 # 1. Ensure Docker is running
@@ -79,11 +79,11 @@ if (-not (Test-Path "backend\venv")) {
 }
 
 Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "Write-Host 'Backend API Starting...' -ForegroundColor Cyan; " + `
+    ("Write-Host 'Backend API Starting...' -ForegroundColor Cyan; " + `
     "Set-Location '$PWD\backend'; " + `
     ".\venv\Scripts\Activate.ps1; " + `
     "alembic upgrade head; " + `
-    "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+    "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000")
 
 Write-Host "      Backend started in a new window." -ForegroundColor Green
 
@@ -98,9 +98,9 @@ if (-not (Test-Path "frontend\node_modules")) {
 }
 
 Start-Process powershell -ArgumentList "-NoExit", "-Command", `
-    "Write-Host 'Frontend Starting...' -ForegroundColor Cyan; " + `
+    ("Write-Host 'Frontend Starting...' -ForegroundColor Cyan; " + `
     "Set-Location '$PWD\frontend'; " + `
-    "npm run dev"
+    "npm run dev")
 
 Write-Host "      Frontend started in a new window." -ForegroundColor Green
 
