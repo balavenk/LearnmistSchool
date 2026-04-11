@@ -3,7 +3,7 @@
 $ErrorActionPreference = "Stop"
 
 $PROJECT_ID  = "project-7b2578b2-0b43-448e-80c"
-$VM_NAME     = "brinymist-server"
+$VM_NAME     = "learnmist-server"
 $ZONE        = "us-central1-a"
 $PACK        = "deploy_pack.tar.gz"
 $SERVER_IP   = "35.226.218.109"

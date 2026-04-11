@@ -69,7 +69,7 @@ const Login: React.FC = () => {
                 <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" />
 
                 <div className="relative z-20 text-center px-12">
-                    <h1 className="text-5xl font-bold text-white mb-6">Brinymist School</h1>
+                    <h1 className="text-5xl font-bold text-white mb-6">Brinymist AI</h1>
                     <p className="text-xl text-indigo-200">Empowering the next generation of learners.</p>
                 </div>
             </div>

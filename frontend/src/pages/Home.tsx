@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Users, Brain, Activity, ArrowRight, CheckCircle2, Shield, Zap, Contact } from 'lucide-react';
 
