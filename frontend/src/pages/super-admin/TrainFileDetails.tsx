@@ -110,17 +110,17 @@ const TrainFileDetails: React.FC = () => {
     return (
         <div className="space-y-6">
             {/* Gradient Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-4 text-white">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6 ">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                        <div className="bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl p-3 shadow-lg">
                             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold">Train File Details</h1>
-                            <p className="text-indigo-100 text-md mt-1">Configure training parameters and metadata</p>
+                            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Train File Details</h1>
+                            <p className="text-slate-600 text-md mt-1">Configure training parameters and metadata</p>
                         </div>
                     </div>
                     <button

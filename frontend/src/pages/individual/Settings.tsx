@@ -117,7 +117,7 @@ const Settings: React.FC = () => {
 
     return (
         <div className="p-6">
-            <h1 className="text-2xl font-bold text-slate-900 mb-6">Settings</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Settings</h1>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 max-w-2xl">
                 <h2 className="text-lg font-semibold mb-4">Academic Settings</h2>

@@ -182,17 +182,17 @@ const ManageQuestionBank: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-8 text-white">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6 ">
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-4">
-                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                        <div className="bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl p-3 shadow-lg">
                             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                             </svg>
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold">Manage Question Bank</h1>
-                            <p className="text-indigo-100 text-md mt-1">Extract structured questions from PDF banks into the pool</p>
+                            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Manage Question Bank</h1>
+                            <p className="text-slate-600 text-md mt-1">Extract structured questions from PDF banks into the pool</p>
                         </div>
                     </div>
                     <button

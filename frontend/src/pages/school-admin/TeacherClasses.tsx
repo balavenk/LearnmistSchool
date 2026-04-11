@@ -185,10 +185,10 @@ const TeacherClasses: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex items-center justify-between mb-6">
                 <div>
                     <button onClick={() => navigate('/school-admin/teachers')} className="text-indigo-600 hover:underline text-sm mb-2">← Back to Teachers</button>
-                    <h1 className="text-2xl font-bold text-slate-900">Assigned Classes for {teacherName || 'Teacher'}</h1>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Assigned Classes for {teacherName || 'Teacher'}</h1>
                 </div>
                 <button
                     onClick={() => setIsAddModalOpen(true)}

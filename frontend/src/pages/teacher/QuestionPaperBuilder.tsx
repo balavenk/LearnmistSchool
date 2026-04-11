@@ -446,8 +446,8 @@ const QuestionPaperBuilder: React.FC = () => {
 
             {/* Wizard Header */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-2xl font-bold text-indigo-900">Question Paper Builder</h1>
+                <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex items-center justify-between mb-4 mb-6">
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Question Paper Builder</h1>
                     <button
                         onClick={() => navigate('/teacher/papers')}
                         className="text-slate-500 hover:text-slate-700 font-medium"

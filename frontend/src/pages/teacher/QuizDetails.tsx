@@ -258,9 +258,9 @@ const QuizDetails: React.FC = () => {
 
             {/* Print Only Header */}
             <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
-                <div className="flex justify-between items-start mb-6">
+                <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex justify-between items-start mb-6 mb-6">
                     <div>
-                        <h1 className="text-2xl font-bold uppercase tracking-wider">Brinymist School</h1>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Brinymist School</h1>
                         <p className="text-sm text-slate-600">Official Assessment Paper</p>
                     </div>
                     <div className="text-right">

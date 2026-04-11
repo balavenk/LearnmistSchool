@@ -72,7 +72,7 @@ const TeacherDashboard: React.FC = () => {
                             <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-bold text-slate-900">
+                            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
                                 Welcome back, {username}!
                             </h1>
                             <p className="text-xs md:text-sm text-slate-600 mt-0.5">Here's your overview for today</p>
@@ -97,7 +97,7 @@ const TeacherDashboard: React.FC = () => {
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Total Classes</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats?.total_classes || 0}</h3>
-                            <div className="flex items-center gap-1 text-white/80 text-xs">
+                            <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <TrendingUp className="w-3 h-3" />
                                 <span>Active</span>
                             </div>
@@ -114,7 +114,7 @@ const TeacherDashboard: React.FC = () => {
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Total Students</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats?.total_students || 0}</h3>
-                            <div className="flex items-center gap-1 text-white/80 text-xs">
+                            <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <Users className="w-3 h-3" />
                                 <span>Enrolled</span>
                             </div>
@@ -131,7 +131,7 @@ const TeacherDashboard: React.FC = () => {
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Assignments</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats?.total_assignments || 0}</h3>
-                            <div className="flex items-center gap-1 text-white/80 text-xs">
+                            <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <ClipboardList className="w-3 h-3" />
                                 <span>Created</span>
                             </div>
@@ -148,7 +148,7 @@ const TeacherDashboard: React.FC = () => {
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Pending Grading</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats?.pending_grading || 0}</h3>
-                            <div className="flex items-center gap-1 text-white/80 text-xs">
+                            <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <Award className="w-3 h-3" />
                                 <span>To Review</span>
                             </div>

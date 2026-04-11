@@ -113,9 +113,9 @@ const TakeQuiz: React.FC<TakeQuizProps> = ({ assignmentId, onClose, onSubmitSucc
         <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
             <div className="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="mb-8 border-b border-slate-200 pb-6 flex justify-between items-start">
+                <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-8 border-b border-slate-200 pb-6 flex justify-between items-start mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900">{assignment.title}</h1>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">{assignment.title}</h1>
                         <p className="mt-2 text-slate-600">{assignment.description}</p>
                     </div>
                     <button

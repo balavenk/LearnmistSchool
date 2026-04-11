@@ -253,7 +253,7 @@ const TeachersList: React.FC = () => {
 
     const mobileCardRender = useCallback((teacher: Teacher) => (
         <div className="space-y-2">
-            <div className="flex justify-between items-start">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex justify-between items-start mb-6">
                 <div>
                     <h4 className="font-bold text-slate-900">{teacher.username}</h4>
                     {teacher.full_name && <p className="text-sm font-medium text-slate-700">{teacher.full_name}</p>}
@@ -291,7 +291,7 @@ const TeachersList: React.FC = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Teachers</h1>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Teachers</h1>
                     <p className="text-slate-500 text-sm">Manage teaching staff.</p>
                 </div>
                 <button onClick={handleOpenModal} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">

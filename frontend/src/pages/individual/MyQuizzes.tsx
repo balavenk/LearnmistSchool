@@ -131,8 +131,8 @@ const MyQuizzes: React.FC = () => {
                     }}
                 />
             )}
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-slate-900">My Quizzes</h1>
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex justify-between items-center mb-6 mb-6">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">My Quizzes</h1>
                 <button
                     onClick={() => setShowCreateModal(true)}
                     className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"

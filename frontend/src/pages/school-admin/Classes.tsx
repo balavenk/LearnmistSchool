@@ -321,10 +321,10 @@ const Classes: React.FC = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Classes Management</h1>
-                    <p className="text-slate-500 mt-1">Manage all classes, sections, and assigned teachers.</p>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Classes Management</h1>
+                    <p className="text-slate-600 mt-1">Manage all classes, sections, and assigned teachers.</p>
                 </div>
                 <button
                     onClick={handleOpenModal}

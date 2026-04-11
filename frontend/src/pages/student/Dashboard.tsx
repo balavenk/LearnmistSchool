@@ -3,7 +3,7 @@ import React from 'react';
 const StudentDashboard: React.FC = () => {
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-slate-900">Student Dashboard</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Student Dashboard</h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Content (Schedule/Classes) */}

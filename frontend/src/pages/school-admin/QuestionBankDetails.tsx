@@ -222,7 +222,7 @@ const QuestionBankDetails: React.FC = () => {
                     </svg>
                 </button>
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Question Bank - Grade {gradeId}</h1>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Question Bank - Grade {gradeId}</h1>
                     <p className="text-slate-500 text-sm">Manage educational materials for this grade.</p>
                 </div>
             </div>

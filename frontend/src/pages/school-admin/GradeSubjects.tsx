@@ -104,7 +104,7 @@ const GradeSubjects: React.FC = () => {
                 >
                     ← Back
                 </button>
-                <h1 className="text-2xl font-bold text-slate-900">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">
                     Manage Subjects for {grade.name}
                 </h1>
             </div>

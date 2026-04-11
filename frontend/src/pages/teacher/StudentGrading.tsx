@@ -269,7 +269,7 @@ const StudentGrading: React.FC = () => {
 
         return (
             <div className="space-y-4">
-                <div className="flex justify-between items-start">
+                <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex justify-between items-start mb-6">
                     <div className="flex items-center gap-3">
                         <div className={`p-3 rounded-xl border shadow-sm ${isGraded ? 'bg-green-50 border-green-100 text-green-600' :
                                 isCompleted ? 'bg-indigo-50 border-indigo-100 text-indigo-600' :
@@ -651,7 +651,7 @@ const StudentGrading: React.FC = () => {
                 </button>
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900 mb-1">Student Grading Overview</h1>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Student Grading Overview</h1>
                         <p className="text-sm text-slate-500">Manage assignments and review submissions</p>
                     </div>
                     {studentName && (

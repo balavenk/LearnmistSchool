@@ -10,7 +10,7 @@ const Settings: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Settings</h1>
             <p className="text-slate-500">Manage global master data and configurations.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">

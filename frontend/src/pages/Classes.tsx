@@ -187,7 +187,7 @@ const Classes: React.FC = () => {
 
     const mobileCardRender = useCallback((cls: ClassData) => (
         <div className="space-y-4">
-            <div className="flex justify-between items-start">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex justify-between items-start mb-6">
                 <div className="flex items-center">
                     <div className="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold mr-3 text-sm border border-indigo-200 shadow-sm">
                         {cls.grade.replace('Grade ', '')}{cls.section}
@@ -241,7 +241,7 @@ const Classes: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Classes Management</h1>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Classes Management</h1>
                     <p className="text-slate-500 font-medium flex items-center gap-1.5">
                         <GraduationCap className="w-4 h-4 text-indigo-500" />
                         Oversee and organize all academic classes and sections.

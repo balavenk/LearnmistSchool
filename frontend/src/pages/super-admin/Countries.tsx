@@ -148,11 +148,11 @@ const Countries: React.FC = () => {
     return (
         <div className="space-y-8">
             {/* Gradient Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-8 text-white">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6 ">
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold mb-2">Countries</h1>
-                        <p className="text-indigo-100 text-lg">Manage supported countries and regions</p>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Countries</h1>
+                        <p className="text-slate-600 text-lg">Manage supported countries and regions</p>
                     </div>
                     <button
                         onClick={handleCreate}

@@ -262,10 +262,10 @@ const Templates: React.FC = () => {
         <div className="max-w-6xl mx-auto space-y-6">
 
             {/* Page Header */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex items-center justify-between">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6 flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-indigo-900">Paper Templates</h1>
-                    <p className="text-sm text-slate-500 mt-1">Reusable blueprints — structure only. No questions attached.</p>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Paper Templates</h1>
+                    <p className="text-sm text-slate-600">Reusable blueprints — structure only. No questions attached.</p>
                 </div>
                 <button
                     onClick={openCreate}

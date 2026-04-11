@@ -73,9 +73,9 @@ const TrainProgress: React.FC = () => {
     return (
         <div className="space-y-6">
             {/* Gradient Header with Progress */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-8 text-white">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6 ">
                 <div className="flex items-center gap-4 mb-4">
-                    <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3">
+                    <div className="bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl p-3 shadow-lg">
                         {completed ? (
                             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -87,14 +87,14 @@ const TrainProgress: React.FC = () => {
                         )}
                     </div>
                     <div className="flex-1">
-                        <h1 className="text-2xl font-bold">Training Progress</h1>
-                        <p className="text-indigo-100 text-lg mt-1">
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Training Progress</h1>
+                        <p className="text-slate-600 text-lg mt-1">
                             {completed ? 'Training completed successfully!' : 'Training in progress...'}
                         </p>
                     </div>
                     <div className="text-right">
                         <div className="text-5xl font-bold">{progress}%</div>
-                        <div className="text-indigo-100 text-sm mt-1">{completed ? 'Complete' : 'Processing'}</div>
+                        <div className="text-slate-600 text-sm mt-1">{completed ? 'Complete' : 'Processing'}</div>
                     </div>
                 </div>
                 {/* Progress Bar */}

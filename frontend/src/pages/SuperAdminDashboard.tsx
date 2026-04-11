@@ -117,17 +117,17 @@ const SuperAdminDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Gradient Header */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-lg p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
+      <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6  flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
         <div>
-          <h1 className="capitalize text-2xl font-bold mb-1 md:mb-2">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
             Welcome {userName}
           </h1>
-          <p className="text-indigo-100 text-sm md:text-base opacity-90">
+          <p className="text-slate-600 text-sm md:text-base opacity-90">
             Have a great day managing the platform!
           </p>
         </div>
         <div className="w-full md:w-auto bg-white/10 md:bg-transparent rounded-xl p-3 md:p-0 backdrop-blur-sm md:backdrop-blur-none flex items-center justify-between md:block">
-          <p className="text-sm text-indigo-100 md:text-indigo-100 mb-0 md:mb-1 inline md:block mr-2 md:mr-0">Today</p>
+          <p className="text-sm text-slate-600 md:text-slate-600 mb-0 md:mb-1 inline md:block mr-2 md:mr-0">Today</p>
           <p className="text-lg font-bold text-white">
             {new Date().toLocaleDateString("en-US", {
               month: "short",

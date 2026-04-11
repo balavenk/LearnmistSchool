@@ -232,7 +232,7 @@ const SchoolAdminUploadQuestionBank: React.FC = () => {
 
     const mobileCardRender = useCallback((pdf: PdfFile) => (
         <div className="space-y-4">
-            <div className="flex justify-between items-start">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex justify-between items-start mb-6">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
                         <FileIcon className="w-5 h-5" />
@@ -292,20 +292,22 @@ const SchoolAdminUploadQuestionBank: React.FC = () => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800">Question Bank Upload</h1>
-                    <p className="text-sm text-slate-500 mt-1">
-                        Manage Question Bank PDFs containing only questions for extraction.
-                    </p>
-                </div>
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Question Bank Upload</h1>
+                        <p className="text-sm text-slate-600 mt-1">
+                            Manage Question Bank PDFs containing only questions for extraction.
+                        </p>
+                    </div>
 
-                <button
-                    onClick={() => setShowUploadModal(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
-                >
-                    <Plus className="w-5 h-5" /> Upload Question Bank
-                </button>
+                    <button
+                        onClick={() => setShowUploadModal(true)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 shadow"
+                    >
+                        <Plus className="w-5 h-5" /> Upload Question Bank
+                    </button>
+                </div>
             </div>
 
             {/* Filter Section */}

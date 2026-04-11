@@ -270,22 +270,24 @@ const AdminUploadPdf: React.FC = () => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Upload Textbook</h1>
-                    <p className="text-slate-500 font-medium flex items-center gap-1.5">
-                        <GraduationCap className="w-4 h-4 text-indigo-500" />
-                        Manage educational materials and train LLM across all grades.
-                    </p>
-                </div>
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Upload Textbook</h1>
+                        <p className="text-slate-600 font-medium flex items-center gap-1.5">
+                            <GraduationCap className="w-4 h-4 text-indigo-500" />
+                            Manage educational materials and train LLM across all grades.
+                        </p>
+                    </div>
 
-                <button
-                    onClick={() => setShowUploadModal(true)}
-                    disabled={selectedGradeId === ''}
-                    className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-6 py-3 rounded-xl shadow-lg shadow-indigo-100 font-bold transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
-                >
-                    <Plus className="w-5 h-5" /> Add PDF to train LLM
-                </button>
+                    <button
+                        onClick={() => setShowUploadModal(true)}
+                        disabled={selectedGradeId === ''}
+                        className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-6 py-3 rounded-xl shadow-lg shadow-indigo-100 font-bold transition-all flex items-center gap-2 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
+                    >
+                        <Plus className="w-5 h-5" /> Add PDF to train LLM
+                    </button>
+                </div>
             </div>
 
             {/* Filter Section */}

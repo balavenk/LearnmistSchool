@@ -230,8 +230,8 @@ const StudentAssignments: React.FC = () => {
             )}
 
             <div>
-                <h1 className="text-3xl font-black text-slate-900 tracking-tight">My Assignments</h1>
-                <p className="text-slate-500 mt-1 text-lg">Manage and track your school work progress.</p>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">My Assignments</h1>
+                <p className="text-slate-600 mt-1 text-lg">Manage and track your school work progress.</p>
             </div>
 
             {loading ? (

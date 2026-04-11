@@ -188,13 +188,13 @@ const GradesList: React.FC = () => {
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex flex-col md:flex-row md:items-center justify-between ga mb-6">
                 <div className="flex items-center gap-4">
                     <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2.5 rounded-2xl shadow-lg ring-4 ring-indigo-50">
                         <BookOpen className="w-7 h-7 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-800 tracking-tight">Grades Management</h1>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Grades Management</h1>
                         <p className="text-slate-500 font-medium text-sm">Organize grade levels, sections, and subjects.</p>
                     </div>
                 </div>

@@ -52,7 +52,7 @@ const SchoolAdminDashboard: React.FC = () => {
                             </svg>
                         </div>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-bold text-slate-900">
+                            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
                                 Welcome {username}
                                 <span className='inline-block text-sm font-normal text-slate-500 ml-2'>({role.replace('_', ' ')})</span>
                             </h1>
@@ -77,7 +77,7 @@ const SchoolAdminDashboard: React.FC = () => {
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Total Students</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats.total_students}</h3>
-                            <div className="flex items-center gap-1 text-white/80 text-xs">
+                            <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <Users className="w-3 h-3" />
                                 <span>Enrolled</span>
                             </div>
@@ -94,7 +94,7 @@ const SchoolAdminDashboard: React.FC = () => {
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Total Teachers</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats.total_teachers}</h3>
-                            <div className="flex items-center gap-1 text-white/80 text-xs">
+                            <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <BookOpen className="w-3 h-3" />
                                 <span>Teaching</span>
                             </div>
@@ -111,7 +111,7 @@ const SchoolAdminDashboard: React.FC = () => {
                         <div className="flex-1">
                             <p className="text-white/90 text-sm font-medium mb-1">Classes</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats.total_classes}</h3>
-                            <div className="flex items-center gap-1 text-white/80 text-xs">
+                            <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <GraduationCap className="w-3 h-3" />
                                 <span>Active</span>
                             </div>

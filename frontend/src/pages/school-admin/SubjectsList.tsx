@@ -197,9 +197,9 @@ const SubjectsList: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Subjects</h1>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Subjects</h1>
                     <p className="text-slate-500 text-sm">Manage curriculum subjects.</p>
                 </div>
                 <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
