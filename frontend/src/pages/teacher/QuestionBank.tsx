@@ -70,7 +70,7 @@ const QuestionBank: React.FC = () => {
     const [quizTitle, setQuizTitle] = useState('');
     const [quizDesc, setQuizDesc] = useState('');
     const [dueDate, setDueDate] = useState('');
-    const [includeFromPDF, setIncludeFromPDF] = useState(false);
+
     const [creating, setCreating] = useState(false);
 
 
@@ -203,7 +203,7 @@ const QuestionBank: React.FC = () => {
             setQuizTitle('');
             setQuizDesc('');
             setDueDate('');
-            setIncludeFromPDF(false);
+
             setSelectedIds([]);
             navigate('/teacher/assignments');
         } catch (error: any) {
@@ -692,32 +692,7 @@ const QuestionBank: React.FC = () => {
                                     placeholder="Add details about the quiz..."
                                 />
                             </div>
-                            {/* PDF Source Checkbox */}
-                            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
-                                <label className="flex items-start gap-3 cursor-pointer group">
-                                    <div className="flex items-center h-6">
-                                        <input
-                                            type="checkbox"
-                                            checked={includeFromPDF}
-                                            onChange={(e) => setIncludeFromPDF(e.target.checked)}
-                                            className="w-5 h-5 rounded-lg border-2 border-amber-400 text-amber-600 focus:ring-2 focus:ring-amber-500 focus:ring-offset-0 cursor-pointer transition-all"
-                                        />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                            </svg>
-                                            <span className="text-sm font-bold text-amber-900">Include from Uploaded PDF/Book</span>
-                                        </div>
-                                        <p className="text-xs text-amber-700 leading-relaxed">
-                                            {includeFromPDF
-                                                ? '✓ Quiz will be generated only from uploaded PDF materials'
-                                                : '○ Quiz will use open source questions (general knowledge base)'}
-                                        </p>
-                                    </div>
-                                </label>
-                            </div>
+
                             <div>
                                 <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2 flex items-center gap-1">
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
