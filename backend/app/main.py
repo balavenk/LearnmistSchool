@@ -66,6 +66,21 @@ app.include_router(auth_routes.router)
 app.include_router(ws_generation.router)
 app.include_router(individual.router)
 
+# SPA Middleware: Intercept direct browser navigations and return index.html
+@app.middleware("http")
+async def spa_html_intercept(request: Request, call_next):
+    if request.method == "GET":
+        accept_header = request.headers.get("accept", "")
+        path = request.url.path
+        # If a browser requests HTML, serve the SPA index.html, skipping backend API routes
+        if "text/html" in accept_header and not path.startswith(("/assets/", "/docs", "/redoc", "/openapi.json")):
+            if frontend_dist:
+                index_path = os.path.join(frontend_dist, "index.html")
+                if os.path.exists(index_path):
+                    from fastapi.responses import FileResponse
+                    return FileResponse(index_path)
+    return await call_next(request)
+
 # Serve Frontend Static Files
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse

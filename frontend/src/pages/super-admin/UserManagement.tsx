@@ -12,6 +12,7 @@ type UserRole = 'SCHOOL_ADMIN' | 'TEACHER' | 'STUDENT';
 interface School {
     id: number;
     name: string;
+    address?: string;
 }
 
 interface User {
@@ -428,21 +429,24 @@ const UserManagement: React.FC = () => {
                         <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">User Management</h1>
                         <p className="text-slate-600 text-md">Manage school admins, teachers, and students across all schools</p>
                     </div>
-
-                    <div className="w-full md:w-80">
-                        <label className="block text-sm font-bold text-slate-600 mb-2">Select School</label>
-                        <select
-                            className="w-full px-4 py-2 border-2 border-white/20 rounded-xl focus:ring-2 focus:ring-white focus:border-white outline-none bg-white/10 backdrop-blur-sm font-medium text-white placeholder-indigo-200"
-                            value={selectedSchoolId || ''}
-                            onChange={handleSchoolChange}
-                        >
-                            <option value="" disabled className="text-slate-900">-- Choose a School --</option>
-                            {schools.map(school => (
-                                <option key={school.id} value={school.id} className="text-slate-900">{school.name}</option>
-                            ))}
-                        </select>
-                    </div>
                 </div>
+            </div>
+
+            {/* Full-width School Dropdown */}
+            <div className="w-full bg-white p-4 rounded-xl shadow-sm border-2 border-slate-200 shrink-0 mb-4">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Select School</label>
+                <select
+                    className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-800 font-medium bg-slate-50"
+                    value={selectedSchoolId || ''}
+                    onChange={handleSchoolChange}
+                >
+                    <option value="" disabled>-- Choose a School --</option>
+                    {schools.map(school => (
+                        <option key={school.id} value={school.id}>
+                            {school.name}{school.address ? `  (${school.address})` : ''}
+                        </option>
+                    ))}
+                </select>
             </div>
 
             {selectedSchoolId ? (
