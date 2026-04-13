@@ -30,13 +30,14 @@ const Login: React.FC = () => {
 
             console.log("Login response", response);
 
-            const { access_token, role, username: returnedUsername, school_name } = response.data;
+            const { access_token, role, username: returnedUsername, school_name, school_type_name } = response.data;
 
             if (access_token) {
                 localStorage.setItem('token', access_token);
                 localStorage.setItem('role', role);
                 localStorage.setItem('username', returnedUsername || username);
                 if (school_name) localStorage.setItem('schoolName', school_name);
+                if (school_type_name) localStorage.setItem('schoolType', school_type_name);
                 if (response.data.id) localStorage.setItem('userId', response.data.id);
 
 

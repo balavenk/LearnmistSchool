@@ -17,6 +17,7 @@ interface Teacher {
 }
 
 const TeachersList: React.FC = () => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     const navigate = useNavigate();
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState(true);
@@ -151,7 +152,7 @@ const TeachersList: React.FC = () => {
             refetchTeachers();
             setIsCreateModalOpen(false);
             setNewUsername(''); setNewFullName(''); setNewEmail(''); setNewPassword(''); setNewConfirmPassword(''); // setNewSubject('');
-            toast.success("Teacher created successfully");
+            toast.success(isCorporate ? "Manager created successfully" : "Teacher created successfully");
         } catch (error: any) {
             console.error("Failed to create teacher", error);
             const detail = error.response?.data?.detail;
@@ -291,11 +292,11 @@ const TeachersList: React.FC = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Teachers</h1>
-                    <p className="text-slate-500 text-sm">Manage teaching staff.</p>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">{isCorporate ? 'Managers' : 'Teachers'}</h1>
+                    <p className="text-slate-500 text-sm">{isCorporate ? 'Manage managers staff.' : 'Manage teaching staff.'}</p>
                 </div>
                 <button onClick={handleOpenModal} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
-                    + Add Teacher
+                    + {isCorporate ? 'Add Manager' : 'Add Teacher'}
                 </button>
             </div>
 
@@ -303,7 +304,7 @@ const TeachersList: React.FC = () => {
                 <div className="relative">
                     <input
                         type="text"
-                        placeholder="Search teachers..."
+                        placeholder={isCorporate ? 'Search managers...' : 'Search teachers...'}
                         className="w-full pl-4 pr-10 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
                         value={searchTerm}
                         onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
@@ -321,7 +322,7 @@ const TeachersList: React.FC = () => {
                     data={paginated}
                     columns={columns}
                     isLoading={loading}
-                    emptyMessage="No teachers found."
+                    emptyMessage={isCorporate ? 'No managers found.' : 'No teachers found.'}
                     mobileCardRender={mobileCardRender}
                 />
                 <PaginationControls
@@ -347,7 +348,7 @@ const TeachersList: React.FC = () => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Add Teacher</h2>
+                            <h2 className="text-xl font-bold">{isCorporate ? 'Add Manager' : 'Add Teacher'}</h2>
                             <button
                                 type="button"
                                 onClick={() => setIsCreateModalOpen(false)}

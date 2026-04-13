@@ -20,6 +20,7 @@ class Token(BaseModel):
     username: Optional[str] = None
     id: Optional[int] = None
     school_name: Optional[str] = None
+    school_type_name: Optional[str] = None
 
 class TokenData(BaseModel):
     username: Optional[str] = None

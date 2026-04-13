@@ -23,6 +23,7 @@ interface ClassSection {
 }
 
 const GradesList: React.FC = () => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     const [grades, setGrades] = useState<Grade[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -77,7 +78,7 @@ const GradesList: React.FC = () => {
             fetchGrades();
             setIsAddGradeModalOpen(false);
             setNewGradeName('');
-            toast.success("Grade created successfully");
+            toast.success(isCorporate ? "Location created successfully" : "Grade created successfully");
         } catch (error) {
             console.error("Failed to create grade", error);
             toast.error("Failed to create grade");
@@ -139,7 +140,7 @@ const GradesList: React.FC = () => {
         () => [
             {
                 accessorKey: 'name',
-                header: 'Grade Name',
+                header: isCorporate ? 'Location Name' : 'Grade Name',
                 cell: ({ row }) => (
                     <div className="flex items-center gap-2">
                         <span className="font-medium text-slate-900">{row.original.name}</span>
@@ -194,8 +195,8 @@ const GradesList: React.FC = () => {
                         <BookOpen className="w-7 h-7 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Grades Management</h1>
-                        <p className="text-slate-500 font-medium text-sm">Organize grade levels, sections, and subjects.</p>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">{isCorporate ? 'Locations Management' : 'Grades Management'}</h1>
+                        <p className="text-slate-500 font-medium text-sm">{isCorporate ? 'Organize locations, departments, and subjects.' : 'Organize grade levels, sections, and subjects.'}</p>
                     </div>
                 </div>
                 <button
@@ -203,7 +204,7 @@ const GradesList: React.FC = () => {
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl font-bold transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
                 >
                     <PlusCircle className="w-5 h-5" />
-                    Add Grade
+                    {isCorporate ? 'Add Location' : 'Add Grade'}
                 </button>
             </div>
 
@@ -213,7 +214,7 @@ const GradesList: React.FC = () => {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-indigo-500 transition-colors" />
                     <input
                         type="text"
-                        placeholder="Quick search grades..."
+                        placeholder={isCorporate ? 'Quick search locations...' : 'Quick search grades...'}
                         className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border-2 border-slate-100 rounded-xl outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 transition-all font-medium text-slate-700"
                         value={searchTerm}
                         onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
@@ -235,7 +236,7 @@ const GradesList: React.FC = () => {
                     data={paginatedItems}
                     columns={columns}
                     isLoading={loading}
-                    emptyMessage={searchTerm ? `No grades matching "${searchTerm}"` : "No grades found. Add your first grade level!"}
+                    emptyMessage={searchTerm ? `No ${isCorporate ? 'locations' : 'grades'} matching "${searchTerm}"` : `No ${isCorporate ? 'locations' : 'grades'} found. Add your first ${isCorporate ? 'location' : 'grade level'}!`}
                 />
 
                 <PaginationControls
@@ -260,15 +261,15 @@ const GradesList: React.FC = () => {
                             <XCircle className="w-7 h-7" />
                         </button>
                         <h2 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2">
-                            Add Grade
+                            {isCorporate ? 'Add Location' : 'Add Grade'}
                         </h2>
                         <form onSubmit={handleCreateGrade} className="space-y-6">
                             <div>
-                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Grade Name</label>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">{isCorporate ? 'Location Name' : 'Grade Name'}</label>
                                 <input
                                     value={newGradeName}
                                     onChange={(e) => isValidInput(e.target.value) && setNewGradeName(e.target.value)}
-                                    placeholder="e.g. Grade 10"
+                                    placeholder={isCorporate ? 'e.g. New York HQ' : 'e.g. Grade 10'}
                                     required
                                     className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50/50 transition-all font-bold text-slate-700"
                                 />

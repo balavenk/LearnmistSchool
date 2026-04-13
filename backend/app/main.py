@@ -179,10 +179,15 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         data={"sub": user.username, "role": user.role, "school_id": user.school_id, "id": user.id}, expires_delta=access_token_expires
     )
     school_name = None
+    school_type_name = None
     if user.school_id:
         school = db.query(models.School).filter(models.School.id == user.school_id).first()
         if school:
             school_name = school.name
+            if school.school_type_id:
+                st = db.query(models.SchoolType).filter(models.SchoolType.id == school.school_type_id).first()
+                if st:
+                    school_type_name = st.name
     
     # Update last login
     from datetime import datetime
@@ -195,7 +200,8 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         "role": user.role,
         "username": user.username,
         "id": user.id,
-        "school_name": school_name
+        "school_name": school_name,
+        "school_type_name": school_type_name
     }
 
 if __name__ == "__main__":

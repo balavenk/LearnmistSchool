@@ -39,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
 
     // Navigation configuration by role
     const navigationItems = useMemo<NavItem[]>(() => {
+        const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
         const navConfig: Record<string, NavItem[]> = {
             SUPER_ADMIN: [
                 { to: '/super-admin', label: 'Dashboard', end: true, icon: <DashboardIcon /> },
@@ -50,10 +51,10 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
             ],
             SCHOOL_ADMIN: [
                 { to: '/school-admin', label: 'Dashboard', end: true, icon: <DashboardIcon /> },
-                { to: '/school-admin/classes', label: 'Classes', icon: <ClassIcon /> },
-                { to: '/school-admin/teachers', label: 'Teachers', icon: <TeacherIcon /> },
-                { to: '/school-admin/students', label: 'Students', icon: <StudentsIcon /> },
-                { to: '/school-admin/grades', label: 'Grades', icon: <GradeIcon /> },
+                { to: '/school-admin/classes', label: isCorporate ? 'Departments' : 'Classes', icon: <ClassIcon /> },
+                { to: '/school-admin/teachers', label: isCorporate ? 'Managers' : 'Teachers', icon: <TeacherIcon /> },
+                { to: '/school-admin/students', label: isCorporate ? 'Employees' : 'Students', icon: <StudentsIcon /> },
+                { to: '/school-admin/grades', label: isCorporate ? 'Locations' : 'Grades', icon: <GradeIcon /> },
                 { to: '/school-admin/subjects', label: 'Subjects', icon: <SubjectIcon /> },
                 { to: '/school-admin/exam-types', label: 'Exam Types', icon: <SubjectIcon /> },
                 { to: '/school-admin/question-bank', label: 'Question Bank', icon: <QuestionIcon /> },

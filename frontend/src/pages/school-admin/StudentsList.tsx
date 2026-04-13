@@ -17,6 +17,7 @@ interface Student {
 }
 
 const StudentsList: React.FC = () => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -110,7 +111,7 @@ const StudentsList: React.FC = () => {
         try {
             await api.delete(`/school-admin/students/${studentId}`);
             setStudents(prev => prev.filter(s => s.id !== studentId));
-            toast.success("Student deleted successfully");
+            toast.success(isCorporate ? "Employee deleted successfully" : "Student deleted successfully");
         } catch (error) {
             console.error("Failed to delete student", error);
             toast.error("Failed to delete student.");
@@ -146,7 +147,7 @@ const StudentsList: React.FC = () => {
             });
             refetchStudents();
             setIsModalOpen(false);
-            toast.success("Student updated successfully");
+            toast.success(isCorporate ? "Employee updated successfully" : "Student updated successfully");
         } catch (error) {
             console.error("Failed to update student", error);
             toast.error("Failed to update student.");
@@ -348,10 +349,10 @@ const StudentsList: React.FC = () => {
             });
             refetchStudents();
             closeAddModal();
-            toast.success("Student created successfully!");
+            toast.success(isCorporate ? "Employee created successfully!" : "Student created successfully!");
         } catch (error: any) {
             const detail = error?.response?.data?.detail;
-            toast.error(detail || "Failed to create student.");
+            toast.error(detail || (isCorporate ? "Failed to create employee." : "Failed to create student."));
         }
     };
 
@@ -359,21 +360,21 @@ const StudentsList: React.FC = () => {
         <div className="space-y-6">
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Students</h1>
-                    <p className="text-slate-500 text-sm">Manage student enrollment.</p>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">{isCorporate ? 'Employees' : 'Students'}</h1>
+                    <p className="text-slate-500 text-sm">{isCorporate ? 'Manage employee enrollment.' : 'Manage student enrollment.'}</p>
                 </div>
                 <button
                     onClick={() => setIsAddModalOpen(true)}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-sm flex items-center gap-2"
                 >
-                    <span>+</span> Add Student
+                    <span>+</span> {isCorporate ? 'Add Employee' : 'Add Student'}
                 </button>
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                 <input
                     type="text"
-                    placeholder="Search students..."
+                    placeholder={isCorporate ? 'Search employees...' : 'Search students...'}
                     className="w-full pl-4 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
                     value={searchTerm}
                     onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
@@ -384,7 +385,7 @@ const StudentsList: React.FC = () => {
                 data={paginated}
                 columns={columns}
                 isLoading={loading}
-                emptyMessage="No students found."
+                emptyMessage={isCorporate ? 'No employees found.' : 'No students found.'}
             />
 
             {totalPages > 1 && (
@@ -403,7 +404,7 @@ const StudentsList: React.FC = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Add New Student</h2>
+                            <h2 className="text-xl font-bold">{isCorporate ? 'Add New Employee' : 'Add New Student'}</h2>
                             <button onClick={closeAddModal} className="text-slate-400 hover:text-slate-600">✕</button>
                         </div>
 
@@ -497,7 +498,7 @@ const StudentsList: React.FC = () => {
 
                             {/* Grade */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{isCorporate ? 'Location' : 'Grade'}</label>
                                 <select
                                     required
                                     value={newStudentGradeId}
@@ -508,14 +509,14 @@ const StudentsList: React.FC = () => {
                                     }}
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
                                 >
-                                    <option value="">Select Grade</option>
+                                    <option value="">{isCorporate ? 'Select Location' : 'Select Grade'}</option>
                                     {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                                 </select>
                             </div>
 
                             {/* Class */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Class <span className="text-slate-400 font-normal">(Optional)</span></label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{isCorporate ? 'Department' : 'Class'} <span className="text-slate-400 font-normal">(Optional)</span></label>
                                 <select
                                     value={newStudentClassId}
                                     onChange={(e) => {
@@ -525,7 +526,7 @@ const StudentsList: React.FC = () => {
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500 disabled:bg-slate-100"
                                     disabled={!newStudentGradeId}
                                 >
-                                    <option value="">Select Class</option>
+                                    <option value="">{isCorporate ? 'Select Department' : 'Select Class'}</option>
                                     {filteredClassesForNewStudent.map(c => (
                                         <option key={c.id} value={c.id}>{c.name} ({c.section})</option>
                                     ))}
@@ -539,7 +540,7 @@ const StudentsList: React.FC = () => {
                                     disabled={usernameIsTaken}
                                     className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Create Student
+                                    {isCorporate ? 'Create Employee' : 'Create Student'}
                                 </button>
                             </div>
                         </form>
@@ -552,7 +553,7 @@ const StudentsList: React.FC = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Edit Student</h2>
+                            <h2 className="text-xl font-bold">{isCorporate ? 'Edit Employee' : 'Edit Student'}</h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
                         </div>
 
@@ -607,7 +608,7 @@ const StudentsList: React.FC = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{isCorporate ? 'Location' : 'Grade'}</label>
                                 <select
                                     required
                                     value={editGradeId}
@@ -618,13 +619,13 @@ const StudentsList: React.FC = () => {
                                     }}
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
                                 >
-                                    <option value="">Select Grade</option>
+                                    <option value="">{isCorporate ? 'Select Location' : 'Select Grade'}</option>
                                     {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{isCorporate ? 'Department' : 'Class'}</label>
                                 <select
                                     value={editClassId}
                                     onChange={(e) => {

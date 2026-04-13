@@ -26,6 +26,7 @@ interface Question {
 }
 
 const QuestionBank: React.FC = () => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     const [grades, setGrades] = useState<Grade[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -334,13 +335,13 @@ const QuestionBank: React.FC = () => {
             <div className="bg-white p-6 rounded-2xl shadow-md border-2 border-slate-200">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
-                        <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">Grade</label>
+                        <label className="text-xs font-bold text-slate-600 uppercase mb-2 block">{isCorporate ? 'Department' : 'Grade'}</label>
                         <select
                             className="w-full rounded-xl border-2 border-slate-300 p-3 bg-white outline-none font-medium"
                             value={selectedGradeId}
                             onChange={(e) => setSelectedGradeId(Number(e.target.value) || '')}
                         >
-                            <option value="">Select Grade</option>
+                            <option value="">{isCorporate ? 'Select Department' : 'Select Grade'}</option>
                             {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                         </select>
                     </div>

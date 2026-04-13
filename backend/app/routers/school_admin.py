@@ -353,6 +353,7 @@ def update_student(student_id: int, student_data: schemas.StudentUpdate, db: Ses
 
 @router.post("/students/", response_model=schemas.Student)
 def create_student(student_data: schemas.StudentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_school_admin)):
+    from sqlalchemy import func
     # 1. Validation
     grade = db.query(models.Grade).filter(models.Grade.id == student_data.grade_id, models.Grade.school_id == current_user.school_id).first()
     if not grade:

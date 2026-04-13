@@ -3,6 +3,7 @@ import api from '../api/axios';
 import { Users, BookOpen, GraduationCap } from 'lucide-react';
 
 const SchoolAdminDashboard: React.FC = () => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     const [stats, setStats] = useState({
         total_students: 0,
         total_teachers: 0,
@@ -41,6 +42,12 @@ const SchoolAdminDashboard: React.FC = () => {
         };
     }, []);
 
+    const formatRole = (r: string) => {
+        if (!r) return '';
+        if (r.toUpperCase().includes('ADMIN')) return 'Admin';
+        return r.replace('_', ' ');
+    };
+
     return (
         <div className="space-y-6">
             <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6 shadow-sm">
@@ -54,7 +61,7 @@ const SchoolAdminDashboard: React.FC = () => {
                         <div>
                             <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
                                 Welcome {username}
-                                <span className='inline-block text-sm font-normal text-slate-500 ml-2'>({role.replace('_', ' ')})</span>
+                                <span className='inline-block text-sm font-normal text-slate-500 ml-2'>({formatRole(role)})</span>
                             </h1>
                             {stats.school_name && (
                                 <p className="text-sm text-slate-600 mt-1">Managing: <span className="font-semibold text-indigo-600">{stats.school_name}</span></p>
@@ -75,11 +82,11 @@ const SchoolAdminDashboard: React.FC = () => {
                 <div className="bg-gradient-to-br from-blue-400 via-blue-500 to-cyan-500 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all group">
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
-                            <p className="text-white/90 text-sm font-medium mb-1">Total Students</p>
+                            <p className="text-white/90 text-sm font-medium mb-1">{isCorporate ? 'Total Employees' : 'Total Students'}</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats.total_students}</h3>
                             <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <Users className="w-3 h-3" />
-                                <span>Enrolled</span>
+                                <span>{isCorporate ? 'Employed' : 'Enrolled'}</span>
                             </div>
                         </div>
                         <div className="bg-white/25 backdrop-blur-sm p-3 rounded-lg group-hover:scale-110 transition-transform">
@@ -92,11 +99,11 @@ const SchoolAdminDashboard: React.FC = () => {
                 <div className="bg-gradient-to-br from-violet-400 via-purple-500 to-fuchsia-500 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all group">
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
-                            <p className="text-white/90 text-sm font-medium mb-1">Total Teachers</p>
+                            <p className="text-white/90 text-sm font-medium mb-1">{isCorporate ? 'Total Managers' : 'Total Teachers'}</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats.total_teachers}</h3>
                             <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <BookOpen className="w-3 h-3" />
-                                <span>Teaching</span>
+                                <span>{isCorporate ? 'Managing' : 'Teaching'}</span>
                             </div>
                         </div>
                         <div className="bg-white/25 backdrop-blur-sm p-3 rounded-lg group-hover:scale-110 transition-transform">
@@ -109,7 +116,7 @@ const SchoolAdminDashboard: React.FC = () => {
                 <div className="bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500 p-6 rounded-xl shadow-lg hover:shadow-xl transition-all group">
                     <div className="flex items-start justify-between">
                         <div className="flex-1">
-                            <p className="text-white/90 text-sm font-medium mb-1">Classes</p>
+                            <p className="text-white/90 text-sm font-medium mb-1">{isCorporate ? 'Departments' : 'Classes'}</p>
                             <h3 className="text-3xl font-bold text-white mb-2">{stats.total_classes}</h3>
                             <div className="flex items-center gap-1 text-slate-500 text-xs">
                                 <GraduationCap className="w-3 h-3" />

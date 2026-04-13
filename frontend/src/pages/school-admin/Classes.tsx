@@ -29,6 +29,7 @@ interface Teacher {
 }
 
 const Classes: React.FC = () => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     // State
     const [classes, setClasses] = useState<ClassData[]>([]);
     const [grades, setGrades] = useState<Grade[]>([]);
@@ -142,7 +143,7 @@ const Classes: React.FC = () => {
     const classColumns = useMemo<ColumnDef<ClassData>[]>(() => [
         {
             accessorKey: 'name',
-            header: 'Class Name',
+            header: isCorporate ? 'Department Name' : 'Class Name',
             cell: ({ row }) => (
                 <div className="flex items-center">
                     <div className="h-8 w-8 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold mr-3 text-sm shrink-0">
@@ -163,7 +164,7 @@ const Classes: React.FC = () => {
         },
         {
             accessorKey: 'class_teacher_id',
-            header: 'Teacher',
+            header: isCorporate ? 'Manager' : 'Teacher',
             cell: ({ row }) => (
                 <span className="text-slate-600">{getTeacherName(row.original.class_teacher_id)}</span>
             ),
@@ -177,7 +178,7 @@ const Classes: React.FC = () => {
                         onClick={() => openAssignModal(row.original.id, row.original.class_teacher_id)}
                         className="text-sm font-medium px-3 py-1 rounded text-indigo-600 hover:bg-indigo-50"
                     >
-                        Assign Teacher
+                        {isCorporate ? 'Assign Manager' : 'Assign Teacher'}
                     </button>
                 </div>
             ),
@@ -291,7 +292,7 @@ const Classes: React.FC = () => {
             });
             await refetchData();
             closeModal();
-            toast.success("Class created successfully!");
+            toast.success(isCorporate ? "Department created successfully!" : "Class created successfully!");
         } catch (error: any) {
             console.error("Failed to create class", error);
             const errorMsg = error?.response?.data?.detail || "Failed to create class.";
@@ -323,14 +324,14 @@ const Classes: React.FC = () => {
             {/* Header */}
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Classes Management</h1>
-                    <p className="text-slate-600 mt-1">Manage all classes, sections, and assigned teachers.</p>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">{isCorporate ? 'Departments Management' : 'Classes Management'}</h1>
+                    <p className="text-slate-600 mt-1">{isCorporate ? 'Manage all departments, sections, and assigned managers.' : 'Manage all classes, sections, and assigned teachers.'}</p>
                 </div>
                 <button
                     onClick={handleOpenModal}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg shadow-sm font-medium transition-colors flex items-center"
                 >
-                    <span className="mr-2 text-xl leading-none">+</span> Add New Class
+                    <span className="mr-2 text-xl leading-none">+</span> {isCorporate ? 'Add New Department' : 'Add New Class'}
                 </button>
             </div>
 
@@ -339,7 +340,7 @@ const Classes: React.FC = () => {
                 <div className="relative w-full max-w-md">
                     <input
                         type="text"
-                        placeholder="Search classes or teachers..."
+                        placeholder={isCorporate ? "Search departments or managers..." : "Search classes or teachers..."}
                         value={searchTerm}
                         onChange={handleSearchChange}
                         className="w-full pl-10 pr-10 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -356,7 +357,7 @@ const Classes: React.FC = () => {
                     )}
                 </div>
                 <div className="text-sm text-slate-500">
-                    Showing <span className="font-semibold">{filteredClasses.length}</span> classes
+                    Showing <span className="font-semibold">{filteredClasses.length}</span> {isCorporate ? 'departments' : 'classes'}
                 </div>
             </div>
 
@@ -366,7 +367,7 @@ const Classes: React.FC = () => {
                     data={paginatedClasses}
                     columns={classColumns}
                     isLoading={loading || isFilterLoading}
-                    emptyMessage="No classes found matching your search."
+                    emptyMessage={isCorporate ? "No departments found matching your search." : "No classes found matching your search."}
                 />
 
                 {/* Pagination */}
@@ -396,7 +397,7 @@ const Classes: React.FC = () => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-slate-900">Add New Class</h2>
+                            <h2 className="text-xl font-bold text-slate-900">{isCorporate ? 'Add New Department' : 'Add New Class'}</h2>
                             <button
                                 type="button"
                                 onClick={closeModal}
@@ -408,7 +409,7 @@ const Classes: React.FC = () => {
 
                         <form onSubmit={handleCreateClass} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Class Name</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{isCorporate ? 'Department Name' : 'Class Name'}</label>
                                 <input
                                     type="text"
                                     value={newClassName}
@@ -429,7 +430,7 @@ const Classes: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">{isCorporate ? 'Location' : 'Grade'}</label>
                                     <select
                                         value={selectedGradeId}
                                         onChange={(e) => {
@@ -439,7 +440,7 @@ const Classes: React.FC = () => {
                                         required
                                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                     >
-                                        <option value="">Select Grade</option>
+                                        <option value="">{isCorporate ? 'Select Location' : 'Select Grade'}</option>
                                         {grades.map(g => (
                                             <option key={g.id} value={g.id}>{g.name}</option>
                                         ))}
@@ -467,7 +468,7 @@ const Classes: React.FC = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Class Teacher (Optional)</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{isCorporate ? 'Department Manager (Optional)' : 'Class Teacher (Optional)'}</label>
                                 <select
                                     value={selectedTeacherId}
                                     onChange={(e) => {
@@ -485,7 +486,7 @@ const Classes: React.FC = () => {
 
                             <div className="flex gap-3 pt-4 border-t border-slate-100 mt-6">
                                 <button type="button" onClick={closeModal} className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium">Cancel</button>
-                                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md">Create Class</button>
+                                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md">{isCorporate ? 'Create Department' : 'Create Class'}</button>
                             </div>
                         </form>
                     </div>
@@ -506,7 +507,7 @@ const Classes: React.FC = () => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-slate-900">Assign Teacher</h2>
+                            <h2 className="text-xl font-bold text-slate-900">{isCorporate ? 'Assign Manager' : 'Assign Teacher'}</h2>
                             <button
                                 type="button"
                                 onClick={closeAssignModal}
@@ -517,7 +518,7 @@ const Classes: React.FC = () => {
                         </div>
                         <form onSubmit={handleAssignTeacher} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Select Teacher</label>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">{isCorporate ? 'Select Manager' : 'Select Teacher'}</label>
                                 <select
                                     value={assignTeacherId}
                                     onChange={(e) => {
@@ -527,7 +528,7 @@ const Classes: React.FC = () => {
                                     required
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                                 >
-                                    <option value="">Select Teacher</option>
+                                    <option value="">{isCorporate ? 'Select Manager' : 'Select Teacher'}</option>
                                     {teachers.map(t => (
                                         <option key={t.id} value={t.id}>{t.username}</option>
                                     ))}

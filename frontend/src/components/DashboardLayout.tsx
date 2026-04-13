@@ -25,6 +25,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = () => {
     const username = localStorage.getItem('username') || 'User';
     const userInitial = username[0].toUpperCase();
 
+    const formatRole = (r: string) => {
+        if (!r) return '';
+        if (r.toUpperCase().includes('ADMIN')) return 'Admin';
+        return r.replace('_', ' ');
+    };
+
     useEffect(() => {
         if (!role || !token) {
             navigate('/login', { replace: true });
@@ -110,7 +116,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = () => {
                                 {username}
                             </span>
                             <span className="hidden md:block text-xs text-gray-500">
-                                ({role.replace('_', ' ')})
+                                ({formatRole(role)})
                             </span>
                             <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
                                 {userInitial}
@@ -132,7 +138,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = () => {
                                 {/* User Info */}
                                 <div className="px-4 py-3 border-b border-gray-100">
                                     <p className="capitalize text-sm font-semibold text-gray-900">{username}</p>
-                                    <p className="text-xs text-gray-500 mt-1">{role.replace('_', ' ')}</p>
+                                    <p className="text-xs text-gray-500 mt-1">{formatRole(role)}</p>
                                 </div>
 
 
