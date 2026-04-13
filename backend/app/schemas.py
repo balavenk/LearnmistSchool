@@ -75,6 +75,7 @@ class School(SchoolBase):
     active: bool
     student_count: Optional[int] = 0
     teacher_count: Optional[int] = 0
+    type_name: Optional[str] = None
     
     class Config:
         from_attributes = True

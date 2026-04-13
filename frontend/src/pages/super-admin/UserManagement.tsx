@@ -200,7 +200,7 @@ const UserManagement: React.FC = () => {
                 email: newAdminForm.email || null,
                 password: newAdminForm.password,
             });
-            toast.success(`School admin "${newAdminForm.username}" created successfully!`);
+            toast.success(`Organization admin "${newAdminForm.username}" created successfully!`);
             setAddAdminModalOpen(false);
             setNewAdminForm({ full_name: '', username: '', email: '', password: '', confirm_password: '' });
             // Refresh the users list
@@ -427,20 +427,20 @@ const UserManagement: React.FC = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
                         <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">User Management</h1>
-                        <p className="text-slate-600 text-md">Manage school admins, teachers, and students across all schools</p>
+                        <p className="text-slate-600 text-md">Manage organization admins, Manager/Teachers, and Employee/Students across all organizations</p>
                     </div>
                 </div>
             </div>
 
             {/* Full-width School Dropdown */}
             <div className="w-full bg-white p-4 rounded-xl shadow-sm border-2 border-slate-200 shrink-0 mb-4">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Select School</label>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Select Organization</label>
                 <select
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-slate-800 font-medium bg-slate-50"
                     value={selectedSchoolId || ''}
                     onChange={handleSchoolChange}
                 >
-                    <option value="" disabled>-- Choose a School --</option>
+                    <option value="" disabled>-- Choose an Organization --</option>
                     {schools.map(school => (
                         <option key={school.id} value={school.id}>
                             {school.name}{school.address ? `  (${school.address})` : ''}
@@ -464,7 +464,7 @@ const UserManagement: React.FC = () => {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                 </svg>
-                                School Admins
+                                Organization Admins
                             </div>
                         </button>
                         <button
@@ -478,7 +478,7 @@ const UserManagement: React.FC = () => {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                 </svg>
-                                Teachers
+                                Manager/Teachers
                             </div>
                         </button>
                         <button
@@ -492,7 +492,7 @@ const UserManagement: React.FC = () => {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
-                                Students
+                                Employee/Students
                             </div>
                         </button>
                     </div>
@@ -505,7 +505,7 @@ const UserManagement: React.FC = () => {
                             </svg>
                             <input
                                 type="text"
-                                placeholder={`Search ${activeTab === 'SCHOOL_ADMIN' ? 'admins' : activeTab === 'TEACHER' ? 'teachers' : 'students'} by name or email...`}
+                                placeholder={`Search ${activeTab === 'SCHOOL_ADMIN' ? 'admins' : activeTab === 'TEACHER' ? 'manager/teachers' : 'employee/students'} by name or email...`}
                                 value={searchTerm}
                                 onChange={handleSearchChange}
                                 className="w-full pl-12 pr-4 py-2 border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm transition-all"
@@ -521,7 +521,7 @@ const UserManagement: React.FC = () => {
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                                     </svg>
-                                    Add School Admin
+                                    Add Organization Admin
                                 </button>
                             )}
                             <div className="flex items-center gap-2 bg-indigo-100 px-4 py-2 rounded-xl border-2 border-indigo-200">
@@ -540,7 +540,7 @@ const UserManagement: React.FC = () => {
                             data={paginatedList}
                             columns={columns}
                             isLoading={loading || isFilterLoading}
-                            emptyMessage={`No ${activeTab.toLowerCase().replace('_', ' ')}s found. Try adjusting your search criteria.`}
+                            emptyMessage={`No ${activeTab === 'SCHOOL_ADMIN' ? 'organization admins' : activeTab === 'TEACHER' ? 'manager/teachers' : 'employee/students'} found. Try adjusting your search criteria.`}
                         />
                     </div>
 
@@ -563,8 +563,8 @@ const UserManagement: React.FC = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                     </div>
-                    <h3 className="text-2xl font-bold text-slate-700 mb-2">No School Selected</h3>
-                    <p className="text-slate-500 text-lg">Please select a school from the dropdown above to manage users</p>
+                    <h3 className="text-2xl font-bold text-slate-700 mb-2">No Organization Selected</h3>
+                    <p className="text-slate-500 text-lg">Please select an organization from the dropdown above to manage users</p>
                 </div>
             )}
             {/* Add School Admin Modal */}
@@ -578,8 +578,8 @@ const UserManagement: React.FC = () => {
                                 </svg>
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold text-slate-900">Add School Admin</h3>
-                                <p className="text-sm text-slate-500">Create a new admin for the selected school</p>
+                                <h3 className="text-xl font-bold text-slate-900">Add Organization Admin</h3>
+                                <p className="text-sm text-slate-500">Create a new admin for the selected organization</p>
                             </div>
                         </div>
 

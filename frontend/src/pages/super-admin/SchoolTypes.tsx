@@ -71,7 +71,7 @@ const SchoolTypes: React.FC = () => {
         try {
             await api.delete(`/super-admin/master/school-types/${id}`);
             fetchData();
-            toast.success("School Type deleted successfully");
+            toast.success("Organization Type deleted successfully");
         } catch (error: any) {
             console.error("Delete failed", error);
             toast.error("Failed to delete. " + (error.response?.data?.detail || "It might be in use."));
@@ -88,11 +88,11 @@ const SchoolTypes: React.FC = () => {
 
             if (modalMode === 'add') {
                 await api.post('/super-admin/master/school-types', payload);
-                toast.success("School Type created successfully");
+                toast.success("Organization Type created successfully");
             } else {
                 if (!currentId) return;
                 await api.put(`/super-admin/master/school-types/${currentId}`, payload);
-                toast.success("School Type updated successfully");
+                toast.success("Organization Type updated successfully");
             }
             setIsModalOpen(false);
             fetchData();
@@ -115,7 +115,7 @@ const SchoolTypes: React.FC = () => {
         () => [
             {
                 accessorKey: 'name',
-                header: 'School Type Name',
+                header: 'Organization Type Name',
                 cell: ({ row }) => (
                     <div className="flex items-center gap-3">
                         <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl p-3 font-bold text-lg shadow-md">
@@ -179,8 +179,8 @@ const SchoolTypes: React.FC = () => {
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6 ">
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">School Types</h1>
-                        <p className="text-slate-600 text-lg">Manage school level types by country</p>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Organization Types</h1>
+                        <p className="text-slate-600 text-lg">Manage organization level types by country</p>
                     </div>
                     <button
                         onClick={handleCreate}
@@ -189,7 +189,7 @@ const SchoolTypes: React.FC = () => {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        Add School Type
+                        Add Organization Type
                     </button>
                 </div>
             </div>
@@ -202,7 +202,7 @@ const SchoolTypes: React.FC = () => {
                     </svg>
                     <input
                         type="text"
-                        placeholder="Search school types by name..."
+                        placeholder="Search organization types by name..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
@@ -215,7 +215,7 @@ const SchoolTypes: React.FC = () => {
                 columns={columns}
                 data={paginatedData}
                 isLoading={loading}
-                emptyMessage="No school types found"
+                emptyMessage="No organization types found"
             />
 
             {/* Pagination */}
@@ -240,7 +240,7 @@ const SchoolTypes: React.FC = () => {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                     </svg>
                                 </div>
-                                <h2 className="text-2xl font-bold text-slate-900">{modalMode === 'add' ? 'Add School Type' : 'Edit School Type'}</h2>
+                                <h2 className="text-2xl font-bold text-slate-900">{modalMode === 'add' ? 'Add Organization Type' : 'Edit Organization Type'}</h2>
                             </div>
                             <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg p-2 transition-all">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,7 +250,7 @@ const SchoolTypes: React.FC = () => {
                         </div>
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">School Type Name *</label>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Organization Type Name *</label>
                                 <input
                                     type="text"
                                     required

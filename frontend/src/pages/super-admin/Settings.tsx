@@ -5,7 +5,7 @@ const Settings: React.FC = () => {
     const linkCards = [
         { title: 'Countries', path: '/settings/countries', description: 'Manage supported countries', color: 'bg-blue-500' },
         { title: 'Curriculum', path: '/settings/curriculums', description: 'Manage education boards/curriculums', color: 'bg-indigo-500' },
-        { title: 'School Type', path: '/settings/school-types', description: 'Manage school levels (Primary, High School, etc.)', color: 'bg-purple-500' },
+        { title: 'Organization Type', path: '/settings/school-types', description: 'Manage organization levels (Primary, High School, etc.)', color: 'bg-purple-500' },
     ];
 
     return (

@@ -18,7 +18,7 @@ const SuperAdminDashboard: React.FC = () => {
     () => [
       {
         accessorKey: 'name',
-        header: 'School Name',
+        header: 'Organization Name',
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
             <div className="bg-indigo-100 rounded-lg p-2">
@@ -161,7 +161,7 @@ const SuperAdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-slate-500 uppercase tracking-wide">
-                  Schools
+                  Organizations
                 </h3>
               </div>
             </div>
@@ -347,7 +347,7 @@ const SuperAdminDashboard: React.FC = () => {
               </svg>
             </div>
             <h3 className="text-lg font-bold text-slate-800">
-              Recent Schools Added
+              Recent Organizations Added
             </h3>
           </div>
         </div>
@@ -355,7 +355,7 @@ const SuperAdminDashboard: React.FC = () => {
           columns={columns}
           data={stats.recent_schools}
           isLoading={loading}
-          emptyMessage="No schools found. Schools will appear here once added."
+          emptyMessage="No organizations found. Organizations will appear here once added."
           mobileCardRender={(school) => (
             <div className="space-y-3">
               <div className="flex items-center justify-between">

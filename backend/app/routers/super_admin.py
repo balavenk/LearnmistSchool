@@ -88,6 +88,8 @@ def read_schools(skip: int = 0, limit: int = 100, db: Session = Depends(database
         school_data = schemas.School.model_validate(school) 
         school_data.student_count = student_count
         school_data.teacher_count = teacher_count
+        if school.school_type:
+            school_data.type_name = school.school_type.name
         results.append(school_data)
         
     return results

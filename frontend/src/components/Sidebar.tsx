@@ -42,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
         const navConfig: Record<string, NavItem[]> = {
             SUPER_ADMIN: [
                 { to: '/super-admin', label: 'Dashboard', end: true, icon: <DashboardIcon /> },
-                { to: '/schools', label: 'Schools', icon: <SchoolIcon /> },
+                { to: '/schools', label: 'Organizations', icon: <SchoolIcon /> },
                 { to: '/user-management', label: 'User Management', icon: <UsersIcon /> },
                 { to: '/manage-question-bank', label: 'Extract Question Bank', icon: <QuestionBankIcon /> },
                 { to: '/train-llm', label: 'Train Books', icon: <BrainIcon /> },

@@ -138,7 +138,7 @@ const TrainViaLLM: React.FC = () => {
         () => [
             {
                 accessorKey: 'school_name',
-                header: 'School',
+                header: 'Organization',
                 cell: ({ row }) => (
                     <span className="text-slate-900 font-medium">{row.original.school_name}</span>
                 ),

@@ -24,6 +24,7 @@ interface SchoolAdmin {
 interface School {
     id: number;
     name: string;
+    type_name?: string;
     address?: string;
     admins?: SchoolAdmin[];
     students?: number;
@@ -371,7 +372,7 @@ const Schools: React.FC = () => {
         () => [
             {
                 accessorKey: 'name',
-                header: 'School Name',
+                header: 'Organization Name',
                 cell: ({ row }) => (
                     <div className="flex items-center gap-3">
                         <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
@@ -392,6 +393,13 @@ const Schools: React.FC = () => {
                         </svg>
                         <span className="truncate">{row.original.address || 'No address'}</span>
                     </div>
+                ),
+            },
+            {
+                accessorKey: 'type_name',
+                header: 'Type',
+                cell: ({ row }) => (
+                    <span className="text-slate-600 font-medium">{row.original.type_name || 'N/A'}</span>
                 ),
             },
             {
@@ -509,9 +517,9 @@ const Schools: React.FC = () => {
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 mb-6 ">
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Schools Management</h1>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Organizations Management</h1>
                         <p className="text-slate-600 text-md">
-                            Manage all registered schools, addresses, and administrators
+                            Manage all registered organizations, addresses, and administrators
                         </p>
                     </div>
                     <button
@@ -521,7 +529,7 @@ const Schools: React.FC = () => {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        Add New School
+                        Add New Organization
                     </button>
                 </div>
             </div>
@@ -535,7 +543,7 @@ const Schools: React.FC = () => {
                         </svg>
                         <input
                             type="text"
-                            placeholder="Search schools by name..."
+                            placeholder="Search organizations by name..."
                             value={searchTerm}
                             onChange={handleSearchChange}
                             className="w-full pl-12 pr-4 py-2 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
@@ -546,7 +554,7 @@ const Schools: React.FC = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                         <span className="text-sm font-bold text-indigo-900">{filteredSchools.length}</span>
-                        <span className="text-sm text-indigo-600">Schools</span>
+                        <span className="text-sm text-indigo-600">Organizations</span>
                     </div>
                 </div>
             </div>
@@ -554,7 +562,7 @@ const Schools: React.FC = () => {
             {/* Table */}
             <div className="bg-white rounded-2xl shadow-md border-2 border-slate-200 overflow-hidden">
                 <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-3 border-b-2 border-slate-200">
-                    <h3 className="text-lg font-bold text-slate-800">All Schools</h3>
+                    <h3 className="text-lg font-bold text-slate-800">All Organizations</h3>
                 </div>
                 <div className="overflow-x-auto">
                     {/* FIX: pass schoolColumns directly — no .map() here */}
@@ -562,7 +570,7 @@ const Schools: React.FC = () => {
                         data={paginatedSchools}
                         columns={schoolColumns}
                         isLoading={loading || isFilterLoading}
-                        emptyMessage="No schools found. Try adjusting your search criteria."
+                        emptyMessage="No organizations found. Try adjusting your search criteria."
                     />
                 </div>
 
@@ -616,7 +624,7 @@ const Schools: React.FC = () => {
                                     </svg>
                                 </div>
                                 <h2 className="text-2xl font-bold text-slate-900">
-                                    {editMode ? 'Edit School' : 'Add New School'}
+                                    {editMode ? 'Edit Organization' : 'Add New Organization'}
                                 </h2>
                             </div>
                             <button
@@ -639,11 +647,11 @@ const Schools: React.FC = () => {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
-                                    <h3 className="text-lg font-bold text-slate-800">School Details</h3>
+                                    <h3 className="text-lg font-bold text-slate-800">Organization Details</h3>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">School Name *</label>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Organization Name *</label>
                                     <input
                                         type="text"
                                         value={newSchoolName}
@@ -784,7 +792,7 @@ const Schools: React.FC = () => {
                                     type="submit"
                                     className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md"
                                 >
-                                    {editMode ? 'Save Changes' : 'Create School'}
+                                    {editMode ? 'Save Changes' : 'Create Organization'}
                                 </button>
                             </div>
                         </form>
