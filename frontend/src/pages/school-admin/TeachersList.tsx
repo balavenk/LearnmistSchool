@@ -185,7 +185,7 @@ const TeachersList: React.FC = () => {
                 ),
             },
             {
-                header: 'Grade',
+                header: isCorporate ? 'Location' : 'Grade',
                 accessorKey: 'assigned_grades',
                 cell: (info) => {
                     const grades = info.getValue() as string[] || [];
@@ -198,7 +198,7 @@ const TeachersList: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <span className="text-slate-400 italic text-xs">No Grade Assigned</span>
+                        <span className="text-slate-400 italic text-xs">{isCorporate ? 'No Location Assigned' : 'No Grade Assigned'}</span>
                     );
                 },
             },
@@ -242,7 +242,7 @@ const TeachersList: React.FC = () => {
                                 }}
                                 className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
                             >
-                                Change class
+                                {isCorporate ? 'Change department' : 'Change class'}
                             </button>
                         </div>
                     );
@@ -282,7 +282,7 @@ const TeachersList: React.FC = () => {
                     onClick={() => navigate(`/school-admin/teachers/${teacher.id}/classes`)}
                     className="text-xs font-medium text-indigo-600"
                 >
-                    Change class
+                    {isCorporate ? 'Change department' : 'Change class'}
                 </button>
             </div>
         </div>

@@ -22,6 +22,7 @@ interface Option {
 }
 
 const TeacherClasses: React.FC = () => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -144,17 +145,17 @@ const TeacherClasses: React.FC = () => {
         () => [
             {
                 accessorKey: 'grade.name',
-                header: 'Grade',
+                header: isCorporate ? 'Location' : 'Grade',
                 cell: ({ row }) => (
                     <span className="text-slate-900 font-medium">{row.original.grade?.name || 'N/A'}</span>
                 ),
             },
             {
                 accessorKey: 'class_.name',
-                header: 'Class / Section',
+                header: isCorporate ? 'Department / Section' : 'Class / Section',
                 cell: ({ row }) => (
                     <span className="text-slate-500">
-                        {row.original.class_ ? `${row.original.class_.name} (${row.original.class_.section})` : 'All Classes'}
+                        {row.original.class_ ? `${row.original.class_.name} (${row.original.class_.section})` : (isCorporate ? 'All Departments' : 'All Classes')}
                     </span>
                 ),
             },
@@ -187,14 +188,14 @@ const TeacherClasses: React.FC = () => {
         <div className="space-y-6">
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100 flex items-center justify-between mb-6">
                 <div>
-                    <button onClick={() => navigate('/school-admin/teachers')} className="text-indigo-600 hover:underline text-sm mb-2">← Back to Teachers</button>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Assigned Classes for {teacherName || 'Teacher'}</h1>
+                    <button onClick={() => navigate('/school-admin/teachers')} className="text-indigo-600 hover:underline text-sm mb-2">← Back to {isCorporate ? 'Managers' : 'Teachers'}</button>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">{isCorporate ? 'Assigned Departments for ' : 'Assigned Classes for '} {teacherName || (isCorporate ? 'Manager' : 'Teacher')}</h1>
                 </div>
                 <button
                     onClick={() => setIsAddModalOpen(true)}
                     className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700"
                 >
-                    + Assign New Class
+                    {isCorporate ? '+ Assign New Department' : '+ Assign New Class'}
                 </button>
             </div>
 
@@ -203,7 +204,7 @@ const TeacherClasses: React.FC = () => {
                 columns={columns}
                 data={assignments}
                 isLoading={loading}
-                emptyMessage="No classes assigned yet."
+                emptyMessage={isCorporate ? 'No departments assigned yet.' : 'No classes assigned yet.'}
             />
 
             {/* Modal */}
@@ -211,32 +212,32 @@ const TeacherClasses: React.FC = () => {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Assign Class</h2>
+                            <h2 className="text-xl font-bold">{isCorporate ? 'Assign Department' : 'Assign Class'}</h2>
                             <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
                         </div>
                         <form onSubmit={handleAdd} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-medium text-slate-500 mb-1">Grade</label>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">{isCorporate ? 'Location' : 'Grade'}</label>
                                 <select
                                     value={selectedGrade}
                                     onChange={(e) => { setSelectedGrade(e.target.value); setSelectedClass(''); }}
                                     required
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500"
                                 >
-                                    <option value="">Select Grade</option>
+                                    <option value="">Select {isCorporate ? 'Location' : 'Grade'}</option>
                                     {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-slate-500 mb-1">Class (Optional)</label>
+                                <label className="block text-xs font-medium text-slate-500 mb-1">{isCorporate ? 'Department (Optional)' : 'Class (Optional)'}</label>
                                 <select
                                     value={selectedClass}
                                     onChange={(e) => setSelectedClass(e.target.value)}
                                     className="w-full px-4 py-2 border rounded-lg outline-none focus:border-indigo-500 disabled:bg-slate-100"
                                     disabled={!selectedGrade}
                                 >
-                                    <option value="">All Classes (or Specific)</option>
+                                    <option value="">{isCorporate ? 'All Departments (or Specific)' : 'All Classes (or Specific)'}</option>
                                     {/* Need to filter classes by grade. Assuming 'classes' has grade_id or we fetch by grade */}
                                     {/* In fetchOptions we got all classes. Assuming client side filter works if schema has grade_id */}
                                     {classes.filter(c => c.grade_id == Number(selectedGrade)).map(c => (
