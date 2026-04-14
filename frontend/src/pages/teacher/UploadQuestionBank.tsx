@@ -41,6 +41,7 @@ interface PaginatedResponse {
 }
 
 const TeacherUploadQuestionBank: React.FC = () => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     const [grades, setGrades] = useState<Grade[]>([]);
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [materials, setMaterials] = useState<PdfFile[]>([]);
@@ -270,7 +271,7 @@ const TeacherUploadQuestionBank: React.FC = () => {
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-5 relative overflow-hidden group">
 
                 <div className="relative w-full md:w-auto flex-1 max-w-md">
-                    <label className="text-sm font-semibold text-slate-700 mb-1.5 block">Grade Selection</label>
+                    <label className="text-sm font-semibold text-slate-700 mb-1.5 block">{isCorporate ? 'Location Selection' : 'Grade Selection'}</label>
                     <select
                         value={selectedGradeId}
                         onChange={(e) => {
@@ -280,7 +281,7 @@ const TeacherUploadQuestionBank: React.FC = () => {
                         }}
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-slate-700 transition-all cursor-pointer"
                     >
-                        <option value="">Select a grade...</option>
+                        <option value="">Select a {isCorporate ? 'location' : 'grade'}...</option>
                         {grades.map((grade) => (
                             <option key={grade.id} value={grade.id}>{grade.name}</option>
                         ))}

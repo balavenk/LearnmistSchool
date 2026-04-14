@@ -57,6 +57,7 @@ const Students: React.FC = () => {
     const [classes, setClasses] = useState<ClassData[]>([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
 
     const [filters, setFilters] = useState({
         name: '',
@@ -149,7 +150,7 @@ const Students: React.FC = () => {
     const studentColumns = useMemo<ColumnDef<Student>[]>(() => [
         {
             accessorKey: 'name',
-            header: 'Student',
+            header: isCorporate ? 'Employee' : 'Student',
             cell: ({ row }) => (
                 <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-full ${getAvatarColor(row.original.id)} flex items-center justify-center text-white font-bold text-sm shadow-md`}>
@@ -164,7 +165,7 @@ const Students: React.FC = () => {
         },
         {
             accessorKey: 'grade_id',
-            header: 'Grade',
+            header: isCorporate ? 'Location' : 'Grade',
             cell: ({ row }) => (
                 <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold border ${getGradeColor(getGradeName(row.original.grade_id))}`}>
                     {getGradeName(row.original.grade_id)}
@@ -173,7 +174,7 @@ const Students: React.FC = () => {
         },
         {
             accessorKey: 'class_id',
-            header: 'Class / Section',
+            header: isCorporate ? 'Department / Section' : 'Class / Section',
             cell: ({ row }) => (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,13 +237,13 @@ const Students: React.FC = () => {
 
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600 font-medium">Grade</span>
+                    <span className="text-sm text-slate-600 font-medium">{isCorporate ? 'Location' : 'Grade'}</span>
                     <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${getGradeColor(getGradeName(student.grade_id))}`}>
                         {getGradeName(student.grade_id)}
                     </span>
                 </div>
                 <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-600 font-medium">Class</span>
+                    <span className="text-sm text-slate-600 font-medium">{isCorporate ? 'Department' : 'Class'}</span>
                     <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
                         {getClassName(student.class_id)}
                     </span>
@@ -498,12 +499,12 @@ const Students: React.FC = () => {
             <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 shadow-sm border border-indigo-100">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                     <div className="flex-1">
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Student Roster</h1>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">{isCorporate ? 'Employee Roster' : 'Student Roster'}</h1>
                         <p className="text-slate-600 flex items-center gap-2">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
-                            Manage your students and track their progress
+                            Manage your {isCorporate ? 'employees' : 'students'} and track their progress
                         </p>
                     </div>
 
@@ -511,7 +512,7 @@ const Students: React.FC = () => {
                     <div className="flex flex-wrap gap-3">
                         <div className="bg-white rounded-xl px-4 py-3 shadow-sm border border-indigo-100">
                             <div className="text-2xl font-bold text-indigo-600">{unfilteredTotalCount}</div>
-                            <div className="text-xs text-slate-500 font-medium">Total Students</div>
+                            <div className="text-xs text-slate-500 font-medium">{isCorporate ? 'Total Employees' : 'Total Students'}</div>
                         </div>
                         {unfilteredGradeStats.slice(0, 2).map(stat => (
                             <div key={stat.grade} className="bg-white rounded-xl px-4 py-3 shadow-sm border border-purple-100">
@@ -592,7 +593,7 @@ const Students: React.FC = () => {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        Add Student
+                        {isCorporate ? 'Add Employee' : 'Add Student'}
                     </button>
                 </div>
 
@@ -602,7 +603,7 @@ const Students: React.FC = () => {
                         <span className="text-xs font-semibold text-slate-600">Active Filters:</span>
                         {filters.grade_id && (
                             <span className="inline-flex items-center gap-1 bg-white border border-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-xs font-medium shadow-sm">
-                                Grade: {getGradeName(Number(filters.grade_id))}
+                                {isCorporate ? 'Location' : 'Grade'}: {getGradeName(Number(filters.grade_id))}
                                 <button onClick={() => {
                                     console.log('🧹 Clear grade filter clicked');
                                     setFilters(prev => ({ ...prev, grade_id: '' }));
@@ -616,7 +617,7 @@ const Students: React.FC = () => {
                         )}
                         {filters.class_id && (
                             <span className="inline-flex items-center gap-1 bg-white border border-purple-200 text-purple-700 px-3 py-1 rounded-lg text-xs font-medium shadow-sm">
-                                Class: {getClassName(Number(filters.class_id))}
+                                {isCorporate ? 'Department' : 'Class'}: {getClassName(Number(filters.class_id))}
                                 <button onClick={() => {
                                     console.log('🧹 Clear class filter clicked');
                                     setFilters(prev => ({ ...prev, class_id: '' }));
@@ -646,7 +647,7 @@ const Students: React.FC = () => {
                             <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                             </svg>
-                            Filter by Grade
+                            {isCorporate ? 'Filter by Location' : 'Filter by Grade'}
                         </label>
                         <select
                             value={filters.grade_id}
@@ -667,7 +668,7 @@ const Students: React.FC = () => {
                             }}
                             className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                         >
-                            <option value="">All Grades</option>
+                            <option value="">All</option>
                             {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                         </select>
                     </div>
@@ -676,7 +677,7 @@ const Students: React.FC = () => {
                             <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
-                            Filter by Class
+                            {isCorporate ? 'Filter by Department' : 'Filter by Class'}
                         </label>
                         <select
                             value={filters.class_id}
@@ -697,7 +698,7 @@ const Students: React.FC = () => {
                             }}
                             className="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
                         >
-                            <option value="">All Classes</option>
+                            <option value="">All</option>
                             {filteredClassesForFilter.map(c => <option key={c.id} value={c.id}>{c.name} ({c.section})</option>)}
                         </select>
                     </div>
@@ -767,7 +768,7 @@ const Students: React.FC = () => {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                         </svg>
-                                        Grade
+                                        {isCorporate ? 'Location' : 'Grade'}
                                     </span>
                                     <span className={`px - 3 py - 1 rounded - lg text - xs font - bold border ${getGradeColor(getGradeName(student.grade_id))} `}>
                                         {getGradeName(student.grade_id)}
@@ -778,7 +779,7 @@ const Students: React.FC = () => {
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                         </svg>
-                                        Class
+                                        {isCorporate ? 'Department' : 'Class'}
                                     </span>
                                     <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold">
                                         {getClassName(student.class_id)}

@@ -27,7 +27,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = () => {
 
     const formatRole = (r: string) => {
         if (!r) return '';
-        if (r.toUpperCase().includes('ADMIN')) return 'Admin';
+        const upper = r.toUpperCase();
+        if (upper.includes('ADMIN')) return 'Admin';
+        const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
+        if (upper === 'TEACHER' && isCorporate) return 'Manager';
         return r.replace('_', ' ');
     };
 

@@ -21,6 +21,7 @@ interface UploadQuestionBankModalProps {
 }
 
 const UploadQuestionBankModal: React.FC<UploadQuestionBankModalProps> = ({ isOpen, onClose, onSuccess, initialGradeId }) => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     const [file, setFile] = useState<File | null>(null);
     const [grades, setGrades] = useState<Grade[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -152,13 +153,13 @@ const UploadQuestionBankModal: React.FC<UploadQuestionBankModalProps> = ({ isOpe
                 <div className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-1.5 block">Grade</label>
+                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-1.5 block">{isCorporate ? 'Location' : 'Grade'}</label>
                             <select
                                 value={selectedGradeId}
                                 onChange={(e) => setSelectedGradeId(Number(e.target.value) || '')}
                                 className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
                             >
-                                <option value="">Select Grade</option>
+                                <option value="">Select {isCorporate ? 'Location' : 'Grade'}</option>
                                 {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                             </select>
                         </div>

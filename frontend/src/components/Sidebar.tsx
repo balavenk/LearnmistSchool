@@ -64,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ role, isOpen, onClose }) => {
             TEACHER: [
                 { to: '/teacher', label: 'Dashboard', end: true, icon: <DashboardIcon /> },
                 { to: '/teacher/assignments', label: 'Assignments', icon: <AssignmentIcon /> },
-                { to: '/teacher/students', label: 'Students', icon: <StudentsIcon /> },
+                { to: '/teacher/students', label: isCorporate ? 'Employees' : 'Students', icon: <StudentsIcon /> },
                 { to: '/teacher/grading', label: 'Grading', icon: <GradingIcon /> },
                 { to: '/teacher/templates', label: 'Templates', icon: <TemplateIcon /> },
                 { to: '/teacher/papers', label: 'Question Paper', icon: <CreateIcon /> },

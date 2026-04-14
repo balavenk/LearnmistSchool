@@ -40,6 +40,7 @@ interface PaginatedResponse {
 }
 
 const TeacherUploadPdf: React.FC = () => {
+    const isCorporate = localStorage.getItem('schoolType') === 'Corporate';
     const [grades, setGrades] = useState<Grade[]>([]);
     const [selectedGradeId, setSelectedGradeId] = useState<number | ''>('');
     const [materials, setMaterials] = useState<PdfFile[]>([]);
@@ -259,7 +260,7 @@ const TeacherUploadPdf: React.FC = () => {
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-5 relative overflow-hidden group">
 
                 <div className="relative w-full md:w-auto flex-1 max-w-md">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5 block ml-1">Grade Selection</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1.5 block ml-1">{isCorporate ? 'Location Selection' : 'Grade Selection'}</label>
                     <div className="relative">
                         <GraduationCap className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-indigo-500 pointer-events-none" />
                         <select
@@ -271,7 +272,7 @@ const TeacherUploadPdf: React.FC = () => {
                             }}
                             className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none font-bold text-slate-700 transition-all appearance-none cursor-pointer"
                         >
-                            <option value="">Select a grade...</option>
+                            <option value="">Select a {isCorporate ? 'location' : 'grade'}...</option>
                             {grades.map((grade) => (
                                 <option key={grade.id} value={grade.id}>{grade.name}</option>
                             ))}
