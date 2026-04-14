@@ -119,6 +119,20 @@ def update_school(school_id: int, school_update: schemas.SchoolCreate, db: Sessi
     db.refresh(db_school)
     return db_school
 
+class SchoolStatusUpdate(schemas.BaseModel):
+    active: bool
+
+@router.patch("/schools/{school_id}", response_model=schemas.School)
+def update_school_status(school_id: int, status_update: SchoolStatusUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
+    db_school = db.query(models.School).filter(models.School.id == school_id).first()
+    if not db_school:
+        raise HTTPException(status_code=404, detail="School not found")
+    
+    db_school.active = status_update.active
+    db.commit()
+    db.refresh(db_school)
+    return db_school
+
 @router.post("/schools/{school_id}/admin", response_model=schemas.User)
 def create_school_admin(school_id: int, user: schemas.UserCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_super_admin)):
     # Verify school exists

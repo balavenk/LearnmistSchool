@@ -355,9 +355,9 @@ const Schools: React.FC = () => {
         try {
             await api.patch(`/super-admin/schools/${school.id}`, { active: !school.active });
             fetchSchools();
-            toast.success(`School ${school.active ? 'deactivated' : 'activated'} successfully!`);
+            toast.success(`Corporation ${school.active ? 'deactivated' : 'activated'} successfully!`);
         } catch {
-            toast.error('Failed to update school status.');
+            toast.error('Failed to update corporation status.');
         }
     }, [fetchSchools]);
 

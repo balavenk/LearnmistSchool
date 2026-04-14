@@ -107,7 +107,7 @@ const ManageQuestionBank: React.FC = () => {
     const columns = useMemo<ColumnDef<PdfFile>[]>(() => [
         {
             accessorKey: 'school_name',
-            header: 'School',
+            header: 'Organization',
             cell: ({ row }) => <span className="text-slate-900 font-medium">{row.original.school_name}</span>,
         },
         {
