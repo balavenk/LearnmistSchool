@@ -174,6 +174,16 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             detail="user locked contact support to unlock the user.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    if user.school_id:
+        school = db.query(models.School).filter(models.School.id == user.school_id).first()
+        if school and not school.active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unable to login . Please contact your admin",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
     access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = auth.create_access_token(
         data={"sub": user.username, "role": user.role, "school_id": user.school_id, "id": user.id}, expires_delta=access_token_expires
